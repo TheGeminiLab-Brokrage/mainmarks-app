@@ -51,36 +51,9 @@
     });
   }
 
-  /* ---- a salesperson's bar (build 121) ------------------------------
-     The same floating bar as on "My activity" (my.html), so the two pages
-     read as one app: Quick Offer (here), My activity, Profile, and the
-     round plus that records an orientation, a workshop, a meeting, a
-     reservation or a contract. Only for a salesperson who is on the team
-     (MM.auth.member): a manager has Team Pulse, and a copy published
-     without the team has no My activity to go to. It is on this page
-     only: inside a project the picture keeps the whole screen. */
-  if (MM.auth.member() !== -1) {
-    var icon = function (d) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>'; };
-    var bar = el('nav', 'sp-bar');
-    bar.setAttribute('aria-label', t('Sections'));
-    [['index.html', '<path d="M21 3L10 14M21 3l-6.5 18-4.5-7-7-4.5z"/>', t('Quick Offer'), true],
-      ['my.html', '<path d="M3 12h4l2.5-7 4 14 2.5-7h5"/>', t('My activity')],
-      ['my.html#profile', '<circle cx="12" cy="8.5" r="3.6"/><path d="M4.5 20c0-4 3.4-6.5 7.5-6.5s7.5 2.5 7.5 6.5"/>', t('Profile')]].forEach(function (x) {
-      var a = el('a');
-      a.href = x[0];
-      if (x[3]) a.setAttribute('aria-current', 'page');
-      a.innerHTML = icon(x[1]);
-      a.appendChild(el('span', null, x[2]));
-      bar.appendChild(a);
-    });
-    var plus = el('a', 'sp-fab');
-    plus.href = 'my.html#record';
-    plus.setAttribute('aria-label', t('Record an orientation, a workshop, a meeting, a reservation or a contract'));
-    plus.innerHTML = icon('<path d="M12 5v14M5 12h14"/>');
-    document.body.appendChild(bar);
-    document.body.appendChild(plus);
-    document.body.classList.add('has-sp-bar');
-  }
+  /* ---- a sales agent's bar: Quick Offer, My activity, Profile, the plus.
+     One bar for every page, drawn by MM.salesBar (js/brand.js). */
+  MM.salesBar();
 
   var live = document.getElementById('live');
   var soon = document.getElementById('soon');

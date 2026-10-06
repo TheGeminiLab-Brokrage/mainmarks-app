@@ -274,6 +274,8 @@
         s.title = p.title || ''; s.mustChange = !!p.must_change_password;
         write(s); live = s;
         if (was !== p.role) { location.reload(); return; }
+        flushOffers();
+        marks(access);
         return companies(access);
       });
     }).catch(function () { /* offline, or already signed out */ });
@@ -298,6 +300,102 @@
       return Array.isArray(a) && a.length ? a : null;
     } catch (e) { return null; }
   }
+
+  /* EVERY OFFER SENT IS SAVED (build 127). Called when an offer leaves the app. It never stands in the
+     way of the send: the row is put on a list kept on the phone first, then sent to the store, and what
+     the store has not confirmed is sent again on the next page (so an offer made with no signal is
+     still counted). Each row carries its own reference, made here, so a row sent twice is saved once.
+     o: { company: name | null (a general broadcast), product, channel: 'pdf' | 'post', unit, area, value }
+     A company that is not on the admin's list cannot be counted for a company: it is saved as a
+     general broadcast, and "Who is this offer for?" says so before the send. */
+  var OFFERS_KEY = 'mm.offers.queue.v1';
+  function queued() { try { var a = JSON.parse(localStorage.getItem(OFFERS_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+  function setQueued(a) { try { localStorage.setItem(OFFERS_KEY, JSON.stringify(a)); } catch (e) { /* this visit only */ } }
+  function companyId(name) {
+    var list = companyList() || [], want = String(name || '').trim().toLowerCase(), i;
+    if (!want) return null;
+    for (i = 0; i < list.length; i++) if (String(list[i].name).trim().toLowerCase() === want) return list[i].id;
+    return null;
+  }
+  /* ON A PHONE THE OFFER LEAVES THROUGH THE SHARE SHEET, and the phone may put this page to sleep, or
+     throw it away, while the agent is in WhatsApp. So the row is written to the phone BEFORE the share
+     sheet opens (offerLeaving, held), and released when the sheet answers (offerLeft), or removed when
+     the agent closed the sheet without sending (offerNotSent). A held row found by a LATER page means
+     the page died with the sheet open: a closed sheet comes straight back to a living page, so that
+     row is an offer that went, and it is saved. */
+  var holding = {};
+  function offerLeaving(o) { var ref = logOffer(o, true); if (ref) holding[ref] = true; return ref; }
+  function offerLeft(ref) {
+    if (!ref) return;
+    delete holding[ref];
+    setQueued(queued().map(function (r) { if (r.p_client_ref === ref) delete r.hold; return r; }));
+    flushOffers();
+  }
+  function offerNotSent(ref) {
+    if (!ref) return;
+    delete holding[ref];
+    setQueued(queued().filter(function (r) { return r.p_client_ref !== ref; }));
+  }
+  function logOffer(o, hold) {
+    var s = current(), q, ref;
+    if (!real() || !s || !s.real) return null;
+    o = o || {};
+    q = queued();
+    ref = 'o-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
+    q.push({ by: s.id, hold: hold ? 1 : undefined,
+      p_client_ref: ref,
+      propose: o.propose && o.company ? String(o.company).trim() : undefined,
+      p_company: o.propose ? null : companyId(o.company), p_product: o.product || null, p_channel: o.channel === 'post' ? 'post' : 'pdf',
+      p_unit: o.unit || null, p_area: o.area || null, p_value: o.value || null, p_sent_at: new Date().toISOString() });
+    setQueued(q.slice(-200));
+    if (!hold) flushOffers();
+    return ref;
+  }
+  var flushing = false, tried = {};
+  function flushOffers() {
+    var s = current(), mine;
+    if (flushing || !real() || !s || !s.real) return;
+    /* each row is tried once per page: one the store will not take now waits for the next page */
+    mine = queued().filter(function (r) { return r.by === s.id && !tried[r.p_client_ref] && !(r.hold && holding[r.p_client_ref]); });
+    if (!mine.length) return;
+    flushing = true;
+    var done = function (ref) { setQueued(queued().filter(function (r) { return r.p_client_ref !== ref; })); };
+    var next = function (i) {
+      if (i >= mine.length) { flushing = false; flushOffers(); return; }   /* an offer sent meanwhile */
+      var r = mine[i], body = {};
+      tried[r.p_client_ref] = true;
+      Object.keys(r).forEach(function (k) { if (k !== 'by' && k !== 'hold' && k !== 'propose') body[k] = r[k]; });
+      var refusedForGood = function (x) { return !!(x.body && /MM_/.test(String(x.body.message || ''))); };
+      var save = function () {
+        return call('/rest/v1/rpc/mm_log_offer', { method: 'POST', body: body }).then(function (x) {
+          /* saved, or refused for good (the store's own code): either way it does not wait any longer */
+          if (x.status === 200 || refusedForGood(x)) done(r.p_client_ref);
+          next(i + 1);
+        });
+      };
+      /* a company not on the list: the store names it first (the same name always gets the same company) */
+      (r.propose ? call('/rest/v1/rpc/mm_propose_company', { method: 'POST', body: { p_name: r.propose } }).then(function (x) {
+        if (x.status === 200 && typeof x.body === 'string') { body.p_company = x.body; return save(); }
+        if (refusedForGood(x)) done(r.p_client_ref);
+        next(i + 1);
+      }) : save()).catch(function () { flushing = false; });
+    };
+    next(0);
+  }
+
+  /* A COMPANY THAT IS NOT ON THE LIST (build 127). An agent may send to a company the admin has not
+     listed: it is saved for that company, which waits for the admin. She approves it, or rules it a
+     listed company spelled differently, and that counts against him. Three, and he can no longer
+     propose a company (the store refuses; this is only so the screen says so first). */
+  function marks(access) {
+    return api('/rest/v1/rpc/mm_my_wrong_names', { method: 'POST', body: {} }, access).then(function (r) {
+      var s = current();
+      if (r.status !== 200 || !s || typeof r.body !== 'number') return;
+      s.wrong = r.body; write(s); live = s;
+    }, function () { /* no signal: the last answer stands */ });
+  }
+  function wrongNames() { var s = current(); return (s && s.real && Number(s.wrong)) || 0; }
+  function mayPropose() { return wrongNames() < 3; }
 
   /* A PERSON CHOOSES HIS OWN PASSWORD. Resolves { ok } | { ok: false, why }. */
   function changePassword(pw) {
@@ -376,9 +474,9 @@
      carries no staff code, so the account is looked up by its id. */
   function member() {
     var s = current(), team = cfg().salesTeam, staff = '', i;
-    /* build 124: on the store there is no My activity yet. That page still draws the demo book, and a
-       real person must never be shown invented figures as his own. It opens when it reads the store. */
-    if (real()) return -1;
+    /* build 127: on the store My activity reads the store, so every sales agent has it. His place in
+       his team is the book's to say (js/manager-book.js `me`); here the answer is only yes or no. */
+    if (real()) return s && s.real && s.role === 'sales' ? 0 : -1;
     if (!s || s.role !== 'sales' || !team || !Array.isArray(team.members)) return -1;
     staff = s.staff || '';
     if (!staff) (cfg().users || []).forEach(function (u) { if (u.id === s.id) staff = u.staff || ''; });
@@ -387,11 +485,24 @@
     return -1;
   }
 
+  /* back from WhatsApp, or back online: send what is waiting */
+  if (typeof document !== 'undefined' && document.addEventListener) {
+    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') { tried = {}; flushOffers(); } });
+    root.addEventListener('online', function () { tried = {}; flushOffers(); });
+    root.addEventListener('pageshow', function () { flushOffers(); });
+  }
+
   MM.auth = {
     real: real,
     token: token,
     call: call,
     companyList: companyList,
+    logOffer: logOffer,
+    wrongNames: wrongNames,
+    mayPropose: mayPropose,
+    offerLeaving: offerLeaving,
+    offerLeft: offerLeft,
+    offerNotSent: offerNotSent,
     changePassword: changePassword,
     member: member,
     current: current,

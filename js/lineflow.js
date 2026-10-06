@@ -433,6 +433,7 @@
         askAudience(function (who) {
           MM.post.open({
             project: p, line: l, options: opts, all: rows, who: who, session: session, demo: demo,
+            onSent: sent(who, 'post', null),
             kit: { handheld: handheld, canShare: canShare, shareOrTimeOut: shareOrTimeOut, saveFile: saveFile }
           });
         }, { postOnly: true });
@@ -1022,7 +1023,7 @@
           if (who.format === 'post' && MM.post) {
             MM.post.open({
               project: p, line: l, unit: c.u, plan: c.pl, buildingName: c.b && c.b.name, who: who,
-              session: session, demo: demo,
+              session: session, demo: demo, onSent: sent(who, 'post', c.u),
               kit: { handheld: handheld, canShare: canShare, shareOrTimeOut: shareOrTimeOut, saveFile: saveFile }
             });
             return;
@@ -1037,14 +1038,14 @@
             });
             return;
           }
-          deliver(made, offerText());       /* still inside the Continue tap */
+          deliver(made, offerText(), sent(who, 'pdf', c.u));       /* still inside the Continue tap */
         }, { ready: ready, withPdf: withPdf });
       });
       /* the offer leaves the app. A phone: the PDF (and the text) through its
          share sheet. A laptop: WhatsApp Web with the text, and the PDF saved to
          attach, because a laptop's share flyout can hang for ever (playbook 01,
          4) and wa.me cannot carry a file (5). No PDF for this unit: the text. */
-      function deliver(made, text) {
+      function deliver(made, text, left) {
         var file = null;
         try { if (made) file = new File([made.blob], made.name, { type: 'application/pdf' }); } catch (e) { file = null; }
         /* copy the text FIRST: once the share sheet is open the page has lost
@@ -1054,16 +1055,20 @@
         if (file && handheld() && canShare({ files: [file] })) {
           var payload = canShare({ files: [file], text: text }) ? { files: [file], text: text } : { files: [file] };
           note.textContent = '';
+          left('start');
           shareOrTimeOut(payload).then(function () {
+            left('ok');
             note.textContent = t('Offer PDF shared. The text is copied too, in case WhatsApp drops it.');
           }, function (e) {
-            if (e && e.name === 'AbortError') return;          /* the agent closed the sheet: a decision, not a failure */
+            if (e && e.name === 'AbortError') { left('no'); return; }          /* the agent closed the sheet: a decision, not a failure */
+            left('ok');
             saveFile(file);
             note.textContent = t('Could not open the share sheet, so the PDF was saved. The text is copied.');
           });
           return;
         }
         window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank', 'noopener');
+        left('ok');
         if (file) { saveFile(file); note.textContent = t('WhatsApp opened with the text. The offer PDF is downloaded: attach it there.'); }
       }
       copy.addEventListener('click', function () {
@@ -1099,6 +1104,25 @@
        phone passes the company the request came from. Recorded nowhere yet:
        the activity log is the back end's job. */
     var AUD_KEY = 'mm.audience';
+    /* build 127: THE OFFER LEFT THE APP, so it is saved to the store (js/auth.js logOffer; nothing on
+       the demo). Called where the share sheet took it or WhatsApp opened, never when the agent closed
+       the share sheet. A post of several options is one answer to one request: one row, no unit. */
+    var SOLD_AS = { commercial: 'Commercial', admin: 'Offices', fourth: 'The Fourth', wellness: 'Clinics', residence: 'Serviced apartments' };
+    /* Returns one function, called with 'start' just before a phone's share sheet opens, 'ok' when the
+       offer went, 'no' when the agent closed the sheet. On a phone the row is on the phone before the
+       sheet opens, so a page the phone throws away while he is in WhatsApp still saves the offer. */
+    function sent(who, channel, u) {
+      var ref = null;
+      var row = { company: who && who.audience === 'broker' ? who.company : null, propose: !!(who && who.audience === 'broker' && who.isNew), product: SOLD_AS[l.id] || null, channel: channel,
+        unit: u ? u.code : null, area: u ? u.area : null, value: u ? (u.listPrice || u.finalPrice || null) : null };
+      return function (stage) {
+        if (!MM.auth.offerLeaving) return;
+        if (stage === 'start') { ref = MM.auth.offerLeaving(row); return; }
+        if (stage === 'no') { MM.auth.offerNotSent(ref); ref = null; return; }
+        if (!ref) ref = MM.auth.offerLeaving(row);
+        MM.auth.offerLeft(ref); ref = null;
+      };
+    }
     /* how.ready (build 88): the offer PDF being made for a real phone; Continue
        waits for it, so the share sheet can open inside that tap */
     function askAudience(then, how) {
@@ -1144,6 +1168,10 @@
       field.appendChild(inp); field.appendChild(drop);
       co.appendChild(field);
       if (!list.length) co.appendChild(el('span', 'q-who-note', t('Main Marks’ brokerage list will fill this once it is sent. Type the company for now.')));
+      /* build 127: on the store, the company is one on the admin's list, or a name he sends for approval */
+      var STORE = !!(MM.auth.real && MM.auth.real()), fresh = null;
+      var newNote = el('p', 'q-who-note'); newNote.hidden = true;
+      co.appendChild(newNote);
       card.appendChild(co);
 
       /* build 90: SEND IT AS the offer PDF or a WhatsApp post (Muhanad,
@@ -1270,9 +1298,7 @@
         if (!open || (m.length === 1 && m[0] === typed)) {
           drop.hidden = true; inp.setAttribute('aria-expanded', 'false'); return;
         }
-        if (!m.length) {
-          drop.appendChild(el('li', 'q-who-none', t('No company in the list is close to “{typed}”. It will be kept as typed.', { typed: typed })));
-        }
+        if (!m.length && !STORE) drop.appendChild(el('li', 'q-who-none', t('No company in the list is close to “{typed}”. It will be kept as typed.', { typed: typed })));
         if (hi >= m.length) hi = m.length - 1;
         m.forEach(function (n, i) {
           var li = el('li', 'q-who-item' + (i === hi ? ' is-hi' : ''));
@@ -1283,13 +1309,41 @@
           li.addEventListener('pointerdown', function (e) { e.preventDefault(); pickName(n); });
           drop.appendChild(li);
         });
+        /* build 127, ON THE STORE: a name that is not on the list is not kept as typed. He picks a listed
+           company, or sends the name to the admin for approval; after three wrong spellings, he cannot. */
+        if (STORE && typed.length >= 2 && !listed(typed)) {
+          if (MM.auth.mayPropose()) {
+            var add = el('li', 'q-who-item q-who-new');
+            add.setAttribute('role', 'option');
+            add.appendChild(el('span', null, t('Not on the list? Send “{typed}” to the admin for approval', { typed: typed })));
+            add.addEventListener('pointerdown', function (e) { e.preventDefault(); proposeName(typed); });
+            drop.appendChild(add);
+          } else {
+            drop.appendChild(el('li', 'q-who-none', t('“{typed}” is not on the company list. Choose a listed company, or ask the admin to add it.', { typed: typed })));
+          }
+        }
         if (phone) {
           var room = (vv ? vv.height : root.innerHeight) - 200;
           drop.style.maxHeight = Math.max(150, Math.min(380, room)) + 'px';
         }
         drop.hidden = false; inp.setAttribute('aria-expanded', 'true');
       }
+      function listed(typed) {
+        var want = String(typed || '').trim().toLowerCase(), i;
+        for (i = 0; i < names.length; i++) if (String(names[i]).trim().toLowerCase() === want) return names[i];
+        return null;
+      }
+      function sayNew() {
+        newNote.hidden = !fresh;
+        if (fresh) newNote.textContent = t('“{name}” goes to the admin for approval. If it is a listed company spelled differently, it counts against you: {n} of 3 so far.', { name: fresh, n: MM.auth.wrongNames() });
+      }
+      function proposeName(n) {
+        fresh = n; inp.value = n; hi = -1; paintDrop(false); sayNew(); check();
+        picking(false);
+        if (phone) inp.blur();
+      }
       function pickName(n) {
+        fresh = null; sayNew();
         inp.value = n; hi = -1; paintDrop(false); check();
         picking(false);                      /* the whole card comes back, with Continue */
         if (phone) inp.blur();               /* and the keyboard goes */
@@ -1297,7 +1351,7 @@
       inp.addEventListener('focus', function () { picking(true); paintDrop(true); });
       inp.addEventListener('click', function () { picking(true); paintDrop(true); });   /* a tap on a field that already has focus */
       /* the best match is lit as you type, so Enter / Go picks it */
-      inp.addEventListener('input', function () { picking(true); hi = inp.value.trim() ? 0 : -1; paintDrop(true); });
+      inp.addEventListener('input', function () { if (fresh !== null && inp.value.trim() !== fresh) { fresh = null; sayNew(); } picking(true); hi = inp.value.trim() ? 0 : -1; paintDrop(true); });
       inp.addEventListener('blur', function () { setTimeout(function () { paintDrop(false); picking(false); }, 120); });
       inp.addEventListener('keydown', function (e) {
         var m = matches();
@@ -1327,14 +1381,19 @@
         audience = a;
         [].forEach.call(opts.children, function (b) { b.setAttribute('aria-pressed', String(b.dataset.a === a)); });
         co.hidden = a !== 'broker';
-        if (a === 'broker' && !inp.value && !asked) inp.value = (last && last.audience === 'broker' && last.company) || '';
+        if (a === 'broker' && !inp.value && !asked) {
+          inp.value = (last && last.audience === 'broker' && last.company) || '';
+          /* the company he proposed a moment ago is still the one he is sending to */
+          if (STORE && last && last.isNew && inp.value && !listed(inp.value) && MM.auth.mayPropose()) { fresh = inp.value; sayNew(); }
+        }
         if (!fmtPicked) setFormat(a === 'broker' ? 'pdf' : 'post', false);
         check();
       }
       function check() {
         var waitPdf = pending && format === 'pdf';
         go2.textContent = waitPdf ? t('Preparing the offer PDF…') : format === 'post' ? t('Make the post') : t('Continue to WhatsApp');
-        go2.disabled = waitPdf || !audience || !format || (audience === 'broker' && !inp.value.trim());
+        go2.disabled = waitPdf || !audience || !format || (audience === 'broker' && !inp.value.trim()) ||
+          (STORE && audience === 'broker' && !listed(inp.value) && fresh !== inp.value.trim());
       }
       inp.addEventListener('input', check);
       function close() {
@@ -1349,9 +1408,10 @@
       dim.addEventListener('click', close);
       document.addEventListener('keydown', onKey);
       go2.addEventListener('click', function () {
-        var who = { audience: audience, company: audience === 'broker' ? inp.value.trim() : null, format: format };
+        var who = { audience: audience, company: audience === 'broker' ? (STORE && listed(inp.value)) || inp.value.trim() : null, format: format };
+        if (STORE && audience === 'broker' && !listed(inp.value)) who.isNew = true;
         /* a post-only send does not change how the next single offer is sent */
-        var keep = postOnly ? { audience: who.audience, company: who.company, format: (last && last.format) || null } : who;
+        var keep = postOnly ? { audience: who.audience, company: who.company, isNew: who.isNew, format: (last && last.format) || null } : who;
         try { sessionStorage.setItem(AUD_KEY, JSON.stringify(keep)); } catch (e) {}
         close();
         then(who);

@@ -1193,6 +1193,9 @@ body.is-login { min-height: 100svh; }
   }
   .is-chooser .pick-foot .marks > img { height: 14px; }
   .is-chooser .pick-foot .gate-priv { text-align: right; font-size: 8.5px; line-height: 1.25; gap: 0; }
+  /* build 127: the bar is on this page too, and its plus sits over the end of this one-row footer;
+     the row stops short of it, on whichever side the plus is */
+  .is-chooser.has-sp-bar .pick-foot { padding-inline-end: 64px; }
   .chooser .l-card { flex: 0 0 72%; scroll-snap-align: center; }
   /* THE SWIPE. --f is how far a card is from the centre, 0 (centred) to 1
      (a card's width away), written on every scroll frame by scrollLights.
@@ -3313,11 +3316,11 @@ body.is-ready .mv-hint { opacity: 1; }
 @media (max-width: 480px) { .mode-switch { padding: 0 9px; } .mode-switch span { display: none; } }
 @media (prefers-reduced-motion: reduce) { .st-gauge .g-arc, .st-gauge .g-beat, .st-step.is-lit .st-node { animation: none; } }
 
-/* ---- build 121: a salesperson's bar on the projects page ----------------
+/* ---- build 121: a sales agent's bar; on every page since build 127 ------
    The floating bar and the round plus of "My activity" (css/manager.css,
-   .tab and .fab), repeated here because this page does not load that
+   .tab and .fab), repeated here because these pages do not load that
    sheet. `sp-` on purpose: a plain .tab or .fab could meet a rule already
-   in this file. Shown only to a salesperson on the team (js/app.js). */
+   in this file. Shown only to a sales agent (MM.salesBar in js/brand.js). */
 .sp-bar { position: fixed; z-index: 40; left: max(12px, calc(50% - 228px)); right: max(12px, calc(50% - 228px)); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: grid; grid-template-columns: repeat(3, 1fr); padding: 6px; border-radius: 24px; border: 1px solid rgba(247, 149, 30, .18); background: #17110c; box-shadow: 0 -18px 30px 6px #000, 0 22px 0 14px #000; font-family: Manrope, system-ui, sans-serif; }
 .sp-bar a { display: grid; justify-items: center; gap: 3px; padding: 6px 0; min-width: 0; font-size: 10px; font-weight: 600; line-height: 1.3; letter-spacing: 0; color: #a39a92; text-decoration: none; border-radius: 14px; position: relative; }
 .sp-bar svg { width: 22px; height: 22px; }
@@ -3330,3 +3333,10 @@ body.is-ready .mv-hint { opacity: 1; }
 html[lang="ar"] .sp-bar { font-family: "IBM Plex Sans Arabic", Manrope, Tahoma, sans-serif; }
 /* room under the page so the footer is never behind the bar */
 body.has-sp-bar { padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)); }
+/* build 127: the black around the bar is the page's own ground carried up to it, which is right while
+   the bar spans the screen. On a wide screen the bar is a short pill, and over a picture that black
+   read as a blot (seen on a product page at laptop width): there it is an ordinary shadow. */
+@media (min-width: 600px) { .sp-bar { box-shadow: 0 12px 32px rgba(0, 0, 0, .65); } }
+
+/* build 127: "not on the list? send it to the admin" in the company list */
+.q-who-item.q-who-new { color: var(--orange); font-weight: 600; border-top: 1px solid rgba(255, 255, 255, .14); }

@@ -334,9 +334,46 @@
     box.appendChild(menu);
   }
 
+  /* ---- a sales agent's bar (build 121; on every page since build 127) ---
+     The same floating bar as on "My activity" (my.html), so the pages read
+     as one app: Quick Offer (the sales app), My activity, Profile, and the
+     round plus that records an orientation, a workshop, a meeting, a
+     reservation or a contract. Only for a sales agent who has a My activity
+     (MM.auth.member): a manager has Team Pulse, and a copy published
+     without the team has no My activity to go to.
+
+     Build 121 drew it on the projects page only. Muhanad, 2026-10-07: it is
+     on EVERY page, because inside a project a sales agent had to go back to
+     the first page to reach My activity or the plus. Written once here and
+     called by each page, so the pages cannot drift apart. */
+  function salesBar() {
+    if (!MM.auth || MM.auth.member() === -1 || document.querySelector('.sp-bar')) return;
+    var icon = function (d) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>'; };
+    var bar = el('nav', 'sp-bar');
+    bar.setAttribute('aria-label', t('Sections'));
+    [['index.html', '<path d="M21 3L10 14M21 3l-6.5 18-4.5-7-7-4.5z"/>', t('Quick Offer'), true],
+      ['my.html', '<path d="M3 12h4l2.5-7 4 14 2.5-7h5"/>', t('My activity')],
+      ['my.html#profile', '<circle cx="12" cy="8.5" r="3.6"/><path d="M4.5 20c0-4 3.4-6.5 7.5-6.5s7.5 2.5 7.5 6.5"/>', t('Profile')]].forEach(function (x) {
+      var a = el('a');
+      a.href = x[0];
+      if (x[3]) a.setAttribute('aria-current', 'page');
+      a.innerHTML = icon(x[1]);
+      a.appendChild(el('span', null, x[2]));
+      bar.appendChild(a);
+    });
+    var plus = el('a', 'sp-fab');
+    plus.href = 'my.html#record';
+    plus.setAttribute('aria-label', t('Record an orientation, a workshop, a meeting, a reservation or a contract'));
+    plus.innerHTML = icon('<path d="M12 5v14M5 12h14"/>');
+    document.body.appendChild(bar);
+    document.body.appendChild(plus);
+    document.body.classList.add('has-sp-bar');
+  }
+
   MM.el = el;
   MM.t = t;
   MM.whoMenu = whoMenu;
+  MM.salesBar = salesBar;
   MM.project = project;
   MM.sellableProject = sellableProject;
   MM.applyBrand = applyBrand;

@@ -733,6 +733,8 @@
       flash(copyNow() ? t('Copied. Paste it into WhatsApp.') : t('Select the text above and copy it.'));
     });
 
+    /* build 127: the post left the app, so the sales app saves it (o.onSent, js/lineflow.js) */
+    function left(stage) { if (typeof o.onSent === 'function') o.onSent(stage); }
     send.addEventListener('click', function () {
       if (send.disabled) return;
       /* the demo's phone answers inside the demo (demo.html) */
@@ -748,11 +750,14 @@
       var copied = copyNow();
       if (file && kit.handheld() && kit.canShare({ files: [file] })) {
         var payload = kit.canShare({ files: [file], text: ta.value }) ? { files: [file], text: ta.value } : { files: [file] };
+        left('start');
         kit.shareOrTimeOut(payload).then(function () {
+          left('ok');
           /* WhatsApp on an iPhone often drops the caption from a shared picture */
           flash(copied ? t('Sent to the share sheet. If WhatsApp shows the picture without the text, paste it: it is copied.') : t('Sent to the share sheet.'));
         }, function (e) {
-          if (e && e.name === 'AbortError') { flash(t('Not sent.')); return; }
+          if (e && e.name === 'AbortError') { left('no'); flash(t('Not sent.')); return; }
+          left('ok');
           kit.saveFile(file);
           flash(t('The share sheet did not open, so the picture was saved and the text copied. Attach the picture in WhatsApp and paste the text.'));
         });
@@ -763,6 +768,7 @@
       /* NOT wa.me: its redirect turns every emoji into U+FFFD (seen 2026-10-03);
          WhatsApp's own address keeps them */
       root.open('https://api.whatsapp.com/send?text=' + encodeURIComponent(ta.value), '_blank', 'noopener');
+      left('ok');
       if (file) { kit.saveFile(file); flash(t('WhatsApp opened with the text. The picture is saved: attach it there.')); }
     });
 

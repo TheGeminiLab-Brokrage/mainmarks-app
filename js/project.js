@@ -47,6 +47,10 @@
   var session = MM.auth.require('project.html' + location.search);
   if (!session) return;
 
+  /* A sales agent's bar and plus, on every page since build 127 (js/brand.js).
+     Before the refusals below, so a page that says "not open" still has it. */
+  MM.salesBar();
+
   /* Then the project, by the shared rule. */
   var p = MM.sellableProject(id);
   if (!p || !MM.auth.maySell(id)) {
@@ -80,7 +84,9 @@
     if (bk) {
       bk.href = 'project.html?p=' + encodeURIComponent(p.id);
       var bs = bk.querySelector('span');
-      if (bs) bs.textContent = p.name;
+      /* The span's data-t goes with it (build 127): the page's own translation pass runs after
+         this script, and in Arabic it wrote "All projects" back over the name. */
+      if (bs) { bs.removeAttribute('data-t'); bs.textContent = p.name; }
     }
   }
 

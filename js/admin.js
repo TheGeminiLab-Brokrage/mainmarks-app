@@ -64,7 +64,7 @@
     return Promise.all([
       rpc('mm_admin_people'),
       MM.auth.call('/rest/v1/mm_teams?select=id,name,manager_id&order=name'),
-      MM.auth.call('/rest/v1/mm_companies?select=id,name,active&order=name')
+      MM.auth.call('/rest/v1/mm_companies?select=id,name,active,pending,proposed_by,merged_into&order=name')
     ]).then(function (r) {
       if (r[0].status !== 200 || r[1].status !== 200 || r[2].status !== 200) throw new Error('store');
       people = r[0].body; teams = r[1].body; companies = r[2].body;
@@ -107,6 +107,8 @@
   function personRow(p) {
     var bits = [p.title ? esc(p.title) : roleName(p.role), '<bdi>' + esc(p.email) + '</bdi>'];
     var flag = !p.active ? '<span class="adm-flag off">' + t('Switched off') + '</span>' : (p.must_change_password ? '<span class="adm-flag">' + t('First password') + '</span>' : '');
+    /* build 127: how many company names he sent that turned out to be listed companies spelled differently */
+    if (p.wrong_names > 0) flag += '<span class="adm-flag off">' + t('Wrong spellings: {n} of 3', { n: p.wrong_names }) + '</span>';
     return '<button class="row' + (p.active ? '' : ' gone') + '" type="button" data-p="' + esc(p.id) + '"><span class="nm">' + nm(p.name) + '</span><span class="sub">' + bits.join(' · ') + '</span><span class="val code">' + flag + '</span></button>';
   }
   function screenPeople() {
@@ -133,9 +135,17 @@
     return html;
   }
   function screenCompanies() {
-    var shown = companies.filter(function (c) { return matches(c.name); });
-    var on = companies.filter(function (c) { return c.active; }).length;
-    return head(t('Brokerage companies'), t('{n} companies, {off} switched off', { n: '<b>' + companies.length + '</b>', off: '<b>' + (companies.length - on) + '</b>' })) +
+    /* build 127: names sales agents sent that are not on the list wait here for her; a spelling she
+       moved onto a listed company is not a company and is not listed */
+    var waiting = companies.filter(function (c) { return c.pending; });
+    var real = companies.filter(function (c) { return !c.pending && !c.merged_into; });
+    var shown = real.filter(function (c) { return matches(c.name); });
+    var on = real.filter(function (c) { return c.active; }).length;
+    return head(t('Brokerage companies'), t('{n} companies, {off} switched off', { n: '<b>' + real.length + '</b>', off: '<b>' + (real.length - on) + '</b>' })) +
+      (waiting.length ? '<section class="card"><h2>' + t('Waiting for your approval') + ' <em>' + waiting.length + '</em></h2><p class="note">' + t('Sales agents sent offers to these names, which are not on the list. Open each one and decide.') + '</p><div class="rows">' + waiting.map(function (c) {
+        var by = person(c.proposed_by);
+        return '<button class="row" type="button" data-c="' + esc(c.id) + '"><span class="nm">' + nm(c.name) + '</span><span class="sub">' + (by ? t('Sent by {name}', { name: nm(by.name) }) : '') + '</span><span class="val code"><span class="adm-flag">' + t('Decide') + '</span></span></button>';
+      }).join('') + '</div></section>' : '') +
       '<label class="fld adm-find"><input id="find" type="search" autocomplete="off" placeholder="' + esc(t('Find a company')) + '" value="' + esc(find) + '"></label>' +
       (shown.length ? '<section class="card"><div class="rows">' + shown.map(function (c) {
         return '<button class="row' + (c.active ? '' : ' gone') + '" type="button" data-c="' + esc(c.id) + '"><span class="nm">' + nm(c.name) + '</span><span class="val code">' + (c.active ? '' : '<span class="adm-flag off">' + t('Switched off') + '</span>') + '</span></button>';
@@ -315,7 +325,38 @@
     });
   }
 
+  /* A NAME THAT IS NOT ON THE LIST (build 127). Two answers, and only hers: it is a new company (she
+     may correct the name first), or it is a listed company spelled differently. The second moves every
+     offer onto that company and counts against the agent who sent it: three, and he can no longer send
+     to a company that is not on the list. */
+  function openPending(c) {
+    var by = person(c.proposed_by), who = by ? by.name : t('the sales agent');
+    var listed = companies.filter(function (x) { return x.active && !x.pending; });
+    showSheet('<div><h3>' + nm(c.name) + '</h3><p class="role">' + (by ? t('Sent by {name}', { name: nm(by.name) }) + ' · ' : '') + t('Not on the list yet') + '</p></div><div class="form">' +
+      '<p class="sec">' + t('It is a new company') + '</p>' +
+      '<label class="fld">' + t('Company name') + '<input id="aName" type="text" autocomplete="off" value="' + esc(c.name) + '"></label>' +
+      '<button class="btn" type="button" id="aSave">' + t('Add it to the list') + '</button>' +
+      '<p class="sec">' + t('It is a listed company, spelled differently') + '</p>' +
+      '<label class="fld">' + t('Which company is it') + '<select id="aInto"><option value="">' + t('Choose a company') + '</option>' + listed.map(function (x) { return '<option value="' + esc(x.id) + '">' + esc(x.name) + '</option>'; }).join('') + '</select></label>' +
+      '<p class="note">' + t('The offers move onto that company. This counts as a wrong spelling for {name}: {n} of 3. After three, {name} can no longer send to a company that is not on the list.', { name: nm(who), n: ((by && by.wrong_names) || 0) + 1 }) + '</p>' +
+      '<button class="btn ghost adm-danger" type="button" id="aMerge">' + t('Move it to that company') + '</button>' +
+      '<p class="note bad" id="aErr" hidden></p></div>');
+    $('aSave').addEventListener('click', function () {
+      var name = $('aName').value.replace(/\s+/g, ' ').trim();
+      if (!name) return bad(t('Enter the name.'));
+      send($('aSave'), rpc('mm_admin_set_company', { p_company: c.id, p_name: name, p_active: true }), function () { closeSheet(); again(t('{name} is on the list.', { name: name })); });
+    });
+    $('aMerge').addEventListener('click', function () {
+      var into = $('aInto').value, target = companies.filter(function (x) { return x.id === into; })[0];
+      if (!target) return bad(t('Choose which company it is.'));
+      send($('aMerge'), rpc('mm_admin_merge_company', { p_company: c.id, p_into: into }), function (n) {
+        closeSheet(); again(t('Moved to {company}. {name}: wrong spelling {n} of 3.', { company: target.name, name: who, n: n }));
+      });
+    });
+  }
+
   function openCompany(c) {
+    if (c && c.pending) return openPending(c);
     showSheet('<div><h3>' + (c ? nm(c.name) : t('Add a company')) + '</h3><p class="role">' + (c ? (c.active ? t('On the lists every sales agent chooses from.') : t('Switched off: it is not offered any more. Its history is kept.')) : t('It appears at once in every sales agent\'s list of companies.')) + '</p></div><div class="form">' +
       '<label class="fld">' + t('Company name') + '<input id="aName" type="text" autocomplete="off" value="' + esc(c ? c.name : '') + '"></label>' +
       '<p class="note bad" id="aErr" hidden></p><button class="btn" type="button" id="aSave">' + (c ? t('Save the name') : t('Add the company')) + '</button>' +
