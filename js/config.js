@@ -14,7 +14,7 @@ const CONFIG = {
   /* Bumped on every deploy, and matched by the ?v= on every script tag in
      the HTML. That pair is what stops a returning phone running yesterday's
      JavaScript. See README, "Deploying". */
-  build: 125,
+  build: 126,
 
   /* Where the activity log is sent. Empty = kept on the device only, which
      is where it is today. Filling this in is the whole change when the
@@ -875,14 +875,20 @@ const CONFIG = {
          confirmed. Turn it off the day they do. */
       post: { sample: true },
       offer: {
-        scope: { types: ['Clinic'], floors: ['first'], buildings: ['E02'] },
+        /* build 126: the second floor of Building E is in (Muhanad, 2026-10-07: "finalize Moray Wellness building E").
+           A floor is in scope when it has all three: its plan and its building plate below (`art`), and its
+           units traced (`unitShapes`). */
+        scope: { types: ['Clinic'], floors: ['first', 'second'], buildings: ['E02'] },
         art: {
           render:     'img/moray-line-wellness-render.jpg',   /* Wellness CI p.10, the placed image */
           logoWhite:  'img/pdf/wellness-white.png',           /* CI p.11 */
           logoOrange: 'img/pdf/wellness-orange.png',          /* CI p.11 */
           mainMarks:  'img/mainmarks-wordmark.png',
-          plates:     { 'E02': { first: 'img/pdf/plate-E02-first.jpg' } },
-          floors:     { first: 'img/pdf/plan-first.jpg' },    /* brochure PDF p.20 */
+          /* JPEG copies of img/moray-plate-*.webp and img/moray-plan-*.webp (jsPDF takes no WebP), flattened
+             on white, the plan at the same pixel size so `plates` and `unitShapes` fit unchanged */
+          plates:     { 'E02': { first: 'img/pdf/plate-E02-first.jpg', second: 'img/pdf/plate-E02-second.jpg' } },
+          floors:     { first: 'img/pdf/plan-first.jpg',     /* brochure PDF p.20 */
+                        second: 'img/pdf/plan-second.jpg' }, /* brochure PDF p.21 */
           /* build 79: the project and the building. Every render is Main Marks' own,
              copied out of the Moray brochure with pdfimages -j, NOT re-encoded. */
           street:     'img/moray-render.jpg',                 /* PDF p.12 (no heading on the page) */
@@ -896,7 +902,10 @@ const CONFIG = {
            drawn at slightly different scales. Lined up by their site outlines
            (alpha masks, overlap 99.2%): master px = s * first-floor px + (tx, ty).
            So a building cut on the floor plan (`plates`) is found on the master plan. */
-        masterFromFloor: { s: 0.98989, tx: 16.04, ty: 16.16 },
+        /* build 126: the fit was measured on the FIRST-floor drawing (`floor`). Another floor's drawing sits
+           on a different canvas, so a building is found on the master plan through its first-floor cut:
+           the same building, the same size, at that drawing's own offset (js/pdf.js, js/post.js). */
+        masterFromFloor: { s: 0.98989, tx: 16.04, ty: 16.16, floor: 'first' },
         /* The project in the brochure's own figures and words (PDF p.14, p.37) */
         /* `smallAr` / `clinicQuoteAr` (build 80): there is NO Arabic Moray
            brochure, so these are OUR translations of its English, marked as such

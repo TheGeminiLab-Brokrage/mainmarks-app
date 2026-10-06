@@ -127,7 +127,7 @@
     thisClinic: function (c) { return 'This clinic, ' + c; },
     fUnitCode: 'Unit code', clinicWord: 'Clinic', fFloor: 'Floor', fArea: 'Area', fList: 'Original price', fPerM: 'Price per m²',
     onFloor: function (fl) { return 'On the ' + fl; },
-    drawingsSrc: function (b) { return 'Drawings: Moray brochure, PDF p.20, first floor; ' + b + ' is a sharpened copy.'; },
+    drawingsSrc: function (b, page, floor) { return 'Drawings: Moray brochure, PDF p.' + page + ', ' + floor.toLowerCase() + '; ' + b + ' is a sharpened copy.'; },
     /* 5 */
     paymentPlan: 'Payment plan', planLabel: function (pl) { return pl.label; },
     group: function (until) { return until ? 'Current offer  ·  valid until ' + until : 'Standard plan'; },
@@ -207,7 +207,7 @@
     thisClinic: function (c) { return 'هذه العيادة، ' + c; },
     fUnitCode: 'كود الوحدة', clinicWord: 'عيادة', fFloor: 'الدور', fArea: 'المساحة', fList: 'السعر الأصلي', fPerM: 'سعر المتر المربع',
     onFloor: function (fl) { return 'في ' + fl; },
-    drawingsSrc: function (b) { return 'الرسومات: كتيب Moray، صفحة 20، الدور الأول؛ رسم ' + b + ' نسخة أوضح منها.'; },
+    drawingsSrc: function (b, page, floor) { return 'الرسومات: كتيب Moray، صفحة ' + page + '، ' + floor + '؛ رسم ' + b + ' نسخة أوضح منها.'; },
     /* 5 */
     paymentPlan: 'خطة السداد',
     planLabel: function (pl) {
@@ -587,8 +587,11 @@
     var mpw = 300, mph = mpw * art.master.h / art.master.w, mpy = 168, mpx = mx(M, mpw);
     image(art.master, mpx, mpy, mpw, mph);
     var ms = mpw / art.master.w;
-    var ex0 = mpx + (R.s * box[0] + R.tx) * ms, ey0 = mpy + (R.s * box[1] + R.ty) * ms;
-    var ex1 = mpx + (R.s * box[2] + R.tx) * ms, ey1 = mpy + (R.s * box[3] + R.ty) * ms;
+    /* build 126: the fit is measured on one floor's drawing (R.floor): the building is found through
+       its cut on THAT floor, whatever floor the clinic is on */
+    var mbox = (p.plates[u.building] || {})[R.floor || 'first'] || box;
+    var ex0 = mpx + (R.s * mbox[0] + R.tx) * ms, ey0 = mpy + (R.s * mbox[1] + R.ty) * ms;
+    var ex1 = mpx + (R.s * mbox[2] + R.tx) * ms, ey1 = mpy + (R.s * mbox[3] + R.ty) * ms;
     alpha(0.62, function () {
       fill('#FFFFFF');
       doc.rect(mpx, mpy, mpw, ey0 - mpy, 'F');
@@ -709,7 +712,10 @@
     fill(ORANGE);
     doc.circle(kx + ux * ksx, ky + 8 + uy * ksy, 2.4, 'F');
 
-    source(T.drawingsSrc(bName), M, dy0 + dh + 14);
+    /* the page of the brochure this floor's drawing is on, read from the floor's own source line */
+    var planPage = (/p\.(\d+)/.exec((((p.floors || []).filter(function (f) { return f.id === fid; })[0]) || {}).source || '') || [])[1];
+    if (!planPage) throw new Error('The brochure page of the ' + fid + ' floor drawing is not recorded. No document.');
+    source(T.drawingsSrc(bName, planPage, T.floorPhrase(fid, floorWord)), M, dy0 + dh + 14);
     footer(4, TOTAL);
     stamp();
 

@@ -244,7 +244,14 @@
 
         /* the building lit, the rest veiled: its cut is found on the master
            plan through the measured fit (config masterFromFloor), never by eye */
-        var toM = function (x, y) { return [(R.s * x + R.tx) * ms, (R.s * y + R.ty) * ms]; };
+        /* build 126: the fit is measured on one floor's drawing (R.floor). A point on another floor's
+           drawing is first carried into that floor's cut of the same building. */
+        var mb = (p.plates[u.building] || {})[R.floor || 'first'] || box;
+        var toM = function (x, y) {
+          x = mb[0] + (x - box[0]) * (mb[2] - mb[0]) / (box[2] - box[0]);
+          y = mb[1] + (y - box[1]) * (mb[3] - mb[1]) / (box[3] - box[1]);
+          return [(R.s * x + R.tx) * ms, (R.s * y + R.ty) * ms];
+        };
         var e0 = toM(box[0], box[1]), e1 = toM(box[2], box[3]);
         ctx.fillStyle = 'rgba(255,255,255,.55)';
         ctx.fillRect(0, 0, W, e0[1]);
@@ -501,7 +508,14 @@
         ctx.drawImage(master, 0, 0, W, MH);
 
         /* the building lit on the whole master plan, one pin on it */
-        var toM = function (x, y) { return [(R.s * x + R.tx) * ms, (R.s * y + R.ty) * ms]; };
+        /* build 126: the fit is measured on one floor's drawing (R.floor). A point on another floor's
+           drawing is first carried into that floor's cut of the same building. */
+        var mb = (p.plates[u0.building] || {})[R.floor || 'first'] || box;
+        var toM = function (x, y) {
+          x = mb[0] + (x - box[0]) * (mb[2] - mb[0]) / (box[2] - box[0]);
+          y = mb[1] + (y - box[1]) * (mb[3] - mb[1]) / (box[3] - box[1]);
+          return [(R.s * x + R.tx) * ms, (R.s * y + R.ty) * ms];
+        };
         var e0 = toM(box[0], box[1]), e1 = toM(box[2], box[3]);
         ctx.fillStyle = 'rgba(255,255,255,.55)';
         ctx.fillRect(0, 0, W, e0[1]);

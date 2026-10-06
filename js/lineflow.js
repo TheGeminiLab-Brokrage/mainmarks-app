@@ -499,8 +499,10 @@
     refresh.addEventListener('click', load);
     sel.addEventListener('change', function () { selectBuilding(sel.value, false); });
 
+    /* build 126 (Muhanad, 2026-10-07): a tap moves the page to the next step at EVERY width. It used to
+       happen on a phone only, and on a laptop the next step opened below the fold and had to be found. */
     function go(section) {
-      if (window.matchMedia('(max-width: 820px)').matches) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     /* ---- 1 → 2 ------------------------------------------------------------ */
@@ -909,7 +911,8 @@
       var copy = el('button', 'q-ghost', t('Copy offer text'));
       copy.type = 'button';
       var note = el('span', 'q-note');
-      actions.appendChild(send); actions.appendChild(copy); actions.appendChild(note);
+      /* build 126: "Copy offer text" is off the page (Muhanad, 2026-10-07). The post has its own "Copy text". */
+      actions.appendChild(send); actions.appendChild(note);
       var assume = el('ul', 'q-assume');
       (p.assumptions || []).forEach(function (a) { assume.appendChild(el('li', null, t(a))); });
 
