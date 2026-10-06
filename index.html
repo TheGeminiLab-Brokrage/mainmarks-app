@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Main Marks — Choose a project</title>
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="img/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="img/icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css?v=125">
+</head>
+<body class="is-picker">
+
+<!-- ACCESS GRANTED, arriving half. Identical markup to login.html — see
+     css/styles.css, "the crossing".
+
+     IT IS FIRST IN THE BODY, AND THE SCRIPT BELOW IT IS INLINE AND
+     SYNCHRONOUS, ON PURPOSE. Both have to be settled before anything
+     else paints. From app.js, at the foot of the page, the project
+     list would show at full brightness for a frame before the overlay
+     covered it — a white flash in the middle of the transition, which
+     is the one thing it cannot survive. The overlay is fixed, so
+     sitting first costs the layout nothing. -->
+<div class="xfade" id="xfade" aria-hidden="true">
+  <span class="xf-line xf-l1 from-l"></span>
+  <span class="xf-line xf-l2 from-r"></span>
+  <span class="xf-line xf-l3 from-l"></span>
+  <span class="xf-line xf-l4 from-r"></span>
+  <div class="xf-copy">
+    <p class="xf-granted" data-t="Access granted">Access granted</p>
+    <p class="xf-select" data-t="Select a project">Select a project</p>
+    <span class="xf-rule"></span>
+  </div>
+</div>
+<script>
+/* Did we arrive through the sign-in transition? The classes are put on
+   HERE rather than by a rule keyed off the <html> flag, because a
+   first-paint rule would have to out-rank the rules that later animate
+   the overlay away — and losing that specificity race means an overlay
+   that never lifts. The element carries its own state instead.
+
+   The key is read once and removed, and anything older than four
+   seconds is ignored, so a stale flag can never black out a page
+   somebody opened on its own. */
+(function () {
+  try {
+    var t = sessionStorage.getItem('mm.enter');
+    sessionStorage.removeItem('mm.enter');
+    if (!t || (Date.now() - Number(t)) >= 4000) return;
+    document.documentElement.className += ' is-entering';
+    /* This page is being UNCOVERED, so it must not also play its own
+       arrival. Set here and never removed: it is true for this load. */
+    document.body.className += ' no-entrance';
+    document.getElementById('xfade').className = 'xfade is-on is-in no-anim';
+  } catch (e) { /* private mode, blocked storage: just arrive normally */ }
+}());
+</script>
+
+<!-- THE MARK BUILDS ITSELF — phase 1, and phase 1 is all this page
+     does: the screen goes black and we hand over. Everything else
+     happens on the project page, under a black layer it paints before
+     its own first frame.
+
+     THE HAND-OVER IS ON PURE BLACK ON PURPOSE. Two documents can never
+     be composited, so a hand-over always shows one frame of each; a
+     frame of nothing is the only seam that cannot be seen. An earlier
+     version handed over on the finished wordmark and read as two
+     transitions stitched together. -->
+<div class="markbuild" id="markbuild" aria-hidden="true"></div>
+
+<div class="shell">
+
+  <header class="top" data-in="1">
+    <a class="brandmark" href="index.html" aria-label="Main Marks — all projects" data-t-aria="Main Marks — all projects">
+      <img src="img/mainmarks-wordmark.svg" alt="Main Marks" class="logo-jpg">
+    </a>
+    <div class="who" id="who"></div>
+    <!-- build 67: the same header on every page — the mark, the initials,
+         and the three steps with this page's step lit. "/ Projects" beside
+         the mark is gone: the step row now says where you are. -->
+    <ol class="steps" aria-label="Progress" data-t-aria="Progress">
+      <li class="now" aria-current="step" data-t="Project">Project</li>
+      <li data-t="Building & unit">Building &amp; unit</li>
+      <li data-t="Offer">Offer</li>
+    </ol>
+  </header>
+
+  <main class="picker">
+
+    <section class="pick-intro">
+      <p class="eyebrow" data-in="2" data-t="Choose a project">Choose a project</p>
+      <h1 data-in="3" data-t-html="Marks of&lt;br&gt;Distinction&lt;span class=&quot;dot&quot;&gt;.&lt;/span&gt;">Marks of<br>Distinction<span class="dot">.</span></h1>
+      <p class="pick-lede" data-in="4" data-t="Moray is open. Building and unit selection, the offer and the WhatsApp post follow here as its sales material arrives.">Moray is open. Building and unit selection, the offer
+        and the WhatsApp post follow here as its sales material arrives.</p>
+    </section>
+
+    <div class="cards" id="live"></div>
+
+    <div class="soonhead" id="soonhead" hidden>
+      <h2 data-t="Coming soon">Coming soon</h2>
+      <span class="rule-fill" aria-hidden="true"></span>
+      <span class="count-label"><span class="count">0</span> <span data-t="in preparation">in preparation</span></span>
+    </div>
+    <div class="cards soon-cards" id="soon"></div>
+
+    <footer class="pick-foot">
+      <div class="marks"><img src="img/mainmarks-signature.svg" alt="Main Marks"></div>
+      <div class="gate-priv">
+        <span data-t="Marks of Distinction">Marks of Distinction</span>
+        <span id="buildstamp"></span>
+      </div>
+    </footer>
+
+  </main>
+
+</div>
+
+<script src="js/config.js?v=125"></script>
+<script src="js/i18n.js?v=125"></script>
+<script src="js/brand.js?v=125"></script>
+<script src="js/auth.js?v=125"></script>
+<script src="js/markbuild.js?v=125"></script>
+<script src="js/app.js?v=125"></script>
+</body>
+</html>

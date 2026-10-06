@@ -1,0 +1,3332 @@
+/* ------------------------------------------------------------------
+   Main Marks — the sales app.
+
+   This file holds NO colour of its own. Every value is a token written
+   by js/brand.js from js/config.js, so a rebrand is one file.
+
+   The rules the identity actually turns on, all of them from the brand
+   analysis and checked against Main Marks' own material:
+     - black and white carry the screen; orange is a signal, never a
+       surface, and never a large panel
+     - the project colours CODE content (red community, yellow
+       commercial, blue administrative) and never sit behind body copy
+     - square geometry: 0-2px radius, thin rules, no soft shadows
+     - light type. 200-400 is the voice; bold is rare and deliberate
+     - generous negative space is part of the brand, not wasted room
+   ------------------------------------------------------------------ */
+
+:root {
+  --ink: #000000;
+  --deep: #001516;
+  --graphite: #141414;
+  --white: #ffffff;
+  --muted: #8B8989;
+  --muted-2: #807E7E;
+  --orange: #F7951E;
+
+  --p-black: #000201;
+  --p-connect: #ed1c24;
+  --p-engage: #f2e800;
+  --p-work: #3b54a3;
+
+  --font-corporate: 'Manrope', system-ui, sans-serif;
+  --font-project: 'Manrope', system-ui, sans-serif;
+  --font-utility: 'Manrope', system-ui, sans-serif;
+
+  --rule: rgba(255, 255, 255, .15);
+  --rule-soft: rgba(255, 255, 255, .08);
+  --radius: 2px;
+  --max: 1440px;
+  --gutter: 32px;
+}
+
+* { box-sizing: border-box; }
+
+/* ---- moving between pages -------------------------------------------
+   The app is real separate pages, so every navigation is a document
+   swap. Without this the next screen appears in one frame, which is
+   what makes a multi-page app feel like a set of web pages rather than
+   one surface.
+
+   ARRIVING is here, in CSS, with fill-mode both: a page fades in even
+   if no script runs. LEAVING is in js/brand.js, capped by a timer.
+   Both halves are 190ms and the same curve, or the two ends of one
+   navigation do not match. */
+
+/* The document is black BEFORE anything paints, so the browser never
+   shows a pale frame between two pages. */
+html { background: #000; }
+
+/* ARRIVING: the page rises out of the dark the veil left behind.
+
+   `backwards`, NOT `both`, and the difference is not cosmetic. With
+   `both` the finished animation keeps applying its last keyframe, and
+   a `transform` — even the identity matrix that `transform: none`
+   resolves to when it is interpolated — makes BODY the containing
+   block for every `position: fixed` child of it. The veil and the
+   sign-in overlay then size themselves to the whole document instead
+   of the screen: on a page taller than the viewport the overlay runs
+   past the bottom and its centred message is centred on the document,
+   not on what anybody can see.
+
+   `backwards` applies the first keyframe before the animation and
+   nothing after it, so once the page has arrived body carries no
+   transform at all and `fixed` means fixed. The end state is the
+   element's own default, which is already opacity 1 and no transform,
+   so the page still ends up in the right place if no script runs. */
+body { animation: page-in .3s cubic-bezier(.22, .61, .36, 1) backwards; }
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* LEAVING: the veil. Fixed, black, rises from the bottom, and the
+   navigation happens while it covers the screen. */
+.veil {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: #000;
+  transform: translateY(100%);
+  transition: transform .19s cubic-bezier(.4, 0, .2, 1);
+  pointer-events: none;
+}
+.veil.is-up { transform: translateY(0); }
+
+html, body { background: var(--ink); }
+
+body {
+  margin: 0;
+  color: var(--white);
+  font-family: var(--font-corporate);
+  font-size: 16px;
+  font-weight: 300;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+img { display: block; max-width: 100%; }
+
+h1, h2, h3 { font-weight: 300; letter-spacing: -.03em; margin: 0; }
+h1 { font-size: clamp(32px, 5vw, 48px); line-height: 1.08; }
+h2 { font-size: clamp(24px, 3vw, 32px); line-height: 1.15; }
+h3 { font-size: 20px; line-height: 1.25; }
+p { margin: 0; }
+em { font-style: normal; color: var(--muted); }
+
+.eyebrow {
+  font-family: var(--font-utility);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--orange);
+  margin: 0 0 10px;
+}
+
+.src {
+  font-family: var(--font-utility);
+  font-size: 11.5px;
+  color: var(--muted-2);
+  margin-top: 14px;
+  letter-spacing: .01em;
+}
+
+/* ---- shell ------------------------------------------------------- */
+
+.shell {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 0 var(--gutter) 72px;
+  /* THE HEADER'S TWO MEASURES (build 67), shared by everything that has to
+     line up with it:
+       --hdr-pad   the header card's inner padding, left AND right: the mark,
+                   the steps, the back link and every panel's text sit on
+                   the line it makes (panels use the same padding)
+       --hdr-hang  how far cards reach OUT past the text column (0 on most
+                   pages; the Wellness page's cards reach to 6 px from a
+                   phone's edge) */
+  --hdr-pad: 26px;
+  --hdr-hang: 0px;
+}
+@media (max-width: 820px) { .shell { --hdr-pad: 16px; } }
+
+/* The header is a floating card (build 65, from Muhanad's reference image —
+   its STYLE, not its colours): round corners, a hairline edge, frosted
+   glass over whatever is behind; the mark on the left, the initials badge
+   on the right; on the project page the steps sit inside it under a
+   hairline, joined by lines. Every colour is the page's own token, so it
+   wears each project's and each look's identity.
+   It is NOT sticky any more ("when I scroll down I see the header move with
+   me — I do not want that"): it stays at the top of the page. */
+.top {
+  position: relative;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 16px;
+  margin: 14px calc(-1 * var(--hdr-hang)) 0;
+  padding: 14px var(--hdr-pad);
+  background: color-mix(in srgb, var(--ink) 72%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  backdrop-filter: blur(14px) saturate(1.2);
+  border: 1px solid var(--rule);
+  border-radius: 16px;
+  box-shadow: 0 10px 30px -18px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 255, 255, .06);
+}
+
+.brandmark { display: block; }
+.brandmark img { height: 19px; width: auto; }
+
+/* The marks are transparent PNGs, keyed out of the brochure with
+   scripts/key-logo.js. They sit on any surface, and nothing has to
+   blend them. They are still not the client's vector originals — see
+   BRANDING.md. */
+.logo-jpg { background: transparent; }
+
+/* ---- who is signed in --------------------------------------------- */
+
+/* the initials badge, and the menu it opens (MM.whoMenu, js/brand.js) */
+.who { position: relative; justify-self: end; font-family: var(--font-utility); }
+.who-av {
+  display: grid; place-items: center; width: 34px; height: 34px; padding: 0;
+  font: inherit; font-size: 11.5px; font-weight: 600; letter-spacing: .04em; color: var(--white);
+  background: color-mix(in srgb, var(--white) 10%, transparent);
+  border: 1px solid var(--rule); border-radius: 50%; cursor: pointer;
+}
+.who-av:hover, .who-av[aria-expanded="true"] { border-color: var(--orange); }
+.who-av:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+.who-menu {
+  position: absolute; right: 0; top: calc(100% + 10px); z-index: 30; min-width: 190px;
+  display: grid; gap: 4px; padding: 14px 16px;
+  background: var(--ink); border: 1px solid var(--rule); border-radius: 12px;
+  box-shadow: 0 18px 40px -16px rgba(0, 0, 0, .6);
+}
+.who-menu[hidden] { display: none; }
+.who-n { color: var(--white); font-size: 13.5px; }
+.who-r {
+  color: var(--muted);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  font-size: 10.5px;
+}
+.who-out {
+  justify-self: start;
+  margin-top: 8px;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--orange);
+  color: var(--orange);
+  font: inherit;
+  font-size: 12.5px;
+  padding: 2px 0;
+  cursor: pointer;
+}
+.who-out:hover { border-bottom-color: var(--white); color: var(--white); }
+
+/* ---- sign in -------------------------------------------------------
+   The picture carries the top of the screen, the form sits under it on
+   black, and the page never scrolls sideways. On a laptop the two sit
+   side by side instead of stacking, so the art is not wasted.
+   -------------------------------------------------------------------- */
+
+body.is-login { min-height: 100svh; }
+
+.gate {
+  min-height: 100svh;
+  display: grid;
+  grid-template-rows: minmax(46svh, 54svh) 1fr;
+}
+
+.gate-art { position: relative; overflow: hidden; background: #000; }
+/* DIRECT child only. `.gate-art img` also matched the wordmark inside the
+   lockup and, being the more specific selector, stretched it across the
+   picture. Same fault as the project card's logo — scope hero rules. */
+.gate-art > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Keep the figure in frame when the crop narrows on a phone. */
+  object-position: 60% 62%;
+}
+/* The photograph's own background is black, so it is faded into the page
+   rather than given an edge. */
+.gate-art::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 26%;
+  background: linear-gradient(to bottom, rgba(0,0,0,0), #000 94%);
+  pointer-events: none;
+}
+
+.gate-lockup {
+  position: absolute;
+  top: max(26px, env(safe-area-inset-top));
+  left: var(--gutter);
+  z-index: 2;
+}
+.gate-lockup { display: flex; align-items: center; gap: 24px; }   /* clearance, CI p.13: one M = 24px at 20px */
+.gate-mark { height: 20px; width: auto; }
+.gate-sub {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-family: var(--font-utility);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .34em;
+  text-transform: uppercase;
+  color: var(--orange);
+}
+
+.gate-body {
+  padding: 0 var(--gutter) max(24px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  margin-top: -6svh;                 /* the headline rides up into the fade */
+  position: relative;
+  z-index: 1;
+}
+
+.gate-head {
+  font-size: clamp(30px, 8.6vw, 44px);
+  font-weight: 300;
+  line-height: 1.12;
+  letter-spacing: -.035em;
+}
+.gate-head .dot { color: var(--orange); }
+
+.field { display: grid; gap: 8px; margin-bottom: 22px; }
+.field span {
+  font-family: var(--font-utility);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: .26em;
+  text-transform: uppercase;
+  color: var(--white);
+}
+.field input {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, .5);
+  color: var(--white);
+  font: 300 17px/1.4 var(--font-corporate);
+  padding: 8px 2px;
+  border-radius: 0;
+  /* The rule TAKES the accent over 180ms instead of snapping to it. This
+     is the whole focus response — no glow, no lift, no colour on the
+     label. */
+  transition: border-bottom-color .18s linear;
+}
+.field input:focus { outline: none; border-bottom-color: var(--orange); }
+/* The label lightens with its own field, so a filled form reads at a
+   glance without anything moving. */
+.field:focus-within span { color: var(--white); }
+
+.gate-err {
+  color: var(--p-connect);
+  font-family: var(--font-utility);
+  font-size: 13px;
+  margin: -10px 0 18px;
+  /* It arrives once, in 220ms. A message that simply blinks into place
+     is missed on a phone held at arm's length; one that moves
+     continuously is noise. */
+  animation: err .22s ease-out both;
+}
+@keyframes err {
+  from { opacity: 0; transform: translateY(-5px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* The concept's button: a full-width square outline with an arrow at the
+   far right. Not a pill, and not a filled orange block.
+
+   ONE rule, two uses. `.btn-line` is the same control on the project
+   plates, so "the way forward" looks identical on every screen — if
+   this ever changes it changes in both places at once, which is the
+   point of not writing it twice. */
+.btn-line,
+.signin-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, .75);
+  border-radius: 0;
+  color: var(--white);
+  font-family: var(--font-utility);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: .26em;
+  text-transform: uppercase;
+  padding: 19px 22px;
+  cursor: pointer;
+  transition: background-color .18s linear, border-color .18s linear, color .18s linear;
+}
+.signin-btn:hover, .signin-btn:focus-visible {
+  background: var(--white);
+  border-color: var(--white);
+  color: #000;
+  outline: none;
+}
+
+/* The arrow leans forward on the way in, on both controls. On a plate
+   the hover is on the PLATE, not on the button, so that half is under
+   the plate's own rules further down. */
+.btn-line { transition: background-color .18s linear, border-color .18s linear,
+                        color .18s linear, transform .1s ease-out, box-shadow .2s linear; }
+.btn-line > svg { transition: transform .25s cubic-bezier(.22, .61, .36, 1); }
+
+.forgot {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin-top: 20px;
+  color: var(--white);
+  font: 300 14px/1.4 var(--font-corporate);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+  justify-self: start;
+}
+.forgot:hover { color: var(--orange); }
+/* build 122: choosing your own password, in the sign-in form's own pieces */
+/* a hidden piece of the form is gone: the fields and the button carry their own display, which beats [hidden] */
+.gate-form [hidden] { display: none !important; }
+.newpw { display: grid; }
+.newpw[hidden] { display: none; }
+.newpw-h { margin: 0 0 18px; color: var(--white); font: 400 17px/1.3 var(--font-corporate); }
+.newpw .field + .field { margin-top: 16px; }
+.newpw .signin-btn { margin-top: 22px; }
+.who-pw { display: block; text-decoration: none; margin-bottom: 10px; }
+.forgot-note {
+  margin-top: 8px;
+  font-family: var(--font-utility);
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.demo-note {
+  margin-top: 30px;
+  padding-top: 18px;
+  border-top: 1px solid var(--rule-soft);
+  font-family: var(--font-utility);
+  font-size: 12px;
+  color: var(--muted);
+}
+.demo-note strong { color: var(--white); font-weight: 500; }
+.demo-accounts { display: grid; gap: 1px; margin-top: 12px; }
+.demo-acct {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--graphite);
+  border: 1px solid var(--rule-soft);
+  color: var(--white);
+  font: 300 12.5px/1.4 var(--font-utility);
+  padding: 10px 12px;
+  cursor: pointer;
+  text-align: left;
+  border-radius: 0;
+}
+.demo-acct:hover { border-color: var(--orange); }
+.da-r { color: var(--muted); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; }
+
+.gate-foot {
+  margin-top: auto;
+  padding-top: 32px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+}
+/* The four marks: the corporate accent, then the project's three
+   pillars. They are the identity in four squares, and they are the only
+   place all four colours appear together. */
+/* The CI's two supporting elements, the slash and the colon (Main
+   Marks CI PDF p.35), in orange — one of their approved colourways
+   there. Until build 34 this was four squares: the orange plus the
+   three h:rs pillar colours, which do not belong on Main Marks' own
+   pages now that h:rs is not the project. */
+.marks { display: flex; }
+/* The CI's signature, "/ MAIN MARKS :", lifted whole off the Visual
+   Style page (Main Marks CI PDF p.37) so the spacing between slash,
+   name and colon is theirs. Build 34 had the slash and colon alone,
+   which on a phone read as two stray marks with nothing between them. */
+.marks > img { height: 20px; width: auto; display: block; }
+.gate-priv {
+  display: grid;
+  gap: 2px;
+  text-align: right;
+  font-family: var(--font-utility);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.gate-priv :last-child { letter-spacing: .1em; color: var(--muted-2); }
+/* once the footer wraps under the signature, the lines stand left with it */
+@media (max-width: 600px) { .pick-foot .gate-priv { text-align: left; } }
+
+@media (min-width: 900px) {
+  .gate {
+    grid-template-rows: 1fr;
+    grid-template-columns: 1fr minmax(420px, 42%);
+    align-items: stretch;
+  }
+  .gate-art::after { inset: 0 0 0 auto; width: 30%; height: auto;
+    background: linear-gradient(to right, rgba(0,0,0,0), #000 92%); }
+  .gate-body {
+    margin-top: 0;
+    padding: 56px var(--gutter) 40px;
+    justify-content: center;
+    max-width: 560px;
+  }
+  .gate-head { font-size: clamp(34px, 3.2vw, 46px); }
+}
+
+/* ---- step 1: choosing a project (build 9) ---------------------------
+   The sign-in page set the language: a photograph carrying the screen,
+   the copy standing in the dark at its foot, one square outlined
+   control with an arrow at the far right, and the whole thing arriving
+   in a staged rise rather than simply appearing.
+
+   This page is the same surface, one step on — so there are no grey
+   boxes on it. A project is a PLATE: its own render, edge to edge,
+   fading into the page exactly as the sign-in photograph does, with
+   the copy standing in that same darkness.
+   -------------------------------------------------------------------- */
+
+/* The wordmark carries the same orange sub-line the sign-in lockup
+   does, so the corner of the screen does not change between them.
+
+   text-decoration and color are reset HERE, not left to inherit. The
+   brandmark is an <a>, and until build 11 its only child was an image,
+   so nothing showed. The moment a word went inside it the browser drew
+   its default underline in its default VISITED colour — a blue-violet
+   rule under an orange word. An anchor that is a logo has to say it is
+   not a link. */
+/* LOGO CLEARANCE, Main Marks CI PDF p.13: a space as wide as the
+   wordmark's first M either side of it, and as tall as that M above and
+   below it, clear of any other text. The M is ~15% of the wordmark's
+   width: 20px at the 17px header size. Until build 34 the sub-line sat
+   5px UNDER the wordmark, inside that space. It now stands beside it,
+   after the CI's own slash, exactly as the CI cover sets
+   "MAIN MARKS / BESPOKE EXPERIENCES" (PDF p.2). */
+.brandmark { display: flex; align-items: center; gap: 20px; text-decoration: none; color: inherit; }
+.brandsub {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-family: var(--font-utility);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: .34em;
+  text-transform: uppercase;
+  color: var(--orange);
+}
+
+/* The slash is the CI's own supporting element (PDF p.35), in one of
+   its approved colours. Drawn as a glyph, not an image, so it takes the
+   type's weight and size. */
+.brandsub::before,
+.gate-sub::before {
+  content: "";
+  width: 10px;
+  height: 22px;
+  flex: none;
+  background: url("../img/mainmarks-slash.svg?v=36") center / contain no-repeat;
+}
+
+.pick-intro { padding: 58px 0 36px; }
+.pick-intro h1 {
+  font-size: clamp(38px, 7.4vw, 62px);
+  font-weight: 300;
+  line-height: 1.06;
+  letter-spacing: -.035em;
+}
+.pick-intro h1 .dot { color: var(--orange); }
+.pick-lede { color: var(--muted); margin-top: 20px; max-width: 48ch; }
+
+/* The orange full stop brightens once, when the page has settled —
+   the same single beat as the sign-in headline, at the same moment. */
+.seq .pick-intro h1 .dot { animation: dot 1.5s ease-out 1.05s both; }
+
+/* ---- the project card ----------------------------------------------
+   The CCR app's card frame, brought across at the client's request and
+   re-dressed in Main Marks' own colours. Same anatomy top to bottom:
+
+     the render   cropped into a fixed box, with a pill badge on it
+     the band     the PROJECT's own colour, carrying its mark
+     the meta     where it is, what it is, its figures, and the way in
+
+   Two things are deliberately NOT carried across. CCR's accent is its
+   brand blue; this uses Main Marks orange, because two developers'
+   accents on one screen is a branding fault, not a style. And the
+   figures come from `facts` in config, so this card cannot show a
+   number that is not quoted from the brochure.
+
+   NOTE, because it is a real departure: the Main Marks brand analysis
+   asks for square geometry and no soft shadows. A 14px radius and a
+   hover glow are the CCR frame, asked for by name. If it should be
+   squared off later, `--card-radius` and the two glow rules below are
+   the whole change. ------------------------------------------------ */
+
+:root { --card-radius: 14px; --card-line: #26262A; --card-surface: #161618; }
+
+.cards { display: grid; gap: 22px; }
+.cards.soon-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+.mm-card {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  background: var(--card-surface);
+  border: 1px solid var(--card-line);
+  border-radius: var(--card-radius);
+  overflow: hidden;
+  color: inherit;
+  text-decoration: none;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+/* THE GLOW. Only a card that can be opened lifts and lights — a held
+   back project answering the pointer would be promising a door. */
+.mm-card.feature:hover,
+.mm-card.feature:focus-visible {
+  transform: translateY(-4px);
+  border-color: var(--orange);
+  box-shadow: 0 16px 40px -18px rgba(247, 149, 30, .55);
+  outline: none;
+}
+.mm-card.feature:focus-visible { box-shadow: 0 0 0 3px rgba(247, 149, 30, .40); }
+
+/* At rest the live project already carries a ring, so it reads as the
+   live one before anybody touches it. */
+.mm-card.feature {
+  border-color: rgba(247, 149, 30, .42);
+  box-shadow: 0 0 0 1px rgba(247, 149, 30, .10),
+              0 22px 60px -34px rgba(247, 149, 30, .45);
+}
+
+/* ---- the live project: one wide card ---- */
+.mm-card.feature {
+  display: grid;
+  grid-template-columns: 1.12fr 1fr;
+  align-items: stretch;
+  width: 100%;
+}
+/* The picture must NOT set the card height. With the image in normal
+   flow the shot grows to the render's own aspect — a 4:3 render at
+   this width is 537px tall, and the card was that tall no matter how
+   tight the copy beside it got. Taking the image out of flow makes
+   the grid row the height of the COPY, and the render simply crops
+   into whatever that is. */
+.mm-card.feature .c-shot { aspect-ratio: auto; min-height: 300px; height: 100%; }
+.mm-card.feature .c-shot > img { position: absolute; inset: 0; }
+.mm-card.feature .c-side { display: flex; flex-direction: column; min-width: 0; }
+.mm-card.feature .c-band {
+  min-height: 0;
+  padding: 18px 26px 18px;
+  justify-content: flex-start;
+  border-bottom: 1px solid var(--card-line);
+}
+/* flex-start, not center. The go line is already pinned to the foot
+   by its own margin-top:auto, so centring the rest just floats it in
+   a pool of empty card. */
+.mm-card.feature .c-meta { padding: 18px 26px 20px; gap: 11px; justify-content: flex-start; }
+.mm-card.feature .c-blurb { font-size: 14.5px; line-height: 1.45; }
+.mm-card.feature .c-facts dd { font-size: 14px; }
+.mm-card.feature .c-go {
+  font-size: 13.5px;
+  padding-top: 14px;
+  margin-top: 14px;
+  border-top: 1px solid var(--card-line);
+}
+
+/* ---- the render ---- */
+.c-shot { position: relative; aspect-ratio: 16 / 10; overflow: hidden; background: #000; }
+/* DIRECT child. The mark in the band is an <img> too, and an unscoped
+   `.c-shot img` is how this estate has stretched a logo across a hero
+   four times now. */
+.c-shot > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform .5s ease;
+}
+.mm-card.feature:hover .c-shot > img { transform: scale(1.04); }
+
+.c-kind {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  font-family: var(--font-utility);
+  font-size: 10px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  font-weight: 500;
+  background: rgba(0, 0, 0, .78);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  color: var(--white);
+  border: 1px solid rgba(255, 255, 255, .14);
+  padding: 5px 11px;
+  border-radius: 999px;
+}
+
+/* ---- the band: the project's own colour, carrying its mark ---- */
+.c-band {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 12px;
+  min-height: 84px;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, .25);
+}
+.c-band > img { width: auto; max-width: 74%; height: 34px; display: block; }
+.c-band-name { font-size: 26px; font-weight: 300; letter-spacing: -.03em; }
+.c-tagline {
+  font-family: var(--font-utility);
+  font-size: 10px;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  opacity: .72;
+}
+
+/* ---- the pillars: brochure p.18, at card scale ---------------------
+   A coloured mark and its word, three times, in its own strip under
+   the band. The colours CODE CONTENT in the h:rs system, so they are
+   only ever attached to the thing they name — never a panel, never
+   behind copy. Squares, not dots, because the identity is square. */
+.c-pillars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  padding: 13px 20px;
+  border-bottom: 1px solid var(--card-line);
+  /* no wash here: the background is set from the project black in
+     app.js, so the strip reads as the foot of the band, not a panel */
+}
+.c-pillar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-utility);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--white);
+}
+.c-pillar-mark { width: 9px; height: 9px; flex: none; }
+.mm-card.feature .c-pillars { padding: 11px 26px; }
+
+/* ---- the meta ---- */
+.c-meta { padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
+.c-place {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-utility);
+  font-size: 12px;
+  letter-spacing: .04em;
+  color: var(--muted);
+}
+.c-place .c-dot { width: 6px; height: 6px; flex: none; }   /* square, like the marks */
+.c-blurb { margin: 0; font-size: 14px; color: var(--white); }
+
+.c-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px 18px;
+  margin: 1px 0 0;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--card-line);
+}
+.c-facts div { display: flex; flex-direction: column; gap: 2px; }
+.c-facts dt {
+  font-family: var(--font-utility);
+  font-size: 10.5px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.c-facts dd { margin: 0; font-size: 14px; font-weight: 400; color: var(--white); }
+
+.c-go {
+  margin-top: auto;
+  padding-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-family: var(--font-utility);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: .06em;
+  color: var(--orange);
+}
+.c-go svg { transition: transform .18s ease; flex: none; }
+.mm-card.feature:hover .c-go svg { transform: translateX(4px); }
+
+/* ---- a project that is not released --------------------------------
+   Still a div with no href and no handler: the artwork is all that
+   changes here, never the rule. It does not lift, does not glow and
+   does not answer the pointer at all. */
+.mm-card.soon { cursor: default; }
+.mm-card.soon:hover {
+  transform: none;
+  border-color: var(--card-line);
+  box-shadow: none;
+}
+.mm-card.soon .c-shot > img { filter: grayscale(.85) brightness(.62); transform: none; }
+.mm-card.soon:hover .c-shot > img { transform: none; }
+/* The band is NOT dimmed. It carries the project's logo, and both CIs
+   forbid effects on it: "do not reduce the logo opacity" (Moray CI PDF
+   p.23), "don't add graphic effects" (Main Marks CI PDF p.15). The
+   greyed render and the badge already say Coming soon. */
+/* A held-back project is a smaller claim on the page than a live one,
+   so its card is shallower too: a wider crop on the render, a tighter
+   band, less air in the copy. */
+.mm-card.soon .c-shot { aspect-ratio: 16 / 9; }
+
+/* LEVEL WITH THE LIVE CARD. Side by side in the page the two cards
+   were 420px and 450px — a 30px step with nothing to explain it.
+   Same fix as the feature card above: the card sets the height, the
+   render is taken out of flow and crops into whatever is left, so the
+   copy can never push it out of line again. Only while the cards sit
+   in a row; once they stack, each one takes its own natural height. */
+@media (min-width: 821px) {
+  .mm-card.soon { height: 420px; }
+  .mm-card.soon .c-shot { aspect-ratio: auto; flex: 1 1 auto; min-height: 140px; }
+  /* the COPY keeps its own height; only the picture gives ground,
+     or the card pays for the trim twice and the render goes to a strip */
+  .mm-card.soon .c-meta { flex: 0 0 auto; }
+  .mm-card.soon .c-shot > img { position: absolute; inset: 0; }
+}
+.mm-card.soon .c-band { min-height: 0; padding: 14px 18px; gap: 7px; }
+.mm-card.soon .c-band-name { font-size: 22px; }
+.mm-card.soon .c-meta { gap: 9px; padding: 14px 18px 16px; }
+.mm-card.soon .c-go-soon { padding-top: 12px; }
+.mm-card.soon .c-blurb { font-size: 13px; color: var(--muted); }
+.mm-card.soon .c-place { color: var(--muted-2); }
+.c-badge-soon {
+  background: rgba(0, 0, 0, .72);
+  color: #C0BDBD;
+  letter-spacing: .12em;
+  border: 1px solid rgba(255, 255, 255, .18);
+}
+.mm-card.soon .c-go-soon {
+  color: var(--muted-2);
+  font-weight: 400;
+  font-size: 11.5px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  margin-top: auto;
+}
+
+.soonhead {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 52px 0 18px;
+}
+.soonhead h2 {
+  font-family: var(--font-utility);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.rule-fill { flex: 1; height: 1px; background: var(--rule-soft); min-width: 30px; }
+.count-label {
+  font-family: var(--font-utility);
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+  white-space: nowrap;
+}
+
+/* The four marks again, closing the page the way the sign-in page
+   closes: the corporate accent and the project's three pillars. */
+.pick-foot {
+  margin-top: 56px;
+  padding: 28px 0 8px;
+  border-top: 1px solid var(--rule-soft);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+@media (max-width: 980px) {
+  .cards.soon-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 820px) {
+  .mm-card.feature { grid-template-columns: 1fr; }
+  .mm-card.feature .c-shot { min-height: 0; aspect-ratio: 16 / 10; }
+  .cards.soon-cards { grid-template-columns: 1fr; }
+}
+
+/* ---- crumbs -------------------------------------------------------- */
+
+.crumbs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  /* the back link starts on the header's inner line, under the mark */
+  padding: 20px 0 20px calc(var(--hdr-pad) + 1px - var(--hdr-hang));
+  font-family: var(--font-utility);
+  font-size: 11.5px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.back { display: inline-flex; align-items: center; gap: 8px; color: var(--orange); text-decoration: none; }
+.back:hover { color: var(--white); }
+/* the steps, inside the header card: under a hairline, spread across it,
+   each joined to the next by a short line */
+.steps {
+  display: flex; align-items: center; gap: 14px; list-style: none; margin: 0; padding: 0;
+  color: var(--muted-2);
+  font-family: var(--font-utility); font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase;
+}
+.top .steps {
+  grid-column: 1 / -1;
+  margin: 14px calc(-1 * var(--hdr-pad)) 0; padding: 12px var(--hdr-pad) 0;
+  border-top: 1px solid var(--rule-soft);
+}
+.steps li { display: flex; align-items: center; gap: 14px; flex: 1 1 auto; white-space: nowrap; }
+.steps li:last-child { flex: none; }
+.steps li:not(:last-child)::after {
+  content: ''; flex: 1 1 auto; min-width: 18px; height: 1px; background: var(--rule);
+}
+.steps .done { color: var(--muted); }
+.steps .now { color: var(--white); }
+.steps .now::before { content: ''; display: inline-block; width: 6px; height: 6px; background: var(--orange); margin-right: -6px; }
+
+/* ---- project page --------------------------------------------------- */
+
+.p-hero { padding: 24px 0 8px; }
+.p-shot { background: #000; }
+.p-shot img { width: 100%; height: clamp(240px, 42vw, 520px); object-fit: cover; }
+.p-lock {
+  display: flex;
+  align-items: flex-end;
+  gap: 32px;
+  flex-wrap: wrap;
+  padding: 28px 0 0;
+}
+.p-logo { height: 44px; width: auto; }
+.p-lines { display: grid; gap: 4px; }
+.p-promise { font-size: 20px; }
+.p-place {
+  font-family: var(--font-utility);
+  font-size: 12px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.p-blurb { color: var(--muted); max-width: 62ch; margin-top: 22px; font-size: 15px; }
+
+.panel { padding: 56px 0; border-top: 1px solid var(--rule-soft); margin-top: 48px; }
+.panel-head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }
+.pill {
+  font-family: var(--font-utility);
+  font-size: 11px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1px; background: var(--rule-soft); }
+.fact { background: var(--ink); padding: 22px 20px 24px; display: grid; gap: 8px; }
+.f-k {
+  font-family: var(--font-utility);
+  font-size: 11px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.f-v { font-size: 19px; }
+
+.pillars, .kinds { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 28px; }
+.pillar, .kind { display: grid; gap: 10px; align-content: start; }
+.p-mark, .k-mark { width: 40px; height: 4px; display: block; }
+.pillar-connect .p-mark { background: var(--p-connect); }
+.pillar-engage .p-mark { background: var(--p-engage); }
+.pillar-work .p-mark { background: var(--p-work); }
+.pillar p { color: var(--muted); font-size: 14.5px; }
+
+.kind-engage .k-mark { background: var(--p-engage); }
+.kind-work .k-mark { background: var(--p-work); }
+.kind-neutral .k-mark { background: var(--white); }
+.k-n { font-size: 26px; font-weight: 200; }
+.k-r { color: var(--muted); font-family: var(--font-utility); font-size: 13px; }
+
+.plan { background: var(--p-black); border: 1px solid var(--rule-soft); }
+/* Held to the screen's height and scoped with >. Moray's plans are
+   near-square, and at full width the master plan ran 1,100 px tall —
+   more scrolling than looking. */
+.plan > img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 72vh;
+  object-fit: contain;
+  padding: 20px;
+  box-sizing: border-box;
+}
+.plan > .legend { padding: 0 20px 18px; margin-top: 0; }
+.plan > .legend:empty { display: none; }
+
+.buildings, .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.b-chip, .l-chip {
+  font-family: var(--font-utility);
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border: 1px solid var(--rule-soft);
+  padding: 6px 11px;
+}
+.legend { padding: 12px; }
+
+.tabs { display: flex; flex-wrap: wrap; gap: 24px; margin-bottom: 20px; }
+.tab {
+  background: none;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  color: var(--muted);
+  font: 300 14px/1 var(--font-corporate);
+  padding: 8px 0;
+  cursor: pointer;
+}
+.tab:hover { color: var(--white); }
+.tab.is-on { color: var(--white); border-bottom-color: var(--orange); }
+
+.soon-note, .demo-note-inline {
+  display: block;
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--rule-soft);
+  border-left: 2px solid var(--orange);
+  font-family: var(--font-utility);
+  font-size: 13px;
+  color: var(--muted);
+  background: var(--graphite);
+}
+.soon-note strong { color: var(--white); font-weight: 500; }
+
+/* ---- the product lines (build 37) -----------------------------------
+   Opening Moray shows one card per product line. The frame is the
+   project card's — render, band, meta, way in — so the four read as one
+   family; the BAND is where each line's own brand speaks, on its own
+   ground, in its own mark. --l-ground, --l-ink and --l-accent are set
+   per card from config, so no line's colour is ever written here.
+
+   The marks are sized by eye to the same visual weight, not the same
+   height: Moray's wordmark is 6.8:1, The Fourth 2.9:1 and Wellness
+   3.5:1, so one height would make The Fourth twice the size of the
+   others. */
+
+.p-hero.is-compact { padding-top: 8px; }
+.p-hero.is-compact .p-shot img { height: clamp(110px, 12vw, 170px); }
+.p-hero.is-compact .p-lock { padding-top: 18px; gap: 24px; }
+.p-hero.is-compact .p-logo { height: 34px; }
+.p-hero.is-compact .p-promise { font-size: 17px; }
+/* the blurb names the four uses — the cards below now say it */
+.p-hero.is-compact .p-blurb { display: none; }
+/* The chooser's aerial (build 39): the complex with the lights off, and
+   one lit layer per line faded in while its card is hovered. Cropped to
+   the buildings — the complex spans 5% to 77% of the picture's height —
+   and kept short enough that the tops of the cards are on screen with
+   it, because the whole point is to see both at once. */
+.p-hero.is-aerial { padding-top: 8px; }
+/* The whole picture, uncropped: every building has to be there to light. */
+.a-stage {
+  position: relative;
+  aspect-ratio: 1672 / 941;
+  overflow: hidden;
+  background: #000;
+  border-radius: var(--card-radius);
+}
+.a-img {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+/* What is lit, named on the picture (top-left, over the houses, clear of
+   the complex). Only shown while something is actually lit. */
+/* BOTTOM-left: that corner of the aerial is road and trees. Top-left sat
+   on the Wellness block it was naming (Muhanad, build 41 on his phone). */
+.a-tag {
+  position: absolute; bottom: 10px; left: 10px; z-index: 2;
+  font-family: var(--font-utility);
+  font-size: 10.5px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase;
+  color: #fff;
+  background: rgba(0, 0, 0, .72);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, .16);
+  padding: 5px 11px; border-radius: 999px;
+  opacity: 0; transform: translateY(-4px);
+  transition: opacity .3s ease, transform .3s ease;
+  pointer-events: none;
+}
+.a-tag.is-on { opacity: 1; transform: none; }
+
+/* Side by side from laptop width: the aerial on the left, held in view
+   (sticky) while the four cards scroll beside it in two columns. */
+.chooser { margin-top: 8px; }
+
+/* STACKED — phones and narrow windows. A phone has no hover, so the
+   aerial is pinned under the header and the cards scroll up beneath it;
+   the card crossing the middle of the space left lights (scrollLights in
+   project.js). The title goes above the picture so only the picture is
+   pinned. The hero box dissolves (display: contents) so the picture is a
+   child of .chooser, which runs the full length of the cards — a sticky
+   element only sticks inside its own parent. Capped at 40% of the screen
+   height so a card always fits under it. */
+@media (max-width: 1099px) {
+  .chooser { display: flex; flex-direction: column; }
+  .chooser .p-hero.is-aerial { display: contents; }
+  .chooser .a-lock { order: -1; padding: 0 0 16px; }
+  .chooser .a-stage {
+    position: sticky; top: 8px; z-index: 5;   /* the header no longer sticks above it (build 65) */
+    width: min(100%, calc(40svh * 1672 / 941));
+    margin: 0 auto;
+    /* black above and a fall-off below, so the cards passing under read
+       as going under, not as colliding with it */
+    box-shadow: 0 -14px 0 #000, 0 16px 18px -6px #000;
+  }
+  .chooser .lines-panel { position: relative; z-index: 1; }
+}
+
+/* PHONE — the cards swipe (build 41). One card at 86% of the width, the
+   next one's edge showing so the row reads as swipeable, snapping to the
+   centre. The aerial above it, one card and the dots fit one screen, so
+   swiping lights the buildings in plain view — no page scrolling. The
+   row bleeds to the screen edges (the page gutter is cancelled). */
+.l-dots { display: none; }
+@media (max-width: 760px) {
+  /* Everything that is not the picture or the card gets out of the way,
+     measured on a 390 x 664 screen (an iPhone with Safari's bars):
+       - the Moray title moves BELOW the cards
+       - the aerial is cropped to the complex (it spans 5-77% of the
+         picture's height), 2.4:1 instead of 1.78:1
+       - the section heading is kept for screen readers only; the peeking
+         card and the dots already say "swipe"
+       - the card's one-line tagline is dropped; kind, figures and the
+         way in stay */
+  .chooser .a-lock { order: 3; padding: 20px 0 0; }
+  /* build 42: the WHOLE picture, uncropped (the 2.4:1 crop read as cut),
+     edge to edge so it is as big as the phone allows */
+  /* build 45: the width is written out, not `auto`. Safari sized a
+     stretched, negative-margin box's aspect-ratio from its parent's inner
+     width, so on Muhanad's iPhone the picture came out ~20 px short. And
+     a little taller than 16:9 ("a bit bigger"): 59vw crops ~2% off each
+     side, where the picture is houses and road. */
+  .chooser .a-stage {
+    width: calc(100% + 2 * var(--gutter));
+    height: 59vw; aspect-ratio: auto;
+    margin: 0 calc(-1 * var(--gutter));
+    border-radius: 0;
+  }
+  .chooser .a-img { object-position: 45% 50%; }
+  .chooser .lines-panel { margin-top: 10px; padding-top: 0; border-top: 0; }
+  .chooser .lines-panel .panel-head {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap; margin: 0;
+  }
+  .chooser .l-line { display: none; }
+  .chooser .l-cards {
+    position: relative;                     /* offsetLeft for the dots */
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    margin: 0 calc(-1 * var(--gutter));
+    padding: 2px var(--gutter) 6px;
+    scroll-padding: 0 var(--gutter);
+  }
+  .chooser .l-cards::-webkit-scrollbar { display: none; }
+  /* build 43: the picture, one card AND the dots on screen the moment the
+     page opens — no scrolling. Budget, from Muhanad's iPhone screenshot:
+     ~675 px between the status bar and Safari's address bar. Cards 72% wide
+     with a shorter top and tighter copy.
+     Build 66: the header here is now the SAME as on every other page — the
+     full card with the step row, and the same space under it (Muhanad: make
+     this page's header look like the line page's). The step row and the
+     slimmer card that builds 43 and 65 used to save height are gone, so the
+     page is ~70 px taller than one iPhone screen. */
+  .chooser .lines-panel { margin-top: 8px; }
+  /* build 44: NOTHING under the dots but the signature footer (Muhanad:
+     "no need for anything in this page more than this"). The Moray title
+     and the project's facts stay on the laptop view; on a phone the
+     aerial and the cards say it. The footer sits tight under the dots,
+     on one row, so the whole page is one screen. */
+  .chooser .a-lock { display: none; }
+  .is-chooser #page > .panel { display: none; }
+  .is-chooser .shell { padding-bottom: 4px; }
+  .chooser .lines-panel { padding-bottom: 0; }   /* .panel's 56 px, meant for the laptop */
+  .is-chooser .pick-foot {
+    margin-top: 6px; padding: 8px 0 0;
+    flex-wrap: nowrap; gap: 12px;
+  }
+  .is-chooser .pick-foot .marks > img { height: 14px; }
+  .is-chooser .pick-foot .gate-priv { text-align: right; font-size: 8.5px; line-height: 1.25; gap: 0; }
+  .chooser .l-card { flex: 0 0 72%; scroll-snap-align: center; }
+  /* THE SWIPE. --f is how far a card is from the centre, 0 (centred) to 1
+     (a card's width away), written on every scroll frame by scrollLights.
+     Off-centre cards are dull — drained, darker, a little smaller — and
+     come up to their own colour as they reach the middle. No transition:
+     it follows the finger, frame by frame. */
+  .chooser .l-card,
+  .chooser .l-card:hover {
+    transform: scale(calc(1 - var(--f, 0) * .08));
+    filter: saturate(calc(1 - var(--f, 0) * .85)) brightness(calc(1 - var(--f, 0) * .45));
+    transition: none;
+    box-shadow: none;
+  }
+  /* build 45: THE CARD FILLS THE SCREEN. Pixel budgets were wrong on the
+     real phone (Safari set the text shorter than the emulator), so the
+     card is now sized from the screen itself: everything from the top of
+     the page to the dots is one screen tall (svh — Safari's bars showing),
+     and the card takes what the header, crumbs, aerial and dots leave.
+     Inside it the picture flexes and the copy keeps its own height. The
+     footer is one short scroll below. 153 px = header 69 + crumbs 36 +
+     the gaps and the dots row. */
+  .chooser .l-card {
+    height: calc(100svh - 59vw - 153px);
+    min-height: 250px;
+  }
+  .chooser .l-top { flex: 1 1 auto; min-height: 96px; }
+  .chooser .l-top-band { display: flex; flex-direction: column; }
+  .chooser .l-shot { aspect-ratio: auto; flex: 1 1 auto; min-height: 40px; }
+  .chooser .l-shot > img { position: absolute; inset: 0; }
+  .chooser .l-top-fourth,
+  .chooser .l-top-wellness-template { height: auto; }
+  .chooser .l-meta { flex: 0 0 auto; }
+  .chooser .l-band { height: 62px; flex: 0 0 auto; padding: 0 14px; }
+  .chooser .l-mark-moray-heading { gap: 8px; }
+  .chooser .l-mark-moray-heading .l-wordmark { height: 20px; }
+  .chooser .l-mark-moray-endorsed .l-wordmark { height: 21px; }
+  .chooser .l-heading { font-size: 9.5px; letter-spacing: .2em; }
+  .chooser .l-meta { padding: 9px 13px 10px; gap: 6px; }
+  .chooser .l-kind { font-size: 9.5px; margin-bottom: -3px; }
+  .chooser .l-go { padding-top: 8px; font-size: 12px; }
+  .chooser .c-facts { padding-top: 7px; gap: 4px 12px; }
+  .chooser .c-facts dt { font-size: 9.5px; }
+  .chooser .c-facts dd { font-size: 12.5px; }
+  /* the brand compositions, re-fitted to the shorter top */
+  .chooser .f4-logo { top: 10%; }
+  .chooser .f4-by, .chooser .f4-mark { font-size: 8px; gap: 2px; bottom: 5%; }
+  .chooser .f4-by-mm { height: 7px; }
+  .chooser .f4-by-moray { height: 12px; }
+  .chooser .w-logo { width: 46%; top: 7%; }
+  .chooser .w-by, .chooser .w-mark { font-size: 8.5px; }
+  .chooser .w-by-mark { height: 8px; }
+  .chooser .l-line { font-size: 13.5px; }
+  .l-dots { display: flex; justify-content: center; gap: 4px; padding: 0; }
+  /* a 28 x 24 px target around an 8 px mark */
+  .l-dot { width: 28px; height: 24px; padding: 0; border: 0; background: none; cursor: pointer; display: grid; place-items: center; }
+  .l-dot::before { content: ''; width: 8px; height: 8px; border: 1px solid var(--muted-2); box-sizing: border-box; }
+  .l-dot.is-on::before { background: var(--l-accent); border-color: var(--l-accent); }
+  .chooser .lines-panel > .src { display: none; }    /* sources stay on the laptop view */
+}
+@media (min-width: 1100px) {
+  .chooser { display: grid; grid-template-columns: 1.45fr 1fr; gap: 28px; align-items: start; }
+  /* the header scrolls away since build 65, so the picture holds at the top */
+  .chooser .p-hero.is-aerial { position: sticky; top: 16px; padding-top: 0; }
+  .chooser .lines-panel { margin-top: 0; padding-top: 0; border-top: 0; }
+  .chooser .l-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+}
+.a-lit { opacity: 0; transition: opacity .45s ease; }
+.a-lit.is-on { opacity: 1; }
+/* the lockup sits under the picture: the picture's foot is the front
+   row of buildings, which have to be seen when they light */
+.a-lock {
+  display: flex; align-items: flex-end; gap: 28px; flex-wrap: wrap;
+  padding: 20px 2px 0;
+}
+.a-lock .p-logo { height: 34px; }
+.a-lock .p-promise { font-size: 17px; }
+@media (max-width: 600px) {
+  .a-lock { gap: 14px; }
+  .a-lock .p-logo { height: 26px; }
+}
+@media (prefers-reduced-motion: reduce) { .a-lit { transition: none; } }
+
+.lines-panel { margin-top: 24px; padding-top: 28px; }
+.lines-panel .panel-head { margin-bottom: 20px; }
+.l-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
+
+.l-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--card-surface);
+  border: 1px solid var(--card-line);
+  border-radius: var(--card-radius);
+  overflow: hidden;
+  color: inherit;
+  text-decoration: none;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.l-card:hover,
+.l-card:focus-visible {
+  transform: translateY(-4px);
+  border-color: var(--l-accent);
+  box-shadow: 0 16px 40px -18px color-mix(in srgb, var(--l-accent) 55%, transparent);
+  outline: none;
+}
+.l-card:focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--l-accent) 45%, transparent); }
+
+.l-shot { position: relative; aspect-ratio: 16 / 10; overflow: hidden; background: #000; }
+.l-shot > img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .5s ease; }
+.l-card:hover .l-shot > img { transform: scale(1.04); }
+
+/* THE TOP OF A CARD. Two lines bring their brand's own composition
+   instead of picture-plus-band (see lineVisual in project.js). Those
+   are one block, so they are sized to the SAME height as the picture
+   plus the band beside them, or the four cards' copy would not line
+   up. The card is a size container so the sum can be written in CSS. */
+.l-card { container-type: inline-size; }
+.l-top { position: relative; overflow: hidden; background: #000; }
+.l-top-fourth,
+.l-top-wellness-template { height: calc(100cqw / 1.6 + 112px); }
+.l-photo {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover; display: block;
+  transition: transform .5s ease;
+}
+.l-card:hover .l-photo { transform: scale(1.03); }
+
+/* The Fourth on a card: the CI's p.30 post, "centered placement".
+   Measured off the page (post 486 x 608 pt): the logo 88.5% of the width,
+   5.8% in; the red squares 5.1% wide at the very edges, 20% of the
+   logo's height, centred on the F's crossbar (48.8% down the logo); the
+   photograph under 33% black, as the CI file draws it; BY/ MAIN MARKS
+   MORAY and 1ST MARK / NEW CAIRO 6% in from the sides, 4% up. */
+.l-top-fourth .l-photo { object-position: 44% 30%; }
+.f4-shade { position: absolute; inset: 0; background: rgba(0, 0, 0, .33); }
+.f4-logo { position: absolute; left: 0; right: 0; top: 20%; display: block; }
+.f4-logo-img { display: block; width: 88.5%; height: auto; margin: 0 auto; }
+.f4-sq { position: absolute; top: 38.7%; height: 20.3%; width: 5.1%; background: var(--f4-red); }
+.f4-sq-l { left: 0; }
+.f4-sq-r { right: 0; }
+.f4-by, .f4-mark {
+  position: absolute; bottom: 4.5%; z-index: 1;
+  display: flex; flex-direction: column; gap: 3px;
+  font-family: var(--font-utility);
+  font-size: 9.5px; font-weight: 600; letter-spacing: .04em; line-height: 1.15;
+  color: #fff;
+}
+.f4-by { left: 6%; align-items: flex-start; }
+.f4-mark { right: 6%; text-align: right; font-weight: 500; }
+.f4-by-mm { height: 8.5px; width: auto; display: block; }
+.f4-by-moray { height: 15px; width: auto; display: block; }
+
+/* The Fourth on its own page: CI p.20 exactly. A 16:9 stage; the photo
+   placed as the page places it (matrix 0.7198 at -30.16, -7.37 pt on a
+   1920 x 1080 page); the page's own lockup layer over it. */
+.f4-master { aspect-ratio: 16 / 9; }
+.f4-master-photo {
+  position: absolute;
+  left: -1.571%; top: -0.683%;
+  width: 102.68%; height: 101.88%;
+  max-width: none;
+  display: block;
+}
+.f4-master-lockup { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+/* Moray Wellness, CI PDF p.10 — the branded template. Measured off the
+   page: bars 7.7% of the width; the orange runs the top 83% over the
+   ink; the logo is half the width, 5% down; the byline and the mark sit
+   at the foot, inside the bars. */
+.l-top-wellness-template .l-photo { object-position: 72% 30%; }
+.w-bar-l, .w-bar-r { position: absolute; top: 0; bottom: 0; width: 7.7%; }
+.w-bar-l { left: 0; background: linear-gradient(to bottom, var(--w-orange) 0 83%, var(--w-foot) 83% 100%); }
+.w-bar-r { right: 0; }
+.w-logo { position: absolute; top: 6%; left: 50%; transform: translateX(-50%); width: 50%; height: auto; display: block; }
+/* The CI sets the foot straight on the render. At card size the words
+   are ten pixels high on light paving, so a faint shade sits behind
+   them — kept to the foot, and nowhere near the logo. */
+.l-top-wellness-template::after {
+  content: '';
+  position: absolute; left: 0; right: 0; bottom: 0; height: 30%;
+  background: linear-gradient(to top, rgba(0, 0, 0, .38), transparent);
+  pointer-events: none;
+}
+.w-by, .w-mark {
+  position: absolute; bottom: 5.5%; z-index: 1;
+  display: flex; flex-direction: column; gap: 2px;
+  font-family: var(--font-utility);
+  font-size: 10px; font-weight: 500; letter-spacing: .04em; line-height: 1.15;
+  color: #fff;
+}
+.w-by { left: 11.5%; }
+.w-mark { right: 11.5%; text-align: right; }
+.w-by-mark { height: 10px; width: auto; display: block; }
+
+.l-kind {
+  font-family: var(--font-utility);
+  font-size: 10.5px; font-weight: 500;
+  letter-spacing: .16em; text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: -6px;
+}
+
+/* The band: fixed height, so four different marks sit on one line. */
+.l-band {
+  background: var(--l-ground);
+  color: var(--l-ink);
+  height: 112px;
+  padding: 0 22px;
+  display: flex;
+  align-items: center;
+}
+
+.l-mark { display: flex; align-items: center; min-width: 0; }
+.l-mark img { display: block; width: auto; max-width: 100%; }
+.l-logo { height: 46px; }
+
+/* Admin: Moray's wordmark, the brochure's section heading under it */
+.l-mark-moray-heading { flex-direction: column; align-items: flex-start; gap: 11px; }
+.l-mark-moray-heading .l-wordmark { height: 23px; }
+.l-heading {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: var(--font-utility);
+  font-size: 11px;
+  font-weight: 300;
+  letter-spacing: .24em;
+  text-transform: uppercase;
+}
+.l-slash { color: var(--l-accent); font-weight: 200; }
+
+/* R- Residence: the brochure's lockup, PDF p.39 — the name and "by"
+   over the wordmark, the long slash leaning in from the left */
+.l-mark-moray-endorsed { gap: 12px; align-items: flex-end; }
+.l-slash-tall { font-size: 46px; line-height: .8; transform: translateY(2px); }
+.l-stack { display: flex; flex-direction: column; gap: 6px; }
+.l-over {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  font-family: var(--font-utility);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.l-by { text-transform: none; font-size: 14px; font-weight: 300; letter-spacing: 0; }
+.l-mark-moray-endorsed .l-wordmark { height: 24px; }
+
+.l-meta { padding: 16px 20px 18px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
+.l-line { font-size: 14px; line-height: 1.45; color: var(--white); }
+.l-go {
+  margin-top: auto;
+  padding-top: 13px;
+  border-top: 1px solid var(--card-line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: var(--font-utility);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: .06em;
+  color: var(--l-accent);
+}
+.l-go svg { transition: transform .18s ease; flex: none; }
+.l-card:hover .l-go svg { transform: translateX(4px); }
+
+/* Inside a line: its band across the top, the picture beside it. */
+.l-hero {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  margin-top: 24px;
+  border-radius: var(--card-radius);
+  overflow: hidden;
+  border: 1px solid var(--card-line);
+}
+.l-hero-band {
+  background: var(--l-ground);
+  color: var(--l-ink);
+  padding: 36px 34px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  justify-content: space-between;
+}
+.l-hero-band .l-logo { height: 64px; }
+/* a brand composition in the hero fills its half of it */
+.l-hero-shot.l-top { height: auto; min-height: 360px; }
+.l-hero-shot.f4-master { min-height: 0; align-self: center; }   /* 16:9, as the CI page */
+/* the CI's page is the hero here, and the copy beside it is short, so
+   the picture takes the larger share */
+.l-hero:has(.f4-master) { grid-template-columns: minmax(280px, .72fr) 1.5fr; }
+/* The Wellness template is a PORTRAIT post (466 x 570 pt on CI p.10).
+   Stretched across half the page its bars went to 70 px and the logo
+   to a banner, so it keeps its own shape and the copy takes the rest. */
+.l-hero:has(.l-top-wellness-template) { grid-template-columns: 1fr auto; }
+.l-hero-shot.l-top-wellness-template { height: 460px; min-height: 0; aspect-ratio: 466 / 570; }
+.l-hero-shot .w-by, .l-hero-shot .w-mark { font-size: 12px; }
+.l-hero-shot .w-by-mark { height: 12px; }
+.l-hero-band .l-wordmark { height: 32px; }
+.l-hero-band .l-heading { font-size: 13px; }
+.l-hero-band .l-over { font-size: 13px; }
+.l-hero-band .l-by { font-size: 17px; }
+.l-hero-band .l-slash-tall { font-size: 62px; }
+/* On the line's own ground the app's greys are the wrong colour — The
+   Fourth's is paper white — so the copy takes the line's ink instead. */
+.l-hero-copy .eyebrow { color: var(--l-ink); opacity: .72; }
+.l-hero-copy .l-line { color: var(--l-ink); font-size: 17px; margin-bottom: 16px; }
+.l-hero-copy .c-facts { border-top-color: color-mix(in srgb, var(--l-ink) 22%, transparent); }
+.l-hero-copy .c-facts dt { color: var(--l-ink); opacity: .7; }
+.l-hero-copy .c-facts dd { color: var(--l-ink); }
+.l-hero-shot { position: relative; min-height: 320px; background: #000; }
+.l-hero-shot:not(.l-top) > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+@media (max-width: 1180px) { .l-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 820px) {
+  .l-hero, .l-hero:has(.f4-master), .l-hero:has(.l-top-wellness-template) { grid-template-columns: 1fr; }
+  .l-hero-shot.l-top-wellness-template { height: auto; width: 100%; }
+  .l-hero-shot { min-height: 0; aspect-ratio: 16 / 9; order: -1; }
+}
+@media (max-width: 600px) {
+  .l-cards { grid-template-columns: 1fr; gap: 14px; }
+  /* one column: a wider, shallower picture keeps four cards scannable */
+  .l-shot { aspect-ratio: 21 / 9; }
+  .l-top-fourth,
+  .l-top-wellness-template { height: calc(100cqw * 9 / 21 + 112px); }
+}
+
+/* ---- what it is waiting on ------------------------------------------ */
+
+.waiting { border-top-color: var(--rule); }
+.waits { display: grid; gap: 1px; background: var(--rule-soft); }
+.wait { display: grid; grid-template-columns: 10px 1fr; gap: 16px; background: var(--ink); padding: 20px 4px 22px; }
+.w-dot { width: 8px; height: 8px; margin-top: 8px; border: 1px solid var(--muted); }
+.wait.is-on .w-dot { background: var(--orange); border-color: var(--orange); }
+.w-b { display: grid; gap: 6px; }
+.w-b h3 { font-size: 16px; }
+.w-b p { color: var(--muted); font-size: 14px; max-width: 78ch; }
+.wait.is-on .w-b p { color: var(--orange); }
+
+/* ---- refusal --------------------------------------------------------- */
+
+.blocked { padding: 80px 0; display: grid; gap: 16px; justify-items: start; max-width: 54ch; }
+.blocked p { color: var(--muted); }
+.blocked .btn { margin-top: 12px; }
+
+/* ---- footer ---------------------------------------------------------- */
+
+.foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 72px;
+  padding-top: 20px;
+  border-top: 1px solid var(--rule-soft);
+  font-family: var(--font-utility);
+  font-size: 11px;
+  letter-spacing: .08em;
+  color: var(--muted-2);
+}
+
+/* ---- phone ------------------------------------------------------------
+   Every one of these screens is used standing up, on a phone, in a
+   brokerage. The gutter never goes below 16px and nothing scrolls
+   sideways. */
+
+@media (max-width: 880px) {
+  :root { --gutter: 20px; }
+  .pick-intro { padding: 40px 0 26px; }
+  /* The card layout collapses to one column in its own breakpoint at
+     820px, so the only things left here are the ones that belong to a
+     phone rather than to the card. */
+  .mm-card.feature .band { padding: 18px 20px 20px; }
+  .mm-card.feature .meta { padding: 20px; }
+  .mm-card.feature .go { padding-top: 16px; margin-top: 16px; }
+  .facts { grid-template-columns: 1fr 1fr; gap: 10px 16px; }
+  .panel { padding: 40px 0; margin-top: 32px; }
+  .p-lock { gap: 20px; }
+  .steps, .steps li { gap: 10px; }
+}
+
+@media (max-width: 420px) {
+  :root { --gutter: 16px; }
+  .steps { font-size: 10.5px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+  html, html.is-leaving { opacity: 1; }
+}
+
+/* ------------------------------------------------------------------
+   The master plan, and the unit flow under it (build 2)
+   ------------------------------------------------------------------ */
+
+.mplan { position: relative; background: var(--p-black); border: 1px solid var(--rule-soft); }
+.mplan > img { width: 100%; height: auto; display: block; }
+
+/* The hit layer sits exactly over the picture and scales with it, so a
+   target can never drift away from the building it names. */
+.mplan-hits { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+.mp-b { cursor: pointer; outline: none; }
+.mp-shape {
+  fill: rgba(247, 149, 30, .001);       /* catchable, invisible */
+  stroke: rgba(255, 255, 255, .55);
+  stroke-width: .0015;
+  vector-effect: non-scaling-stroke;
+  transition: fill .15s linear, stroke .15s linear;
+}
+.mp-shape.is-hot { fill: rgba(247, 149, 30, .22); stroke: var(--orange); }
+.mp-shape.is-on { fill: rgba(247, 149, 30, .32); stroke: var(--orange); stroke-width: .004; }
+.mp-shape.is-empty { stroke: rgba(255, 255, 255, .25); }
+.mp-b:focus-visible .mp-shape { fill: rgba(247, 149, 30, .22); stroke: var(--orange); }
+
+.mp-tag {
+  position: absolute;
+  /* Sits BELOW the name the drawing already prints, so the two do not
+     stack on each other. */
+  transform: translate(-50%, calc(-50% + 26px));
+  display: grid;
+  gap: 1px;
+  justify-items: center;
+  background: rgba(0, 0, 0, .72);
+  border: 1px solid rgba(255, 255, 255, .28);
+  color: var(--white);
+  font-family: var(--font-utility);
+  padding: 6px 10px;
+  cursor: pointer;
+  border-radius: 0;
+  white-space: nowrap;
+}
+.mp-tag.is-hot, .mp-tag.is-on { border-color: var(--orange); background: rgba(0, 0, 0, .88); }
+.mp-id { font-size: 13px; letter-spacing: .14em; }
+.mp-n { font-size: 10px; letter-spacing: .06em; color: var(--orange); }
+.mp-tag.is-empty .mp-n { color: var(--muted); }
+
+/* ---- chips: buildings, floors, plans -------------------------------- */
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.chip {
+  display: grid;
+  gap: 2px;
+  background: var(--graphite);
+  border: 1px solid var(--rule-soft);
+  color: var(--white);
+  font-family: var(--font-utility);
+  text-align: left;
+  padding: 9px 13px;
+  cursor: pointer;
+  border-radius: 0;
+}
+.chip:hover { border-color: var(--rule); }
+.chip.is-on { border-color: var(--orange); background: #000; }
+.chip.is-empty { color: var(--muted); }
+.c-id { font-size: 13px; letter-spacing: .06em; }
+.c-n { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.chip.is-on .c-n { color: var(--orange); }
+.plan-row { margin-top: 26px; }
+
+.units-state { color: var(--muted); font-family: var(--font-utility); font-size: 13.5px; }
+.units-state.is-bad { color: var(--p-connect); }
+.u-hint { color: var(--muted); font-family: var(--font-utility); font-size: 13px; }
+
+.problems { border-left-color: var(--p-connect); }
+.problems .prob { display: block; margin-top: 4px; }
+.demo-flag { border-left-color: var(--p-engage); }
+
+/* ---- the unit grid --------------------------------------------------- */
+
+.u-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: 1px;
+  background: var(--rule-soft);
+  border: 1px solid var(--rule-soft);
+}
+.u-card {
+  display: grid;
+  gap: 5px;
+  background: var(--ink);
+  border: 0;
+  color: var(--white);
+  font: inherit;
+  text-align: left;
+  padding: 14px 14px 16px;
+  cursor: pointer;
+}
+.u-card:hover { background: var(--graphite); }
+.u-card.is-on { background: var(--graphite); box-shadow: inset 2px 0 0 var(--orange); }
+.u-card.is-gone { cursor: default; color: var(--muted); }
+.u-card.is-gone:hover { background: var(--ink); }
+.u-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.u-code { font-size: 14px; letter-spacing: .04em; }
+.u-st {
+  font-family: var(--font-utility);
+  font-size: 9.5px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.st-available { color: var(--orange); }
+.u-kind, .u-area { font-family: var(--font-utility); font-size: 11.5px; color: var(--muted); }
+.u-price { font-size: 16px; margin-top: 4px; }
+.u-card.is-gone .u-price { text-decoration: line-through; }
+
+/* ---- the read-out ----------------------------------------------------- */
+
+.u-detail { border: 1px solid var(--rule); border-top: 0; padding: 26px 22px 28px; background: var(--graphite); }
+.d-top { display: flex; flex-wrap: wrap; gap: 20px 40px; justify-content: space-between; align-items: flex-start; }
+.d-sub { font-family: var(--font-utility); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-top: 6px; }
+.d-price { display: grid; gap: 3px; justify-items: end; }
+.d-was { color: var(--muted); text-decoration: line-through; font-size: 14px; }
+.d-off { color: var(--p-connect); font-family: var(--font-utility); font-size: 11px; letter-spacing: .12em; }
+.d-now { font-size: 26px; font-weight: 200; }
+.d-rate { font-family: var(--font-utility); font-size: 11.5px; color: var(--muted); }
+.d-note { font-family: var(--font-utility); font-size: 12px; color: var(--muted); margin: -8px 0 4px; }
+.d-bad { color: var(--p-connect); }
+
+.d-sum {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1px;
+  background: var(--rule-soft);
+  margin-top: 22px;
+}
+.sum-c { background: var(--graphite); padding: 16px 14px 18px; display: grid; gap: 4px; }
+.sum-k { font-family: var(--font-utility); font-size: 10.5px; letter-spacing: .13em; text-transform: uppercase; color: var(--muted); }
+.sum-v { font-size: 21px; font-weight: 200; }
+.sum-n { font-family: var(--font-utility); font-size: 11px; color: var(--muted-2); }
+
+.d-sched { margin-top: 22px; }
+.d-sched summary {
+  cursor: pointer;
+  font-family: var(--font-utility);
+  font-size: 12.5px;
+  letter-spacing: .06em;
+  color: var(--orange);
+  padding: 8px 0;
+}
+.sched { display: grid; gap: 1px; background: var(--rule-soft); margin-top: 10px; max-height: 340px; overflow: auto; }
+.sched-r {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 14px;
+  background: var(--graphite);
+  padding: 9px 12px;
+  font-family: var(--font-utility);
+  font-size: 12.5px;
+}
+.sched-r.is-key { color: var(--white); box-shadow: inset 2px 0 0 var(--orange); }
+.sr-l { color: var(--muted); }
+.sched-r.is-key .sr-l { color: var(--white); }
+.sr-d { color: var(--muted-2); }
+.sr-a { text-align: right; min-width: 92px; }
+
+.d-go { display: flex; flex-wrap: wrap; gap: 26px; margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--rule-soft); }
+.go-b { display: grid; gap: 4px; max-width: 34ch; }
+.btn.is-wait { color: var(--muted); border-bottom-color: var(--rule); cursor: not-allowed; }
+.btn-why { font-family: var(--font-utility); font-size: 11.5px; color: var(--muted-2); }
+
+@media (max-width: 880px) {
+  .mp-tag { padding: 4px 7px; }
+  .mp-id { font-size: 11px; }
+  .mp-n { font-size: 8.5px; }
+  .u-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  .d-price { justify-items: start; }
+  .u-detail { padding: 20px 16px 24px; }
+}
+
+/* ------------------------------------------------------------------
+   Sign-in: one quiet cinematic sequence, then the page goes still
+   (build 4)
+
+   The rules this follows, from the motion brief:
+   - THE FORM IS USABLE IMMEDIATELY. Nothing here delays it, nothing
+     disables it, and every animation moves only opacity and transform,
+     so typing is never blocked or repainted under the finger.
+   - It plays ONCE. After about two seconds the page is still, and only
+     hover and focus respond.
+   - No looping figure, no particles, no parallax, no continuous pulse.
+   - `.seq` is added by JavaScript. If the script never runs, every
+     element is simply visible — the page does not depend on motion.
+   ------------------------------------------------------------------ */
+
+/* ONE class does all of it. An earlier version held the start state in
+   a `.seq` rule and ran it with a second class on the next animation
+   frame — but requestAnimationFrame does not run in a background tab, so
+   a page opened in one stayed at opacity 0 with an invisible form.
+   `animation-fill-mode: both` holds the start state during the delay and
+   the end state after, so the sequence cannot strand anything. */
+
+.seq [data-in] { animation: rise .62s cubic-bezier(.22, .61, .36, 1) both; }
+
+/* 90ms apart: enough to read as a sequence, too quick to wait for. */
+.seq [data-in="1"] { animation-delay: .06s; }
+.seq [data-in="2"] { animation-delay: .15s; }
+.seq [data-in="3"] { animation-delay: .24s; }
+.seq [data-in="4"] { animation-delay: .33s; }
+.seq [data-in="5"] { animation-delay: .42s; }
+.seq [data-in="6"] { animation-delay: .51s; }
+/* 7 and 8 are the project page's: it has more to deal out than the
+   sign-in form does, and js/app.js counts them off in reading order.
+   The sequence stops at 8 — past about 0.7s a staged entrance stops
+   reading as one movement and starts reading as a slow page. */
+.seq [data-in="7"] { animation-delay: .60s; }
+.seq [data-in="8"] { animation-delay: .69s; }
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* The figure comes up out of the shadow rather than walking, and the
+   camera pushes in about 3% — once, and then it holds. */
+.seq .gate-art > img {
+  animation: emerge 1.7s ease-out .1s both, push 9s cubic-bezier(.25, .1, .25, 1) .2s both;
+}
+@keyframes emerge {
+  from { opacity: .55; filter: brightness(.82); }
+  to   { opacity: 1; filter: brightness(1); }
+}
+@keyframes push {
+  from { transform: scale(1); }
+  to   { transform: scale(1.03); }
+}
+
+/* The path reveal: one pale sweep travelling from the foreground up
+   toward the figure, across the white floor panels. `screen` means it
+   can only lighten what is already lit — the black field stays black,
+   so it reads as the panels illuminating rather than as a light bar
+   crossing the picture. */
+.gate-sweep {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  mix-blend-mode: screen;
+  background: linear-gradient(18deg,
+    rgba(255, 255, 255, 0) 34%,
+    rgba(255, 255, 255, .20) 46%,
+    rgba(255, 255, 255, .34) 50%,
+    rgba(255, 255, 255, .20) 54%,
+    rgba(255, 255, 255, 0) 66%);
+  background-size: 100% 260%;
+  background-position: 0 100%;
+}
+.seq .gate-sweep { animation: sweep 2.1s cubic-bezier(.33, .1, .25, 1) .15s both; }
+/* Replayed once when the sign-in is accepted. */
+.gate-sweep.is-lit { animation: sweep 1s cubic-bezier(.33, .1, .25, 1) both; }
+@keyframes sweep {
+  0%   { opacity: 0;  background-position: 0 100%; }
+  22%  { opacity: 1; }
+  80%  { opacity: .9; }
+  100% { opacity: 0;  background-position: 0 -40%; }
+}
+
+/* The orange full stop brightens once, when the page has settled. Once. */
+.seq .gate-head .dot { animation: dot 1.5s ease-out 1.05s both; }
+@keyframes dot {
+  0%   { color: var(--orange); text-shadow: none; }
+  35%  { color: #ffd39a; text-shadow: 0 0 18px rgba(247, 149, 30, .75); }
+  100% { color: var(--orange); text-shadow: none; }
+}
+
+/* ---- the sign-in control ------------------------------------------- */
+
+.signin-btn { position: relative; overflow: hidden; }
+.signin-btn > span, .signin-btn > svg { position: relative; z-index: 1; }
+.signin-btn > svg { transition: transform .25s cubic-bezier(.22, .61, .36, 1); }
+.signin-btn:hover > svg { transform: translateX(4px); }
+
+/* The press response is the spinner and the tick further down. An
+   earlier version traced the border with an SVG rect; it is gone. Its
+   dash pattern was being stretched by the button's own non-uniform
+   viewBox, so a piece of the stroke showed even at rest — an orange
+   fragment on a button nobody had pressed. A shape that has to be
+   distorted to fit is the wrong shape. */
+
+/* ---- nobody is made to watch anything ------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .seq [data-in] { opacity: 1; transform: none; animation: none; }
+  .seq .gate-art > img { opacity: 1; filter: none; transform: none; animation: none; }
+  .gate-sweep, .seq .gate-sweep, .gate-sweep.is-lit { animation: none; opacity: 0; }
+  .seq .gate-head .dot { animation: none; }
+  .gate-err { animation: none; }
+  .field input { transition: none; }
+}
+
+
+/* ------------------------------------------------------------------
+   Sign in: press → verifying → confirmed → the veil (build 7)
+
+   The sequence is about 1.2 seconds and it is honest about one thing:
+   a REFUSAL is still instant. The check itself takes no time today, so
+   a wrong password says so in a few milliseconds and never spins —
+   making somebody watch a spinner before being told "no" is how an app
+   starts to feel like a slow network. When the real back end is stood
+   up the spinner covers the actual wait, and the floor below keeps it
+   from flickering on a fast one.
+   ------------------------------------------------------------------ */
+
+/* 1. the press: a precise, physical response. 2%, not a bounce. */
+.signin-btn:active { transform: scale(.98); }
+.signin-btn { transition: transform .1s ease-out, background-color .2s linear, border-color .2s linear, box-shadow .2s linear; }
+
+/* 2. verifying */
+.signin-btn.is-loading,
+.signin-btn.is-done {
+  background: rgba(247, 149, 30, .10);
+  border-color: rgba(247, 149, 30, .85);
+  box-shadow: 0 0 22px rgba(247, 149, 30, .18);
+  cursor: default;
+}
+.signin-btn.is-loading > span,
+.signin-btn.is-done > span { opacity: 0; transition: opacity .12s linear; }
+.signin-btn.is-loading > svg,
+.signin-btn.is-done > svg { opacity: 0; transition: opacity .12s linear; }
+
+/* the spinner and the tick share the middle of the button */
+/* The child selector matters: an earlier rule, `.signin-btn > span`,
+   makes every direct span relative and lays it out in the flex row —
+   the spinner appeared where the arrow had been instead of in the
+   middle of the button. Same specificity trap as the hero logo. */
+.signin-btn > .btn-state {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .16s linear;
+}
+.signin-btn.is-loading .btn-state,
+.signin-btn.is-done .btn-state { opacity: 1; }
+
+.spin {
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid rgba(247, 149, 30, .28);
+  border-top-color: var(--orange);
+  border-radius: 50%;
+  animation: spin .68s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.signin-btn.is-done .spin { display: none; }
+
+/* the light sweep: once, left to right, 500ms */
+.signin-btn.is-loading::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 38%, rgba(247, 149, 30, .30) 50%, transparent 62%);
+  transform: translateX(-100%);
+  animation: btn-sweep .5s ease-out .06s 1 both;
+  pointer-events: none;
+}
+@keyframes btn-sweep { to { transform: translateX(100%); } }
+
+/* 3. confirmed */
+.tick { width: 22px; height: 22px; display: none; }
+.signin-btn.is-done .tick { display: block; }
+.tick path {
+  fill: none;
+  stroke: var(--orange);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: tick .15s ease-out both;
+}
+@keyframes tick { to { stroke-dashoffset: 0; } }
+.signin-btn.is-done { box-shadow: 0 0 28px rgba(247, 149, 30, .30); border-color: var(--orange); }
+
+/* 4. the form steps back before the veil comes up */
+.gate-form.is-dimmed { opacity: .6; transition: opacity .22s ease-in; }
+.gate-form.is-dimmed input { pointer-events: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  body { animation: none; }
+  .veil { display: none; }
+  .spin { animation: none; }
+  .signin-btn.is-loading::after { animation: none; opacity: 0; }
+  .tick path { animation: none; stroke-dashoffset: 0; }
+}
+
+/* ==================================================================
+   ACCESS GRANTED: the crossing from sign-in to the project list
+   (build 12, to the client's motion specification)
+
+   THE SIGN-IN PAGE AND ITS BUTTON ARE NOT TOUCHED. Everything above
+   still runs exactly as it did: the press, the 700ms verifying, the
+   orange sweep, the tick. This picks the moment up from there and
+   replaces only what used to happen next — the plain black veil.
+
+     the tick lands          the sign-in sequence, unchanged
+     +0    – 640ms           the page goes under a 90% scrim, four
+                             architectural lines are drawn, ACCESS
+                             GRANTED and "Select a project" settle
+     the hand-over           at 640ms, with the overlay fully formed
+                             and completely still
+     +0    – 420ms           on the page arrived at: the message goes,
+                             the lines carry on out of frame, the black
+                             lifts and the project page is simply there
+
+   THE HARD PART IS THAT THIS CROSSES TWO DOCUMENTS. `login.html` and
+   `index.html` are separate pages — that is what makes Back work and a
+   link shareable — and two documents cannot be composited, so nothing
+   can literally fade from one into the other.
+
+   What makes it read as one continuous move: the hand-over happens
+   when the overlay is FULLY FORMED AND STILL. The next document paints
+   the identical overlay in its first frame with transitions switched
+   off, and only then plays the last movement. There is no interpolated
+   state to match across the seam, so there is nothing to get wrong —
+   both pages agree on one static picture.
+
+   `html.is-entering` is set by a small inline script in index.html's
+   <head>, BEFORE the body paints. Set from app.js instead, the page
+   would flash at full brightness for a frame before the overlay
+   covered it, which is the one thing this cannot survive.
+
+   EVERY STEP IS A TIMER, never an animation event. A throttled,
+   unsupported or skipped animation must never strand somebody looking
+   at a black screen.
+   ================================================================== */
+
+/* ==== THE MARK BUILDS ITSELF ========================================
+   The h:rs entry transition. The choreography is in js/markbuild.js,
+   which is also where the two rules it exists to keep are written out;
+   this file only describes the surfaces it moves.
+
+   EVERY MEASUREMENT IS A PERCENTAGE OF .mb-lock, never of the window.
+   That box is the 9:16 canvas the client's frames were drawn at,
+   fitted inside whatever screen it lands on, so the lockup holds its
+   proportions on a phone and on a desktop instead of stretching.
+
+   Black and white only, plus the three pillar colours. No glow, no
+   shadow, no orange, no border — the mark is the whole picture.
+   ================================================================== */
+
+.markbuild {
+  position: fixed;
+  inset: 0;
+  /* dvh, not vh: on a phone the toolbar changes vh mid-transition and
+     the black would jump away from the edge of the screen. */
+  height: 100dvh;
+  z-index: 950;
+  display: none;
+  pointer-events: none;
+  background: #000;            /* the note's own value, not var(--ink) */
+  opacity: 0;
+}
+.markbuild.is-on { display: block; }
+/* The page being left fades this up; the project page paints it
+   already on. Both are set from script, so neither is a transition
+   that could be half-applied at a hand-over. */
+.markbuild.is-lit { opacity: 1; }
+
+/* will-change only while it is actually moving */
+.mb-running .mb-part,
+.mb-running .mb-ink,
+.mb-running .mb-stage,
+.mb-running .mb-dev { will-change: transform, opacity; }
+
+.mb-lock {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(100vw, 56.28vh);
+  aspect-ratio: 941 / 1672;
+}
+
+/* ---- the wordmark ---------------------------------------------------
+   It ASSEMBLES at 46% of the frame, centred, a little above the
+   mathematical middle — which is where a held mark looks centred. Then
+   one transform carries it down-left into the lockup. Measured off the
+   client's approved frame: left 7.44%, top 54.13%, width 35.39%.
+
+   The travel is a transform and nothing else. Written as left/top/width
+   it did not move at all — the transition sat at zero progress and the
+   mark stayed where it built. A transform also runs off the main
+   thread, which matters while the project page is painting underneath.
+
+   The three numbers are that move expressed in the stage’s own box:
+     46% -> 35.39% of the frame            -> scale .769348
+     left 27% -> 7.44% of the frame        -> -42.5217% of itself
+     top 41.5% -> 54.13% of the frame      -> 123.809% of itself
+   They assume the mark’s own 2416:952 proportion and the 941:1672
+   frame. Change either and re-derive them; do not nudge them by eye. */
+.mb-stage {
+  position: absolute;
+  left: 27%;                 /* 46% wide, centred                      */
+  top: 41.5%;                /* its middle a little above centre       */
+  width: 46%;
+  transform-origin: 0 0;
+}
+/* the reduced-motion path, which never animates: straight to the pose */
+.mb-stage.is-placed { transform: translate(-42.5217%, 123.809%) scale(.769348); }
+
+/* A piece: the whole logo, with a rectangular window over it. The
+   window is written from script, because it is derived from the cut
+   columns measured off the file and must never be typed twice. */
+.mb-part {
+  position: absolute;      /* placed and sized from script: its own cut */
+  overflow: hidden;
+}
+.mb-ink {
+  position: absolute;      /* the whole logo, offset so this window
+                              shows its own piece of it */
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+}
+
+/* The finished mark. It replaces the pieces the instant they are
+   aligned, so what is held is the supplied file itself. */
+.mb-whole {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 0;
+}
+
+/* ---- the pillar device ----------------------------------------------
+   Main Marks' own "Our Pillars" mark, brochure p.18, cut out of that
+   page one colour at a time and repainted in the palette from config —
+   the brochure is CMYK and prints the blue a shade off the brand
+   sheet. See scripts/cut-pillar-mark.js.
+
+   Three files, stacked rather than tiled: each is the whole device
+   with only its own colour in it, so together they are the artwork
+   exactly and any one can arrive on its own. The black diagonals are
+   the gaps between them, not shapes. */
+.mb-device {
+  position: absolute;
+  left: 32.73%;
+  top: 28.41%;
+  width: 56.11%;
+  aspect-ratio: 1569 / 1002;
+}
+.mb-dev {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: center / 100% 100% no-repeat;
+}
+
+/* ---- the pillars in words -------------------------------------------
+   On the wordmark's own baseline. The square is the pillar's colour
+   and the word is the pillar's name, both straight out of config, so
+   this cannot print a pillar h:rs does not have. One line, always. */
+.mb-slogan {
+  position: absolute;
+  left: 46.5%;
+  right: 4%;
+  top: 58.2%;
+  display: flex;
+  align-items: center;
+  gap: 1.05em;
+  font-family: var(--font-utility);
+  font-weight: 500;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--white);
+  white-space: nowrap;
+}
+.mb-sl {
+  display: inline-flex;
+  align-items: center;
+  gap: .55em;
+  opacity: 0;
+}
+.mb-sl i { width: .85em; height: .85em; flex: none; }
+
+/* ---- Moray: the letters (js/markbuild.js, "letters") ---------------
+   Same 941:1672 frame as h:rs. The wordmark is wider than h:rs's, so
+   it builds at 74% of the frame, centred; at Moray's 463:68.164 that
+   is 6.13% of the frame tall, so its foot sits at 48.13% and the
+   lockup line hangs under it at 52%. Colours are the brochure's own
+   lockup, PDF p.9: white letters, an orange slash, a white rule. */
+.mb-stage.mb-word { left: 13%; width: 74%; top: 42%; }
+.mb-glyph {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+.mb-running .mb-glyph { will-change: transform; }
+.mb-tag {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 52%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .7em;
+  font-family: var(--font-corporate);
+  font-weight: 300;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: #fff;
+  white-space: nowrap;
+}
+.mb-slash {
+  width: .8em;
+  height: 2.3em;               /* taller than the words, as the brochure sets it */
+  flex: none;
+  background: url("../img/mainmarks-slash.svg?v=36") center / contain no-repeat;
+  transform-origin: 50% 100%;
+  opacity: 0;
+}
+.mb-tw { opacity: 0; }
+.mb-rule {
+  width: 3.4em;
+  height: 1px;
+  flex: none;
+  background: #fff;
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+}
+
+/* ---- Moray Wellness: two rows and the template's bars ----------------
+   The logo is 277.9 : 79.6, so at 74% of the frame it is 11.9% of the
+   frame tall: built at 38% its foot is at 49.9%, and the template's
+   "1ST MARK / NEW CAIRO" line hangs under it at 55%. The bars are the
+   Wellness CI p.10 post's — 7.7% of its width, one at each edge — drawn
+   in from opposite ends. */
+.mb-stage.mb-word2 { top: 38%; }
+.mb-tag.mb-tag2 { top: 55%; }
+.mb-script { will-change: clip-path; }
+.mb-bar { position: absolute; top: 0; bottom: 0; width: clamp(18px, 7.7vw, 40px); }
+.mb-bar-l { left: 0; transform-origin: 50% 0; }
+.mb-bar-r { right: 0; transform-origin: 50% 100%; }
+
+/* Below the narrowest phone the three words would wrap, and the note
+   says they never may. Tracking first, then size. */
+@media (max-width: 360px) {
+  .mb-slogan { gap: .8em; letter-spacing: .08em; }
+  .mb-sl { gap: .45em; }
+}
+
+/* ---- the tap ---------------------------------------------------------
+   The first 160ms: the card acknowledges the tap and goes. Listed
+   AFTER the hover rules on purpose — same specificity, so source order
+   decides, and this has to win while the finger is still on the card. */
+.mm-card.feature.is-taken {
+  transform: scale(.985);
+  border-color: var(--card-line);
+  box-shadow: none;
+  transition: transform .16s ease-out, box-shadow .16s ease-out, border-color .16s ease-out;
+}
+.mm-card.feature.is-taken .c-shot > img { transform: none; }
+
+/* The same markup sits in BOTH pages, hidden, so neither has to build
+   it and the two can never drift apart. */
+.xfade {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: none;
+  pointer-events: none;
+  overflow: hidden;
+  /* Not var(--ink) but the spec's own value. At 90% the photograph and
+     the wordmark stay faintly there, which is what stops this reading
+     as a page that simply went out. */
+  background: rgba(0, 0, 0, .90);
+  opacity: 0;
+  transition: opacity .2s linear;
+}
+.xfade.is-on { display: block; }
+.xfade.is-in { opacity: 1; }
+
+/* ---- the four lines ------------------------------------------------
+   Setting-out lines, not light streaks: flat white, hard ends, no blur
+   and no glow. They alternate sides and each is held back about 80ms
+   from the one before, which is what makes them read as one drawing
+   being made rather than four things arriving. */
+
+.xf-line {
+  position: absolute;
+  height: clamp(4px, .55vw, 7px);
+  width: 46%;
+  background: #fff;
+  opacity: 0;
+  transition: transform .4s cubic-bezier(.76, 0, .24, 1),
+              opacity .18s ease;
+}
+/* The orange terminal sits BEYOND the leading end, so it reads as the
+   point the line was drawn to rather than as a coloured tip. */
+.xf-line::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 18px;
+  background: var(--orange);
+}
+
+.xf-line.from-l { left: 0;  transform: translateX(-130%); }
+.xf-line.from-r { right: 0; transform: translateX(130%); }
+.xf-line.from-l::after { right: -18px; }
+.xf-line.from-r::after { left: -18px; }
+
+/* Held clear of the message. The copy block is about 120px tall around
+   the centre line, so the two inner lines sit at 38% and 62% and the
+   outer pair frames them. Closer than this and the wire reads as
+   underlining the words rather than as a drawing behind them. */
+.xf-l1 { top: 28%; }
+.xf-l2 { top: 38%; width: 38%; }
+.xf-l3 { top: 62%; width: 42%; }
+.xf-l4 { top: 72%; }
+
+.xfade.is-in .xf-line { opacity: 1; transform: translateX(0); }
+.xfade.is-in .xf-l1 { transition-delay: .03s; }
+.xfade.is-in .xf-l2 { transition-delay: .11s; }
+.xfade.is-in .xf-l3 { transition-delay: .19s; }
+.xfade.is-in .xf-l4 { transition-delay: .27s; }
+
+/* ---- the message ---------------------------------------------------- */
+
+.xf-copy {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  text-align: center;
+  padding: 0 var(--gutter);
+}
+
+.xf-granted {
+  font-family: var(--font-utility);
+  font-size: 15px;
+  font-weight: 500;
+  text-transform: uppercase;
+  /* .55em on 15px is the spec's 8px. Wide tracking always leaves a
+     trailing space after the last letter; the indent puts the line
+     back on its optical centre. */
+  letter-spacing: .55em;
+  text-indent: .55em;
+  /* The brand orange, NOT the #F39200 in the spec. Two oranges a shade
+     apart on the same screen is a branding fault, and #F7951E is the
+     value printed in Main Marks' own CI (PDF p.26). */
+  color: var(--orange);
+  opacity: 0;
+  transition: opacity .16s ease;
+}
+.xf-select {
+  margin-top: 10px;
+  font-size: clamp(30px, 5.6vw, 62px);
+  font-weight: 200;
+  letter-spacing: -.03em;
+  line-height: 1.05;
+  color: var(--white);
+  opacity: 0;
+  transform: translateY(12px);
+  transition: transform .28s cubic-bezier(.76, 0, .24, 1), opacity .18s ease;
+}
+.xf-rule {
+  display: block;
+  width: 120px;
+  height: 1px;
+  margin: 22px auto 0;
+  background: var(--white);
+  transform: scaleX(0);
+  transform-origin: 50% 50%;          /* drawn outward from the centre */
+  transition: transform .24s cubic-bezier(.76, 0, .24, 1);
+}
+
+.xfade.is-in .xf-granted { opacity: 1; transition-delay: .20s; }
+.xfade.is-in .xf-select  { opacity: 1; transform: none; transition-delay: .26s; }
+.xfade.is-in .xf-rule    { transform: scaleX(1); transition-delay: .34s; }
+
+/* ---- the dissolve, on the page that was arrived at -------------------
+   The message goes first, the lines carry on the way they were already
+   travelling and leave the screen, and the black lifts. The page
+   underneath never moves: it is uncovered, not slid in. */
+
+.xfade.is-out { opacity: 0; transition: opacity .28s linear .08s; }
+.xfade.is-out .xf-granted { opacity: 0; transition: opacity .14s ease; }
+.xfade.is-out .xf-select  { opacity: 0; transition: opacity .14s ease .07s; }
+.xfade.is-out .xf-rule    { transform: scaleX(0); transition: transform .16s ease; }
+.xfade.is-out .xf-line { transition: transform .38s cubic-bezier(.76, 0, .24, 1) .02s; }
+.xfade.is-out .xf-line.from-l { transform: translateX(230%); }
+.xfade.is-out .xf-line.from-r { transform: translateX(-230%); }
+
+/* The first frame on the arriving page: the overlay is painted exactly
+   as the page before it left it, with nothing in motion. */
+.xfade.no-anim, .xfade.no-anim * { transition: none !important; animation: none !important; }
+
+/* Arriving through the transition, the page must not also play its own
+   entrance. It is being uncovered, and two movements at once is the one
+   thing the spec rules out.
+
+   Keyed off a class on BODY set by the inline script, not off the
+   <html> flag. The flag is removed when the transition finishes, and
+   removing it would un-suppress the page-in animation at that exact
+   moment — the page would slide up just as the black lifted. This
+   class is set once and never taken off. */
+body.no-entrance { animation: none; }
+
+/* ---- nobody is made to watch anything --------------------------------
+   Reduced motion keeps the hand-over and drops the theatre: no lines,
+   no message, a plain 250ms cross-fade. */
+
+.xfade.is-plain .xf-line,
+.xfade.is-plain .xf-copy { display: none; }
+.xfade.is-plain,
+.xfade.is-plain.is-in,
+.xfade.is-plain.is-out { transition: opacity .25s linear; }
+
+@media (prefers-reduced-motion: reduce) {
+  .xf-line, .xf-copy { display: none; }
+  /* !important on purpose. A blanket `* { transition: none }` further
+     up kills every transition for this reader, which is right for
+     things that MOVE — but a cross-fade does not move, and without
+     this exception the hand-over becomes a hard black cut. Opacity is
+     the one property reduced motion should be allowed to keep. */
+  .xfade, .xfade.is-in, .xfade.is-out { transition: opacity .25s linear !important; }
+}
+
+/* ==== THE BUILDINGS, IN THREE DIMENSIONS =============================
+   model.html. A review model of the complex you can turn around and
+   tap. It does not pick units and must not look as though it does —
+   see the head of js/model.js for why.
+   ================================================================== */
+
+body.is-model { overflow: hidden; }
+.shell-model {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+/* the header card (build 65) needs air above the model */
+.shell-model > .top, .shell-model > .crumbs { flex: none; }
+
+/* The canvas takes whatever is left once the header and the panel have
+   had theirs, so the model is never scrolled to. */
+.stage {
+  position: relative;
+  flex: 1 1 58%;
+  min-height: 44dvh;
+  border: 1px solid var(--rule-soft);
+  border-radius: 2px;
+  overflow: hidden;
+  background: #0E1012;
+  touch-action: none;          /* the model takes the gesture, not the page */
+}
+.stage canvas { display: block; width: 100%; height: 100%; }
+
+.mv-status, .mv-hint {
+  position: absolute;
+  left: 14px;
+  font-family: var(--font-utility);
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0;
+  pointer-events: none;
+}
+.mv-status { top: 14px; color: var(--white); }
+.mv-status.is-quiet { color: var(--muted); }
+.mv-status.is-bad { color: var(--orange); text-transform: none; letter-spacing: 0; font-size: 13px; }
+.mv-hint { bottom: 12px; opacity: 0; transition: opacity .4s ease .3s; }
+body.is-ready .mv-hint { opacity: 1; }
+
+/* ---- what was tapped ---- */
+.mv-panel {
+  border-top: 1px solid var(--rule-soft);
+  padding: 16px 0 4px;
+}
+.mv-panel h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 300;
+  letter-spacing: -.02em;
+}
+.mv-sub {
+  margin: 4px 0 0;
+  font-family: var(--font-utility);
+  font-size: 12px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.mv-ask { margin-top: 14px; }
+.mv-q { margin: 0 0 8px; font-size: 14px; color: var(--muted); }
+.mv-codes { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* A plan code. Orange only when it is the answer you gave — a signal,
+   never a surface. */
+.code {
+  min-width: 56px;
+  min-height: 44px;
+  padding: 0 14px;
+  background: transparent;
+  color: var(--white);
+  border: 1px solid var(--rule-soft);
+  border-radius: 2px;
+  font-family: var(--font-utility);
+  font-size: 13px;
+  letter-spacing: .12em;
+  cursor: pointer;
+}
+.code.is-on { border-color: var(--orange); color: var(--orange); }
+/* already spent on another building: still tappable, it just moves */
+.code.is-taken { color: var(--muted-2); border-style: dashed; }
+.code:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+
+.mv-bar { display: flex; gap: 10px; flex-wrap: wrap; padding: 14px 0 0; }
+/* the shared .btn-line is a full-width slab, which is right on the
+   sign-in page and wrong here: these two sit under a model that wants
+   every pixel it can get */
+.mv-bar .btn-line {
+  width: auto;
+  flex: 0 0 auto;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 16px;
+  font-size: 11px;
+  letter-spacing: .16em;
+}
+.btn-quiet { color: var(--muted); border-color: var(--rule-soft); }
+
+.mv-out {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--rule-soft);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, .03);
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  max-height: 22vh;
+  overflow: auto;
+}
+.mv-out.is-done { color: var(--white); border-color: var(--orange); }
+
+/* everything below the model scrolls, so the model itself never
+   has to shrink to make room for a caption */
+.mv-below { flex: 0 1 auto; overflow-y: auto; overscroll-behavior: contain; }
+.mv-note {
+  margin: 10px 0 14px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted-2);
+}
+
+/* the way through to the model, under the flat drawing */
+.mp-3d { margin-top: 14px; text-decoration: none; }
+
+/* ======================================================================
+   A PRODUCT LINE'S PAGE, LAID OUT AS THE QOMOR APP (build 68)
+   js/lineflow.js. Muhanad, 2026-10-01: "make it exactly how the Qomor
+   app is designed", in the MAIN MARKS APP'S colours — the :root tokens
+   (black, orange #F7951E as the one accent, Manrope, hairlines). The
+   sizes and shapes are Qomor's (Desktop\Qomor Offer Generator\css):
+   numbered step heads, 30 px chips, 12–16 px corners, glass cards, the
+   2-column floor grid, the year-grouped schedule. No zoom, no full size.
+   ====================================================================== */
+.q {
+  --q-glass: rgba(255, 255, 255, .06);
+  --q-glass-hi: rgba(255, 255, 255, .10);
+  --q-edge: rgba(255, 255, 255, .13);
+  --q-edge-hi: rgba(255, 255, 255, .24);
+  --q-dim: rgba(255, 255, 255, .72);
+  --q-faint: rgba(255, 255, 255, .52);
+  --q-accent-soft: color-mix(in srgb, var(--orange) 70%, #fff);
+  --q-best: #34d399;                     /* the best fit for a budget (build 74): its own colour, nothing else uses it */
+  --q-alt: #c4a5ff;                      /* the OTHER units that fit, lit by "Show other options" (build 75) */
+  --q-held: #f87171;                     /* a unit on hold (build 99): its own colour on the drawing and in the list, never a button */
+  padding-top: 4px;
+}
+.q-ghost {
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--white); cursor: pointer;
+  background: var(--q-glass); border: 1px solid var(--q-edge); border-radius: 10px; padding: 9px 15px;
+}
+.q-ghost:hover { background: var(--q-glass-hi); border-color: var(--q-edge-hi); }
+.q-ghost:disabled { opacity: .5; cursor: default; }
+.q-tiny { padding: 5px 11px; font-size: 12px; }
+.q-select {
+  font: inherit; font-size: 14px; color: var(--white); background: #121215;
+  border: 1px solid var(--q-edge); border-radius: 10px; padding: 9px 12px; min-height: 42px;
+}
+.q-select:focus-visible, .q-ghost:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+
+/* ---- which line: its own logo, small, and what it sells ---- */
+.q-title { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 6px 0 14px; }
+.q-logo { height: 46px; width: auto; }
+.q-name { font-size: 26px; font-weight: 300; }
+.q-sub { font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--q-faint); }
+
+/* ---- the sync bar (Qomor #sync) ---- */
+.q-sync {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px;
+  padding: 12px 0 16px; margin-bottom: 8px; border-bottom: 1px solid var(--rule-soft);
+  font-size: 13.5px; color: var(--q-dim);
+}
+.q-synctext b { color: var(--white); font-weight: 600; }
+.q-dot { width: 9px; height: 9px; border-radius: 50%; background: #6b6b6b; flex: none; }
+.q-dot.is-live { background: #3DD68C; box-shadow: 0 0 10px rgba(61, 214, 140, .6); }
+.q-dot.is-bad { background: #E5484D; }
+.q-spacer { flex: 1 1 auto; }
+.q-counts { color: var(--q-faint); }
+.q-warn {
+  margin: 8px 0 12px; padding: 12px 14px; border-radius: 12px; font-size: 13px; line-height: 1.5;
+  color: #FFD9A8; background: rgba(247, 149, 30, .10); border: 1px solid rgba(247, 149, 30, .4);
+}
+.q-warn[hidden] { display: none; }
+
+/* ---- a step (Qomor .step h2) ---- */
+.q-step { padding: 22px 0 6px; scroll-margin-top: 12px; }
+.q-step[hidden] { display: none; }
+.q-h {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin: 0 0 14px;
+  font-family: var(--font-corporate); font-size: 13px; font-weight: 700; letter-spacing: .18em;
+  text-transform: uppercase; color: var(--q-dim);
+}
+.q-h i {
+  display: grid; place-items: center; width: 28px; height: 28px; flex: none;
+  font-style: normal; font-size: 13px; font-weight: 700; letter-spacing: 0; color: var(--white);
+  border: 1px solid var(--q-edge-hi); border-radius: 8px;
+}
+.q-h small { font-size: 12.5px; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--q-faint); }
+
+/* ---- 1 · the picture (Qomor #hero) and the building bar ---- */
+.q-hero {
+  position: relative; overflow: hidden; background: #000;
+  border: 1px solid var(--q-edge); border-radius: 16px; margin-bottom: 12px;
+}
+.q-canvas { position: relative; width: 100%; }
+.q-img { display: block; width: 100%; height: auto; user-select: none; -webkit-user-select: none; -webkit-user-drag: none; }
+.q-lit { position: absolute; top: 0; left: 0; transition: opacity .45s ease; }
+.q-lit.is-off { opacity: 0; }
+.q-bbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.q-chip {
+  width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; flex: none;
+  background: rgba(255, 255, 255, .1); font-weight: 700; font-size: 13px; color: var(--white);
+}
+.q-chip.is-on { background: var(--orange); color: #000; }
+.q-bbar .q-select { flex: 1 1 200px; max-width: 360px; }
+.q-bmeta { font-size: 12px; color: var(--q-faint); }
+
+/* the roofs: traced by hand (tools/trace-clinic-roofs.html) */
+.lp-roofs { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.lp-roof {
+  fill: transparent; stroke: #fff; stroke-width: 1.5; stroke-opacity: .6;
+  vector-effect: non-scaling-stroke; cursor: pointer; outline: none;
+  transition: fill .18s ease, stroke-opacity .18s ease;
+}
+.lp-roof:hover, .lp-roof:focus-visible { fill: rgba(137, 207, 240, .3); stroke-opacity: 1; }
+/* chosen: a glowing white outline over a baby-blue roof (Muhanad, 2026-09-30) */
+.lp-roof.is-on { fill: rgba(137, 207, 240, .42); stroke: #fff; stroke-width: 2.5; stroke-opacity: 1; }
+.lp-roof-glow { fill: none; stroke: #fff; stroke-width: 5; opacity: 0; pointer-events: none; transition: opacity .3s ease; }
+.lp-roof-glow.is-on { opacity: 1; }
+/* BUILD 108: only a building with something AVAILABLE is outlined. One with nothing to sell today is not
+   drawn at all (unless it is the one open, reached from the list). */
+.lp-roofs .lp-roof.is-none:not(.is-on) { display: none; }
+/* before any pick, the roofs breathe baby blue: this is where to tap */
+.lp-roofs.is-idle .lp-roof { animation: lp-breathe 2.4s ease-in-out infinite; stroke-opacity: 1; }
+@keyframes lp-breathe {
+  0%, 100% { fill: rgba(137, 207, 240, .10); }
+  50%      { fill: rgba(137, 207, 240, .46); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-roofs.is-idle .lp-roof { animation: none; fill: rgba(137, 207, 240, .3); }
+}
+
+/* ---- 2 · floors (Qomor .grid / .card) ---- */
+.q-grid { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.q-card {
+  font: inherit; color: var(--white); text-align: start; cursor: pointer;
+  display: flex; flex-direction: column; gap: 6px; padding: 12px 14px 14px;
+  background: var(--q-glass); border: 1px solid var(--q-edge); border-radius: 14px;
+  transition: background .16s, border-color .16s, transform .16s;
+}
+.q-card:hover:not(:disabled) { background: var(--q-glass-hi); border-color: var(--q-edge-hi); transform: translateY(-2px); }
+.q-card.is-on { border-color: color-mix(in srgb, var(--orange) 85%, transparent); background: color-mix(in srgb, var(--orange) 13%, transparent); }
+.q-card:disabled { opacity: .42; cursor: not-allowed; }
+.q-card:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+.q-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.q-id {
+  min-width: 30px; height: 26px; padding: 0 6px; border-radius: 8px; display: grid; place-items: center;
+  background: rgba(255, 255, 255, .1); font-weight: 700; font-size: 12px;
+}
+.q-card.is-on .q-id { background: var(--orange); color: #000; }
+.q-pill {
+  font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700;
+  padding: 4px 9px; border-radius: 999px; white-space: nowrap;
+  background: color-mix(in srgb, var(--orange) 22%, transparent); color: var(--q-accent-soft);
+}
+.q-pill.none { background: rgba(255, 255, 255, .09); color: var(--q-dim); }
+.q-val { font-size: 17px; font-weight: 700; letter-spacing: -.015em; line-height: 1.15; }
+.q-lab { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--q-faint); }
+
+/* ---- 3 · units (Qomor #unitPanel / #units) ---- */
+.q-panel { background: var(--q-glass); border: 1px solid var(--q-edge); border-radius: 14px; overflow: hidden; }
+.q-phead {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px;
+  padding: 12px 14px; border-bottom: 1px solid var(--q-edge);
+}
+.q-pcount { font-size: 13px; color: var(--q-dim); }
+.q-sort { font-size: 13px; min-height: 36px; padding: 6px 10px; }
+.q-units { display: flex; flex-direction: column; gap: 5px; padding: 8px; max-height: 460px; overflow-y: auto; }
+.q-unit {
+  font: inherit; color: var(--white); text-align: start; cursor: pointer;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: center;
+  padding: 8px 12px; border-radius: 10px; background: transparent; border: 1px solid var(--q-edge);
+}
+.q-unit:hover { background: var(--q-glass-hi); }
+.q-unit.is-on { border-color: var(--orange); background: color-mix(in srgb, var(--orange) 16%, transparent); }
+.q-unit.is-held { cursor: default; border-color: color-mix(in srgb, var(--q-held) 55%, transparent); background: color-mix(in srgb, var(--q-held) 9%, transparent); }
+.q-unit.is-held .q-ucode, .q-unit.is-held .q-umeta { opacity: .6; }
+.q-unit.is-held .q-uprice { color: var(--q-held); }
+.q-unit:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+.q-ucode { font-size: 14px; font-weight: 700; line-height: 1.3; }
+.q-umeta { grid-column: 1; font-size: 11.5px; line-height: 1.3; color: var(--q-faint); }
+.q-uprice { grid-column: 2; grid-row: 1 / 3; font-size: 14px; font-weight: 600; color: var(--q-dim); text-align: end; }
+
+/* ---- 4 · unit details (Qomor .unitcard, plan select, tiles, schedule) ---- */
+.q-unitcard {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 18px;
+  padding: 18px 18px 20px; background: var(--q-glass); border: 1px solid var(--q-edge); border-radius: 16px;
+}
+.q-unitcard > div, .q-tile { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.q-v { font-size: 18px; font-weight: 600; letter-spacing: -.01em; overflow-wrap: anywhere; }
+.q-k {
+  margin: 22px 0 10px; font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--q-dim);
+}
+.q-plansel { width: 100%; font-size: 15px; font-weight: 600; min-height: 50px; padding: 10px 14px; border-radius: 12px; }
+.q-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+.q-tile { padding: 14px 16px 16px; background: var(--q-glass); border: 1px solid var(--q-edge); border-radius: 14px; }
+.q-tile .q-v { font-size: 20px; }
+.q-sched { margin-top: 14px; border: 1px solid var(--q-edge); border-radius: 14px; overflow-x: auto; }
+.q-sched table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.q-sched th {
+  text-align: start; padding: 11px 12px; font-size: 10.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--q-faint); background: #111; white-space: nowrap;
+}
+.q-sched td { padding: 10px 12px; border-top: 1px solid rgba(255, 255, 255, .07); white-space: nowrap; color: var(--q-dim); }
+.q-sched td.num, .q-sched th:nth-child(n+4) { text-align: end; }
+.q-sched tr.is-dp td { background: color-mix(in srgb, var(--orange) 12%, transparent); color: var(--q-accent-soft); font-weight: 700; }
+.q-sched tr.is-year td { color: var(--white); font-weight: 600; border-top-color: rgba(255, 255, 255, .16); }
+.q-sched tr.is-year td:first-child { color: var(--q-accent-soft); }
+/* build 82: ONE table; it opens on the down payment + the first 3 years (JS sets
+   the height to end where Year 4 starts) and scrolls inside itself for the rest */
+.q-sched.q-sched-scroll { max-height: 500px; overflow: auto;
+  overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.q-sched-hint { margin: 8px 2px 0; font-size: 11px; letter-spacing: .06em; color: var(--q-faint); }
+.q-sched-scroll thead th { position: sticky; top: 0; z-index: 1; }
+.q-sched-scroll:focus-visible { outline: 2px solid var(--orange); outline-offset: -2px; }
+.q-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.q-cta {
+  font: inherit; font-size: 15px; font-weight: 700; color: #000; cursor: pointer;
+  background: var(--orange); border: 0; border-radius: 12px; padding: 13px 20px; min-height: 48px;
+}
+.q-cta:disabled { opacity: .5; cursor: default; }
+.q-cta:focus-visible { outline: 2px solid var(--white); outline-offset: 2px; }
+.q-note { font-size: 12.5px; color: var(--q-dim); }
+/* build 84: who is this offer for, asked before every offer leaves the app */
+.q.q-who { position: fixed; inset: 0; z-index: 60; padding: 0; display: flex; align-items: flex-end; justify-content: center; }
+.q-who-dim { position: absolute; inset: 0; background: rgba(0, 0, 0, .6); opacity: 0; transition: opacity .25s ease; }
+.q-who-card { position: relative; width: 100%; max-width: 520px; padding: 22px 18px 26px; border-radius: 18px 18px 0 0;
+  background: #111; border: 1px solid var(--q-edge); border-bottom: 0; box-shadow: 0 -12px 40px rgba(0, 0, 0, .5);
+  transform: translateY(100%); transition: transform .32s cubic-bezier(.32, .72, 0, 1); }
+.q-who.in .q-who-dim { opacity: 1; }
+.q-who.in .q-who-card { transform: none; }
+.q-who-card h3 { margin: 4px 0 14px; font-size: 20px; font-weight: 600; letter-spacing: -.01em; color: var(--white); }
+.q-who-opts { display: grid; gap: 10px; }
+.q-who-opt { display: block; width: 100%; text-align: start; font: inherit; color: var(--white); cursor: pointer;
+  padding: 14px 16px; border-radius: 14px; background: var(--q-glass); border: 1px solid var(--q-edge); }
+.q-who-opt b { display: block; font-size: 15px; font-weight: 700; }
+.q-who-opt span { display: block; margin-top: 3px; font-size: 12.5px; line-height: 1.45; color: var(--q-dim); }
+.q-who-opt[aria-pressed="true"] { border-color: var(--orange); box-shadow: inset 0 0 0 1px var(--orange);
+  background: color-mix(in srgb, var(--orange) 10%, transparent); }
+.q-who-opt:focus-visible { outline: 2px solid var(--white); outline-offset: 2px; }
+.q-who-co { display: grid; gap: 7px; margin-top: 14px; }
+.q-who-co[hidden] { display: none; }
+.q-who-in { width: 100%; font-size: 16px; }      /* 16px: an iPhone zooms the page into smaller fields */
+/* build 85: the company is typed, and the list drops down under it, narrowing as you type */
+.q-who-field { position: relative; }
+/* build 91: the list sits UNDER the field, in the card's flow (it floated above
+   it, where an iPhone keyboard and the card's top could hide it) */
+.q-who-list { position: static; margin: 6px 0 0; padding: 6px;
+  list-style: none; max-height: 240px; overflow-y: auto; overscroll-behavior: contain; border-radius: 12px; background: #1b1b1f;
+  border: 1px solid var(--q-edge-hi); }
+.q-who-list[hidden] { display: none; }
+.q-who-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px;
+  min-height: 46px; border-radius: 8px; font-size: 16px; color: var(--white); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.q-who-item + .q-who-item { border-top: 1px solid rgba(255, 255, 255, .06); }
+.q-who-item b { font-weight: 700; color: var(--orange); }
+.q-who-item:active { background: var(--q-glass-hi); }
+.q-who-none { padding: 12px; font-size: 13.5px; line-height: 1.45; color: var(--q-dim); }
+/* build 91: on a phone, while the company is typed, the card keeps only the
+   field and the list, above the keyboard (lineflow.js picking()) */
+.q-who-card { max-height: 100%; overflow-y: auto; overscroll-behavior: contain; }
+.q-who-card.is-picking > .q-k, .q-who-card.is-picking > h3, .q-who-card.is-picking .q-who-opts,
+.q-who-card.is-picking .q-who-fmt, .q-who-card.is-picking .q-who-acts, .q-who-card.is-picking .q-who-note { display: none; }
+.q-who-card.is-picking .q-who-co { margin-top: 0; }
+.q-who-item:hover, .q-who-item.is-hi { background: var(--q-glass-hi); }
+.q-who-item em { font-style: normal; font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--orange);
+  white-space: nowrap; }
+.q-who-note { font-size: 12px; line-height: 1.45; color: var(--q-faint); }
+.q-who-acts { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 18px; }
+/* build 90: send it as the PDF or a post (two tiles side by side) */
+.q-who-fmt { margin-top: 16px; }
+.q-who-fmt .q-k { margin: 0 0 8px; }
+.q-who-fmt-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.q-who-fmt-opts .q-who-opt { padding: 12px 13px; }
+.q-who-fmt-opts .q-who-opt b { font-size: 14.5px; }
+.q-who-fmt-opts .q-who-opt span { font-size: 12px; }
+/* build 90: the WhatsApp post sheet (js/post.js) */
+.q-post-card { max-height: 92vh; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain; }
+.q-post-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.q-post-head h3 { margin-bottom: 12px; }
+.q-post-x { flex: none; width: 36px; height: 36px; border-radius: 50%; font: inherit; font-size: 22px; line-height: 1;
+  color: var(--white); background: var(--q-glass); border: 1px solid var(--q-edge); cursor: pointer; }
+.q-post-chips { display: flex; gap: 8px; margin-bottom: 12px; }
+.q-post-chip { height: 30px; padding: 0 14px; border-radius: 15px; font: inherit; font-size: 13px; font-weight: 600;
+  color: var(--q-dim); background: var(--q-glass); border: 1px solid var(--q-edge); cursor: pointer; }
+.q-post-chip[aria-pressed="true"] { color: var(--white); border-color: var(--orange);
+  background: color-mix(in srgb, var(--orange) 14%, transparent); }
+.q-post-shot { border-radius: 12px; overflow: hidden; background: #fff; min-height: 60px; }
+.q-post-shot img { display: block; width: 100%; height: auto; }
+.q-post-shot .q-who-note { margin: 0; padding: 18px 14px; background: #111; }
+.q-post-check { display: flex; align-items: center; gap: 10px; margin: 14px 0 0; font-size: 14px; color: var(--q-dim); cursor: pointer; }
+.q-post-check input { width: 18px; height: 18px; accent-color: var(--orange); }
+.q-post-agent { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.q-post-agent[hidden] { display: none; }
+.q-post-agent input { width: 100%; min-width: 0; font-size: 16px; }
+.q-post-text { display: block; width: 100%; margin-top: 14px; padding: 12px 13px; border-radius: 12px; resize: vertical;
+  font: inherit; font-size: 15px; line-height: 1.55; color: var(--white); background: var(--q-glass); border: 1px solid var(--q-edge); }
+.q-post-text:focus { outline: none; border-color: var(--q-edge-hi); }
+.q-post-acts .q-ghost { min-height: 48px; }
+.q-post-note { margin: 10px 0 0; }
+.q-post-note:empty { display: none; }
+.q-assume { margin: 18px 0 0; padding-left: 18px; font-size: 12px; line-height: 1.55; color: var(--q-faint); }
+.q-empty { margin-top: 14px; font-size: 13.5px; color: var(--q-dim); }
+.q-src { margin-top: 26px; }
+
+/* the line card acknowledges the tap while its logo build starts */
+.l-card.is-taken { transform: scale(.985); transition: transform .16s ease; }
+
+@media (min-width: 821px) {
+  .q-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+  .q-unitcard { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .q-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) {
+  .q-val { font-size: 16px; }
+  .q-v { font-size: 16.5px; }
+  .q-tile .q-v { font-size: 18px; }
+  .q-sched table { font-size: 12.5px; }
+  /* build 82: tighter on a phone, so Year .. Amount fit the card whole and only
+     the two % columns sit behind a sideways swipe ("Year 10" widens column 1) */
+  .q-sched th, .q-sched td { padding: 9px 7px; }
+  .q-sched th:first-child, .q-sched td:first-child { padding-left: 10px; }
+}
+
+/* ======================================================================
+   FIND A UNIT (build 69) — js/finder.js, above step 1 of a line page.
+   Ayyam's filter (CCR app) in the Main Marks app's colours: glass and
+   hairlines, orange ONLY for what is chosen (a pressed chip), Qomor's
+   sizes. Grid columns are minmax(0,1fr): a bare auto column grew to its
+   widest child and pushed Ayyam's pane off a phone.
+   ====================================================================== */
+.fd {
+  margin: 4px 0 6px; border-radius: 14px;
+  background: var(--q-glass); border: 1px solid var(--q-edge);
+}
+.fd.is-open { border-color: var(--q-edge-hi); }
+.fd-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 7px 8px 7px 7px; }
+.fd-toggle {
+  display: inline-flex; align-items: center; gap: 8px; flex: none;
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--white); cursor: pointer;
+  padding: 7px 12px 7px 11px; min-height: 38px; border-radius: 10px;
+  background: rgba(255, 255, 255, .08); border: 1px solid var(--q-edge);
+}
+.fd-toggle:hover { background: var(--q-glass-hi); border-color: var(--q-edge-hi); }
+.fd-toggle:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+.fd-chev { width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: translateY(-2px) rotate(45deg); transition: transform .18s; }
+.fd-toggle[aria-expanded="true"] .fd-chev { transform: translateY(2px) rotate(-135deg); }
+.fd-summary { margin: 0; flex: 1 1 200px; min-width: 0; font-size: 13px; line-height: 1.4;
+  display: flex; flex-wrap: wrap; gap: 2px 10px; }
+.fd-summary[hidden] { display: none; }
+.fd-what { color: var(--white); font-weight: 500; }
+.fd-found { color: var(--q-accent-soft); font-weight: 700; }
+.fd-found.is-none { color: var(--q-dim); }
+.fd-clear { font: inherit; font-size: 12.5px; font-weight: 500; color: var(--q-dim);
+  background: transparent; border: 0; padding: 8px 6px; cursor: pointer; margin-left: auto; text-decoration: underline; }
+.fd-clear[hidden] { display: none; }
+
+.fd-body { padding: 2px 14px 14px; border-top: 1px solid var(--q-edge); }
+.fd-body[hidden] { display: none; }
+.fd-modes { display: inline-flex; gap: 4px; padding: 4px; margin: 12px 0;
+  border: 1px solid var(--q-edge); border-radius: 999px; background: rgba(0, 0, 0, .35); }
+.fd-mode { font: inherit; font-size: 13px; font-weight: 600; color: var(--q-dim); cursor: pointer;
+  background: transparent; border: 0; padding: 8px 15px; border-radius: 999px; }
+.fd-mode[aria-selected="true"] { background: var(--white); color: #000; }
+.fd-mode:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+.fd-pane { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.fd-pane[hidden] { display: none; }
+.fd-shared { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--q-edge); }
+.fd-shared:empty { display: none; }
+.fd-wait, .fd-none { margin: 0; font-size: 12.5px; color: var(--q-faint); }
+.fd-row { display: grid; grid-template-columns: 92px minmax(0, 1fr); align-items: center; gap: 10px; }
+.fd-label { font-size: 10.5px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--q-faint); }
+.fd-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.fd-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  font: inherit; font-size: 13px; font-weight: 500; color: var(--white); cursor: pointer;
+  padding: 6px 12px; min-height: 34px; border-radius: 999px;
+  background: rgba(255, 255, 255, .04); border: 1px solid var(--q-edge);
+}
+.fd-chip:hover { border-color: var(--q-edge-hi); }
+.fd-chip:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+.fd-chip[aria-pressed="true"] { background: var(--orange); border-color: var(--orange); color: #000; font-weight: 700; }
+/* in the project, nothing of it on sale today (build 112) */
+.fd-chip:disabled { opacity: .34; border-style: dashed; cursor: default; }
+.fd-chip:disabled:hover { border-color: var(--q-edge); }
+.fd-chev-sm { width: 6px; height: 6px; margin-top: -3px; }
+.fd-floor-btn.is-open .fd-chev-sm { transform: translateY(2px) rotate(-135deg); }
+.fd-floor-menu { display: grid; gap: 10px; justify-items: start; padding: 12px;
+  border-radius: 12px; background: rgba(0, 0, 0, .35); border: 1px solid var(--q-edge); }
+.fd-floor-menu[hidden] { display: none; }
+
+.fd-amount { display: grid; grid-template-columns: 92px minmax(0, 1fr); align-items: center; gap: 4px 10px; }
+.fd-amount-in { display: flex; align-items: center; gap: 8px; max-width: 340px; min-width: 0;
+  padding: 0 12px; min-height: 46px; border-radius: 10px; background: #121215; border: 1px solid var(--q-edge); }
+.fd-amount-in:focus-within { border-color: var(--q-edge-hi); }
+.fd-cur { font-size: 11.5px; letter-spacing: .06em; color: var(--q-faint); white-space: nowrap; }
+/* 16 px: anything smaller makes iPhone Safari zoom the page on focus */
+.fd-amount-in input { flex: 1; min-width: 0; font: inherit; font-size: 16px; color: var(--white);
+  background: transparent; border: 0; outline: none; padding: 10px 0; }
+.fd-amount-read { grid-column: 2; font-size: 12px; color: var(--q-dim); min-height: 1.2em; }
+
+/* the shortcut with nothing asked: Cheapest available (the answers are .fd-opt, build 76) */
+.fd-pick { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 12px;
+  box-sizing: border-box; width: 100%; max-width: 520px; margin-top: 4px; text-align: start; cursor: pointer;
+  font: inherit; color: var(--white); padding: 11px 14px; border-radius: 12px;
+  background: rgba(255, 255, 255, .06); border: 1px solid var(--q-edge-hi); }
+.fd-pick[hidden] { display: none; }
+.fd-pick:hover, .fd-pick:focus-visible { background: var(--q-glass-hi); outline: none; border-color: var(--white); }
+.fd-pk { font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--q-accent-soft); }
+.fd-pv { font-size: 15px; font-weight: 700; white-space: nowrap; }
+.fd-pw { flex: 1 1 100%; min-width: 0; font-size: 12.5px; line-height: 1.45; color: var(--q-dim); }
+.fd-pick.is-pinned { border-color: var(--q-best); background: rgba(52, 211, 153, .1); }
+.fd-pick.is-pinned .fd-pk { color: var(--q-best); }
+
+.fd-result { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--q-edge); }
+.fd-result[hidden] { display: none; }
+.fd-count { margin: 0 0 8px; font-size: 13px; color: var(--q-dim); }
+.fd-buildings { display: flex; flex-wrap: wrap; gap: 6px; }
+.fd-bld { display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: 13px; font-weight: 600;
+  color: var(--white); cursor: pointer; padding: 5px 6px 5px 12px; min-height: 34px; border-radius: 999px;
+  background: rgba(137, 207, 240, .10); border: 1px solid rgba(137, 207, 240, .45); }
+.fd-bld:hover, .fd-bld:focus-visible { background: rgba(137, 207, 240, .2); outline: none; }
+.fd-bc { min-width: 22px; padding: 2px 7px; border-radius: 999px; text-align: center;
+  font-size: 11.5px; font-weight: 700; background: var(--white); color: #000; }
+.fd-more { font: inherit; font-size: 12.5px; font-weight: 500; color: var(--q-dim); cursor: pointer;
+  background: transparent; border: 1px dashed var(--q-edge-hi); border-radius: 999px; padding: 6px 12px; }
+.fd-unlock { margin-top: 10px; font-size: 13px; line-height: 1.5; color: var(--q-dim); }
+.fd-unlock p { margin: 6px 0 0; }
+.fd-apply { font: inherit; font-size: 12.5px; font-weight: 700; color: #000; cursor: pointer;
+  background: var(--white); border: 0; border-radius: 8px; padding: 5px 11px; margin-left: 4px; }
+
+@media (max-width: 620px) {
+  .fd-row, .fd-amount { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .fd-amount-read { grid-column: 1; }
+  .fd-body { padding: 2px 12px 12px; }
+  .fd-summary { flex-basis: 100%; order: 3; padding: 0 4px 2px; }
+}
+
+/* ---- the picture while a search is on: it steps back, the matching
+   roofs breathe baby blue and carry their count ---- */
+.q-base { transition: filter .25s ease; }
+/* the lit layers dim WITH the picture: dimming only the base left each
+   building's light box showing as a bright rectangle (build 69) */
+.q-lit { transition: opacity .45s ease, filter .25s ease; }
+.q-canvas.is-searching .q-img { filter: saturate(.45) brightness(.62); }
+.lp-roofs.is-searching .lp-roof:not(.is-match):not(.is-on) { animation: none; fill: transparent; stroke-opacity: .25; }
+.lp-roof.is-match:not(.is-on) { animation: lp-breathe 2.4s ease-in-out infinite; stroke-opacity: 1; }
+.q-badge {
+  position: absolute; transform: translate(-50%, -50%); z-index: 2;
+  min-width: 30px; height: 30px; padding: 0 8px; border-radius: 999px; cursor: pointer;
+  font: inherit; font-size: 13px; font-weight: 800; color: #000;
+  background: var(--white); border: 0; box-shadow: 0 0 0 3px rgba(137, 207, 240, .7), 0 2px 10px rgba(0, 0, 0, .6);
+}
+.q-badge[hidden] { display: none; }
+.q-badge:focus-visible { outline: 2px solid var(--orange); outline-offset: 3px; }
+.q-link { font: inherit; font-size: 12.5px; font-weight: 600; color: var(--white); text-decoration: underline;
+  background: transparent; border: 0; padding: 6px 0; cursor: pointer; }
+.q-link[hidden] { display: none; }
+/* inside a building, what the search did not ask for steps back */
+.q-card.is-nomatch:not(.is-on) { opacity: .45; }
+.q-unit.is-nomatch { opacity: .32; }
+.q-unit.is-nomatch.is-on, .q-unit.is-nomatch:hover { opacity: .7; }
+@media (prefers-reduced-motion: reduce) { .lp-roof.is-match:not(.is-on) { animation: none; fill: rgba(137, 207, 240, .3); } }
+
+/* ======================================================================
+   BUILD 70 — the other three lines on the Wellness page, and their entry
+   builds (js/markbuild.js). Positions are % of the 941:1672 frame, as for
+   Moray and Wellness above.
+   ====================================================================== */
+
+/* ---- Offices: Moray's build, the brochure heading under it (PDF p.35) */
+.mb-tag.mb-tag-h { gap: .55em; letter-spacing: .2em; }
+
+/* ---- R- Residence: the brochure lockup, PDF p.39 --------------------
+   MORAY moves right to make room for the long slash on its left; the
+   name sits over it, aligned with the M. MORAY is 68% of the frame wide,
+   so 5.63% of the frame tall: built at 44% its top is at 44%. */
+.mb-stage.mb-word.mb-word-r { left: 21%; width: 68%; top: 44%; }
+.mb-slash.mb-slash-tall {
+  position: absolute; left: 10.5%; top: 42.7%; width: 6%; height: 7%;
+  background-size: contain;
+}
+.mb-over {
+  position: absolute; left: 21.4%; top: 40.3%;
+  display: flex; align-items: baseline; gap: .45em;
+  font-family: var(--font-utility); font-size: 1.15em; font-weight: 400;
+  letter-spacing: .06em; text-transform: uppercase; color: #fff; white-space: nowrap;
+  opacity: 0;
+}
+.mb-over-by { text-transform: none; font-size: 1.3em; font-weight: 300; letter-spacing: 0; }
+
+/* ---- The Fourth: CI p.30, centered placement -------------------------
+   The logo 88.5% of the frame, centred; the line and the squares are
+   placed from script off the stage's box and the F's crossbar. */
+.mb-stage.mb-f4 { left: 5.75%; width: 88.5%; top: 38%; }
+.mb-f4line { position: absolute; background: #fff; transform-origin: 0 50%; }
+.mb-f4-stub { opacity: 0; }
+.mb-f4sq { position: absolute; width: 5.1%; transform-origin: 50% 50%; }
+.mb-f4sq-l { left: 0; }
+.mb-f4sq-r { right: 0; }
+.mb-f4-the, .mb-f4-lob { opacity: 1; }
+.mb-f4foot {
+  position: absolute; bottom: 4.5%;
+  display: flex; flex-direction: column; gap: .25em;
+  font-family: var(--font-utility); font-size: .8em; font-weight: 600;
+  letter-spacing: .04em; line-height: 1.15; color: #fff; opacity: 0;
+}
+.mb-f4by { left: 6%; align-items: flex-start; }
+.mb-f4mark { right: 6%; text-align: right; font-weight: 500; }
+.mb-f4by-mm { height: .95em; width: auto; display: block; }
+.mb-f4by-moray { height: 1.6em; width: auto; display: block; }
+
+/* ---- the line page's mark, for a line with no logo file (Offices,
+   R- Residence): the card's mark, a size up — Wellness's logo is 46 px */
+.q-title .q-mark .l-wordmark { height: 30px; }
+.q-title .l-mark-moray-heading { gap: 12px; }
+.q-title .l-heading { font-size: 12px; }
+.q-title .l-mark-moray-endorsed .l-wordmark { height: 32px; }
+.q-title .l-over { font-size: 12px; }
+.q-title .l-by { font-size: 16px; }
+.q-title .l-slash-tall { font-size: 60px; }
+.q-none {
+  margin: 4px 0 0; padding: 14px 16px; border-radius: 12px; font-size: 14px; line-height: 1.5;
+  color: var(--q-dim); background: var(--q-glass); border: 1px solid var(--q-edge);
+}
+.q-none[hidden], .q-bbar[hidden], .fd[hidden] { display: none; }
+
+/* =====================================================================
+   BUILD 71 — the floor drawing in step 3
+   The whole floor at the back (dim, soft, pushed back); the chosen
+   building's piece of the same drawing lifted in front, at full focus.
+   Muhanad chose "Front and centre": to the middle, grown, over the whole floor.
+   ===================================================================== */
+.q-plate-wrap { padding: 12px 12px 4px; border-bottom: 1px solid var(--q-edge); }
+
+.q-plate { position: relative; overflow: hidden; border-radius: 12px; background: #070708; }
+.q-plate { height: min(64vh, 560px); }
+.q-plate-back { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block;
+  filter: brightness(.34) saturate(.45) blur(1.4px); opacity: 0; transition: opacity .5s ease; }
+.q-plate.is-ready .q-plate-back { opacity: 1; }
+.q-plate-lift { position: absolute; background-repeat: no-repeat; background-color: #0d0d0f; border-radius: 8px; opacity: 0;
+  box-shadow: 0 26px 56px rgba(0, 0, 0, .85), 0 6px 16px rgba(0, 0, 0, .6), 0 0 0 1px rgba(255, 255, 255, .22); }
+.q-plate.is-ready .q-plate-lift { opacity: 1; }
+.q-plate-src { margin: 8px 2px 6px; font-size: 10px; letter-spacing: .04em; color: var(--q-faint); }
+
+/* =====================================================================
+   BUILD 72 — the units on the lifted building, tappable
+   Baby blue = can be tapped (the roofs' language on step 1); orange = the
+   one chosen (the app's one accent); on hold = red (build 99), not a button.
+   ===================================================================== */
+.q-ulayer { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: visible; }
+.q-u { vector-effect: non-scaling-stroke; transition: fill .2s ease, stroke .2s ease, opacity .2s ease; outline: none; }
+.q-u.is-avail { fill: rgba(126, 200, 255, .12); stroke: rgba(126, 200, 255, .95); stroke-width: 1.3; cursor: pointer; }
+.q-u.is-avail:hover { fill: rgba(126, 200, 255, .26); }
+.q-u.is-avail:focus-visible { stroke: #fff; stroke-width: 2.4; }
+.q-u.is-held { fill: color-mix(in srgb, var(--q-held) 40%, transparent); stroke: var(--q-held); stroke-width: 1.6; cursor: not-allowed; }
+.q-plate-key { margin: 8px 2px 0; font-size: 11.5px; font-weight: 600; color: var(--q-held); display: flex; align-items: center; gap: 7px; }
+.q-plate-key::before { content: ''; width: 10px; height: 10px; border-radius: 3px; flex: none; background: color-mix(in srgb, var(--q-held) 40%, transparent); border: 1.5px solid var(--q-held); }
+.q-u.is-on { fill: rgba(247, 149, 30, .38); stroke: var(--orange); stroke-width: 2.6; }
+.q-u.is-nomatch { opacity: .25; }
+
+/* =====================================================================
+   BUILD 73 — the client budget answers with every option
+   The options list in Find a unit, the plan line on each unit row, the
+   best fit on the drawing, and the budget check in step 4. Baby blue =
+   fits (the drawing's tap colour); white = the best fit; orange stays
+   the one chosen.
+   ===================================================================== */
+.fd-opts { margin-bottom: 12px; }
+.fd-opts-h { margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--white); }
+.fd-opt { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1px 12px; align-items: baseline;
+  box-sizing: border-box; width: 100%; max-width: 520px; margin-top: 6px; text-align: start; cursor: pointer;
+  font: inherit; color: var(--white); padding: 10px 13px; border-radius: 12px;
+  background: rgba(255, 255, 255, .04); border: 1px solid var(--q-edge); }
+.fd-opt:hover, .fd-opt:focus-visible { background: var(--q-glass-hi); outline: none; border-color: var(--q-edge-hi); }
+.fd-opt.is-best { background: rgba(52, 211, 153, .12); border: 1.5px solid var(--q-best); box-shadow: 0 0 0 4px rgba(52, 211, 153, .12); }
+.fd-otag { grid-column: 1 / -1; justify-self: start; margin-bottom: 4px; padding: 2px 9px; border-radius: 10px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #04130d; background: var(--q-best); }
+/* the two side cards beside the best fit (build 94): Best value, Stretch.
+   Plain cards with an outlined tag: green stays the best fit's alone. */
+.fd-otag.is-side { color: var(--white); background: transparent; border: 1px solid var(--q-edge-hi); }
+.fd-opt.is-side.is-over { border-style: dashed; }
+/* build 96: "Send these options". It LOOKS like the app's send button (.q-cta) but is not one:
+   the demo playback and the checks find the offer's own button by that class. */
+.fd-send { display: block; box-sizing: border-box; width: 100%; max-width: 520px; margin-top: 10px;
+  font: inherit; font-size: 15px; font-weight: 700; color: #000; cursor: pointer;
+  background: var(--orange); border: 0; border-radius: 12px; padding: 13px 20px; min-height: 48px; }
+.fd-send:focus-visible { outline: 2px solid var(--white); outline-offset: 2px; }
+.fd-ogo { grid-column: 1 / -1; margin-top: 6px; font-size: 12.5px; font-weight: 700; color: var(--q-best); }
+.fd-ogo::after { content: " →"; }
+.fd-seemore { font: inherit; font-size: 13px; font-weight: 600; color: var(--white); cursor: pointer; margin-top: 8px;
+  padding: 9px 14px; border-radius: 18px; background: transparent; border: 1px solid var(--q-edge-hi); }
+.fd-seemore:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+.fd-others { margin-top: 6px; }
+.fd-others .fd-opts-h { margin-top: 10px; font-weight: 500; color: var(--q-dim); }
+.fd-o1 { min-width: 0; font-size: 13px; color: var(--q-dim); }
+.fd-o1 b { color: var(--white); font-size: 14px; }
+.fd-op { font-size: 14px; font-weight: 700; white-space: nowrap; }
+.fd-o2 { grid-column: 1 / -1; font-size: 12px; color: rgb(126, 200, 255); }
+.fd-opt.is-best .fd-o2 { color: var(--q-best); font-weight: 600; }
+.fd-o3 { grid-column: 1 / -1; font-size: 13px; font-weight: 600; }
+.fd-o4 { grid-column: 1 / -1; font-size: 11.5px; color: var(--q-faint); }
+
+.q-ufit { grid-column: 1 / -1; font-size: 11.5px; line-height: 1.35; color: rgb(126, 200, 255); }
+.q-ufit.is-best { color: var(--q-best); font-weight: 600; }
+.q-unit.is-best:not(.is-on) { border-color: var(--q-best); background: rgba(52, 211, 153, .07); }
+
+/* the best fit: green, glowing, on top of everything else on the drawing */
+.q-u.is-best { fill: rgba(52, 211, 153, .38); stroke: var(--q-best); stroke-width: 2.6; animation: qBest 2s ease-in-out infinite; }
+.q-u.is-best.is-on { stroke: var(--orange); stroke-width: 3; }                /* chosen AND best: green inside, orange edge */
+.q-u-glow { fill: none; stroke: var(--q-best); stroke-width: 7; pointer-events: none; animation: qGlow 2s ease-in-out infinite; }
+@keyframes qBest { 50% { fill: rgba(52, 211, 153, .18); } }
+@keyframes qGlow { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .q-u.is-best, .q-u-glow { animation: none; } }
+/* its building on the picture: the roof and the count in the same green */
+.lp-roof.is-best:not(.is-on) { stroke: var(--q-best); fill: rgba(52, 211, 153, .3); stroke-opacity: 1; animation: lpBest 2s ease-in-out infinite; }
+@keyframes lpBest { 0%, 100% { fill: rgba(52, 211, 153, .42); } 50% { fill: rgba(52, 211, 153, .14); } }
+@media (prefers-reduced-motion: reduce) { .lp-roof.is-best:not(.is-on) { animation: none; } }
+.lp-roof.is-best.is-on { stroke: var(--q-best); }
+.lp-roof-glow.is-best { stroke: var(--q-best); }
+.q-badge.is-best { background: var(--q-best); color: #04130d; border-color: var(--q-best); }
+
+/* build 75 — "Show other options": the rest that fit, in violet, steady
+   (no pulse), so the green best fit still leads. Off = they look like any
+   other tappable unit. */
+/* light inside, so the unit number printed on the drawing stays readable */
+.q-u-glow.is-alt { stroke: #a77bff; stroke-width: 3; animation: none; opacity: .6; }
+.q-ulayer:not(.show-alt) .q-u-glow.is-alt { display: none; }
+.q-ulayer.show-alt .q-u.is-alt { fill: rgba(167, 123, 255, .14); stroke: #9a6bff; stroke-width: 2.2; }
+.q-ulayer.show-alt .q-u.is-alt.is-on { fill: rgba(167, 123, 255, .2); stroke: var(--orange); stroke-width: 3; }
+.q-altbtn { font: inherit; font-size: 13px; font-weight: 600; color: var(--q-alt); cursor: pointer; margin-top: 10px;
+  padding: 9px 14px; border-radius: 18px; background: transparent; border: 1px solid rgba(196, 165, 255, .55); }
+.q-altbtn[aria-pressed="true"] { color: #140a24; background: var(--q-alt); border-color: var(--q-alt); }
+.q-altbtn:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+
+/* =====================================================================
+   BUILD 76 — one answer, in both tabs of Find a unit
+   Best fit, Cheapest match or Closest — over budget: the same green card,
+   and the same green on its building, its floor card, its row and the
+   drawing. The over-budget answer keeps the green (it IS the answer)
+   with a dashed edge, so it never reads as a fit.
+   ===================================================================== */
+.fd-opt.is-best.is-over { border-style: dashed; box-shadow: none; background: rgba(52, 211, 153, .06); }
+.q-card.is-best:not(.is-on) { border-color: var(--q-best); background: rgba(52, 211, 153, .08); }
+.q-card.is-best .q-id { box-shadow: 0 0 0 1.5px var(--q-best); }
+.q-cbest { font-size: 11.5px; font-weight: 600; line-height: 1.3; color: var(--q-best); }
+.q-plate-ans { display: flex; align-items: center; gap: 8px; margin: 10px 2px 0; font-size: 13px; font-weight: 600; color: var(--q-best); }
+.q-plate-ans::before { content: ""; flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--q-best);
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, .25); }
+
+.q-budget { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 12px; padding: 10px 12px;
+  border-radius: 10px; font-size: 13px; line-height: 1.45; }
+.q-budget p { margin: 0; flex: 1 1 220px; }
+.q-budget.is-ok { background: rgba(126, 200, 255, .08); border: 1px solid rgba(126, 200, 255, .45); }
+.q-budget.is-over { background: rgba(255, 255, 255, .03); border: 1px dashed var(--q-edge-hi); color: var(--q-dim); }
+
+/* ---- build 92: English / Arabic (js/i18n.js) -------------------------
+   The switch sits in the header card beside the initials (Ayyam puts it in
+   its header), and at the top of the sign-in form. The page turns right to
+   left in Arabic; drawings, renders and the master plan are never mirrored. */
+.top { grid-template-columns: minmax(0, 1fr) auto auto; }
+.lang-switch {
+  justify-self: end; height: 30px; padding: 0 12px; border-radius: 15px; cursor: pointer;
+  font: inherit; font-size: 12.5px; font-weight: 600; color: var(--white);
+  background: color-mix(in srgb, var(--white) 8%, transparent); border: 1px solid var(--rule);
+}
+.lang-switch:lang(ar) { font-family: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, sans-serif; font-size: 13.5px; }
+.lang-switch:hover, .lang-switch:focus-visible { border-color: var(--orange); outline: none; }
+.lang-switch.is-gate { align-self: flex-end; margin-top: 14px; }
+/* Arabic is never letterspaced or upper-cased */
+[dir="rtl"] * { letter-spacing: 0 !important; }
+[dir="rtl"] body { font-family: 'IBM Plex Sans Arabic', 'Manrope', system-ui, sans-serif; }
+/* pictures keep their own left and right */
+[dir="rtl"] .q-canvas, [dir="rtl"] .a-stage, [dir="rtl"] .q-plate, [dir="rtl"] .q-plate-lift, [dir="rtl"] svg { direction: ltr; }
+/* the step marker sits on the reading side */
+[dir="rtl"] .steps .now::before { margin-right: 0; margin-left: -6px; }
+[dir="rtl"] .who-menu { right: auto; left: 0; }
+/* figures, codes and the schedule's amounts stay left to right inside a line */
+[dir="rtl"] .q-sched td.num, [dir="rtl"] .q-sched th:nth-child(n+4) { text-align: left; }
+[dir="rtl"] .q-who-in, [dir="rtl"] .q-post-text { text-align: right; }
+/* back points the way Arabic reads: to the right */
+[dir="rtl"] .back svg, [dir="rtl"] .q-cta svg, [dir="rtl"] .signin-btn svg:not(.tick), [dir="rtl"] .c-go svg, [dir="rtl"] .l-go svg { transform: scaleX(-1); }
+
+/* ---- start.html: the two cards a sales manager lands on (builds 116-117) ----
+   The project card's frame and glow. Where a project card has its render,
+   these have a small drawing of what is behind the door: the gauge of the
+   manager view, and the three steps of an offer. Drawings, not figures:
+   nothing here is a number. */
+.start-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.mm-card.start {
+  border-color: rgba(247, 149, 30, .42);
+  box-shadow: 0 0 0 1px rgba(247, 149, 30, .10), 0 22px 60px -34px rgba(247, 149, 30, .45);
+}
+.mm-card.start:hover,
+.mm-card.start:focus-visible {
+  transform: translateY(-4px);
+  border-color: var(--orange);
+  box-shadow: 0 16px 40px -18px rgba(247, 149, 30, .55);
+  outline: none;
+}
+.mm-card.start:hover .c-go svg { transform: translateX(4px); }
+.st-art {
+  position: relative;
+  height: 230px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 22px 26px;
+  border-bottom: 1px solid var(--card-line);
+  background: radial-gradient(120% 90% at 50% 110%, rgba(247, 149, 30, .16), transparent 62%), #0b0b0c;
+  overflow: hidden;
+}
+.st-body { display: flex; flex-direction: column; gap: 10px; padding: 22px 26px 22px; flex: 1; }
+.st-kind { font-size: 10.5px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+.st-name { font-size: 34px; font-weight: 300; letter-spacing: -.03em; line-height: 1.05; color: var(--white); }
+.st-blurb { font-size: 14.5px; line-height: 1.5; color: var(--muted); max-width: 42ch; }
+.mm-card.start .c-go { border-top: 1px solid var(--card-line); margin-top: 8px; }
+
+/* Team Pulse: the half-dial, a heartbeat through it, and its key */
+.st-gauge { width: 210px; max-width: 70%; height: auto; overflow: visible; }
+.st-gauge path { fill: none; stroke-linecap: round; }
+.st-gauge .g-track { stroke: rgba(255, 255, 255, .09); stroke-width: 12; }
+.st-gauge .g-arc { stroke-width: 12; animation: st-sweep 1.3s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(var(--k) * 140ms + 500ms); }
+.st-gauge .g-a { stroke: #2FBF8F; filter: drop-shadow(0 0 6px rgba(47, 191, 143, .5)); }
+.st-gauge .g-q { stroke: #F2C037; }
+.st-gauge .g-i { stroke: #7C8794; }
+.st-gauge .g-beat { stroke: var(--orange); stroke-width: 3; stroke-linejoin: round; stroke-dasharray: 190; animation: st-beat 2.6s ease-in-out 1.2s infinite; filter: drop-shadow(0 0 6px rgba(247, 149, 30, .7)); }
+@keyframes st-sweep { from { stroke-dasharray: 0 629; } }
+@keyframes st-beat { 0% { stroke-dashoffset: 190; } 55%, 100% { stroke-dashoffset: 0; } }
+.st-key { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; font-size: 11.5px; color: var(--muted); }
+.st-key span { display: inline-flex; align-items: center; gap: 6px; }
+.st-key i { width: 8px; height: 8px; border-radius: 50%; }
+
+/* Quick Offer: project, unit, offer; the last one lit */
+.st-flow { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; max-width: 380px; }
+.st-step { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; font-size: 11.5px; color: var(--muted); text-align: center; }
+.st-step .st-node { position: relative; z-index: 1; width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; background: #141415; border: 1px solid rgba(255, 255, 255, .18); color: var(--white); }
+.st-step .st-node svg { width: 24px; height: 24px; }
+.st-step + .st-step::before { content: ""; position: absolute; top: 29px; inset-inline-end: 50%; width: 100%; height: 1px; background: linear-gradient(90deg, rgba(255, 255, 255, .18), rgba(247, 149, 30, .7)); }
+[dir="rtl"] .st-step + .st-step::before { background: linear-gradient(270deg, rgba(255, 255, 255, .18), rgba(247, 149, 30, .7)); }
+.st-step.is-lit { color: var(--white); }
+.st-step.is-lit .st-node { background: var(--orange); border-color: var(--orange); color: #000; animation: st-ping 2.4s ease-out 1s infinite; }
+@keyframes st-ping { 0% { box-shadow: 0 0 0 0 rgba(247, 149, 30, .55); } 70%, 100% { box-shadow: 0 0 0 18px rgba(247, 149, 30, 0); } }
+
+[dir="rtl"] .mm-card.start { text-align: right; }
+[dir="rtl"] .mm-card.start .c-go svg { transform: scaleX(-1); }
+[dir="rtl"] .st-kind, [dir="rtl"] .st-name { letter-spacing: 0; }
+
+/* the way across, for a sales manager: a pill in the header of every sales page */
+.top.has-mode { grid-template-columns: minmax(0, 1fr) auto auto auto; }
+/* its own class, NOT .lang-switch: js/i18n.js adds the language switch only when no .lang-switch exists */
+.mode-switch { justify-self: end; height: 30px; padding: 0 12px; border-radius: 15px; font-size: 12.5px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; color: var(--orange); background: color-mix(in srgb, var(--white) 8%, transparent); border: 1px solid rgba(247, 149, 30, .45); white-space: nowrap; }
+.mode-switch:hover, .mode-switch:focus-visible { border-color: var(--orange); outline: none; }
+.mode-switch svg { width: 14px; height: 14px; flex: none; }
+
+@media (max-width: 720px) {
+  .start-cards { grid-template-columns: 1fr; }
+  .st-art { height: 176px; padding: 16px; gap: 10px; }
+  .st-gauge { width: 168px; }
+  .st-step .st-node { width: 50px; height: 50px; }
+  .st-step + .st-step::before { top: 25px; }
+  .st-body { padding: 18px 20px 18px; }
+  .st-name { font-size: 28px; }
+}
+@media (max-width: 480px) { .mode-switch { padding: 0 9px; } .mode-switch span { display: none; } }
+@media (prefers-reduced-motion: reduce) { .st-gauge .g-arc, .st-gauge .g-beat, .st-step.is-lit .st-node { animation: none; } }
+
+/* ---- build 121: a salesperson's bar on the projects page ----------------
+   The floating bar and the round plus of "My activity" (css/manager.css,
+   .tab and .fab), repeated here because this page does not load that
+   sheet. `sp-` on purpose: a plain .tab or .fab could meet a rule already
+   in this file. Shown only to a salesperson on the team (js/app.js). */
+.sp-bar { position: fixed; z-index: 40; left: max(12px, calc(50% - 228px)); right: max(12px, calc(50% - 228px)); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: grid; grid-template-columns: repeat(3, 1fr); padding: 6px; border-radius: 24px; border: 1px solid rgba(247, 149, 30, .18); background: #17110c; box-shadow: 0 -18px 30px 6px #000, 0 22px 0 14px #000; font-family: Manrope, system-ui, sans-serif; }
+.sp-bar a { display: grid; justify-items: center; gap: 3px; padding: 6px 0; min-width: 0; font-size: 10px; font-weight: 600; line-height: 1.3; letter-spacing: 0; color: #a39a92; text-decoration: none; border-radius: 14px; position: relative; }
+.sp-bar svg { width: 22px; height: 22px; }
+.sp-bar a[aria-current="page"] { color: #F7951E; }
+.sp-bar a[aria-current="page"] svg { filter: drop-shadow(0 0 8px rgba(247, 149, 30, .8)); }
+.sp-bar a[aria-current="page"]::before { content: ""; position: absolute; top: 1px; width: 18px; height: 3px; border-radius: 2px; background: #F7951E; box-shadow: 0 0 10px rgba(247, 149, 30, .9); }
+.sp-bar a:focus-visible, .sp-fab:focus-visible { outline: 2px solid #F7951E; outline-offset: 2px; }
+.sp-fab { position: fixed; z-index: 41; inset-inline-end: max(16px, calc(50% - 224px)); bottom: calc(96px + env(safe-area-inset-bottom, 0px)); width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #F7951E; color: #000; box-shadow: 0 8px 26px rgba(247, 149, 30, .4); }
+.sp-fab svg { width: 20px; height: 20px; }
+html[lang="ar"] .sp-bar { font-family: "IBM Plex Sans Arabic", Manrope, Tahoma, sans-serif; }
+/* room under the page so the footer is never behind the bar */
+body.has-sp-bar { padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)); }
