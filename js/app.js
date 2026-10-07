@@ -246,8 +246,22 @@
        The file is fetched now rather than on the tap: it is the first
        thing the transition paints, and a mark that arrives late is a
        black screen with nothing in it. */
+    /* build 130: what the tap will need (the project page, its scripts, the pictures it opens on) is
+       asked for now, while the card is being read: MM.warmNext in js/brand.js. */
+    var first = [];
+    if (p.aerial && p.aerial.img) first.push(p.aerial.img);
+    (p.lines || []).forEach(function (l) {
+      if (l.released !== true) return;
+      var v = l.visual || {};
+      /* its lights on the aerial, and the picture and logo its card wears */
+      [l.lit, l.img, v.post, v.render, v.logo, l.mark && l.mark.logo].forEach(function (u) { if (u) first.push(u); });
+    });
+    if (!first.length && p.render) first.push(p.render);
+    MM.warmNext(a.getAttribute('href'), first);
+
     if (p.markBuild && p.markBuild.src && MM.markbuild) {
-      (new Image()).src = p.markBuild.src;
+      /* the logo's own drawing is read now and handed over with the tap (build 130, js/markbuild.js) */
+      MM.markbuild.warm(p.markBuild);
       Object.keys(p.markBuild.pillars || {}).forEach(function (k) {
         (new Image()).src = p.markBuild.pillars[k];
       });

@@ -152,9 +152,19 @@
      beats a list that is quietly wrong. */
   function load(inv) {
     var url = inv.url + (inv.url.indexOf('?') === -1 ? '?' : '&') + 't=' + Date.now();
-    return fetch(url, { cache: 'no-store' }).then(function (r) {
+    /* NOT ACROSS THE ENTRY ANIMATION (build 130; js/markbuild.js, hold and calm). Reading this file and
+       building the page from it is the heaviest thing a product page does, and it used to land just as
+       the logo began to move. While the black is still holding, the logo waits for it (hold). If the
+       logo is already moving when the file arrives, the reading waits for the black to go (calm). On a
+       page with no logo build, and in the check scripts, neither does anything. */
+    var mb = (typeof MM !== 'undefined' && MM.markbuild) || null;
+    var letGo = mb && mb.hold ? mb.hold() : function () {};
+    var pr = fetch(url, { cache: 'no-store' }).then(function (r) {
       if (!r.ok) throw new Error('The inventory answered HTTP ' + r.status + '.');
       return r.text();
+    }).then(function (text) {
+      if (!mb || !mb.calm) return text;
+      return new Promise(function (resolve) { mb.calm(function () { resolve(text); }); });
     }).then(function (text) {
       /* A restricted Google Sheet returns a sign-in PAGE with HTTP 200.
          It parses as garbage rather than failing, so look at it. */
@@ -259,6 +269,11 @@
 
       return { units: units, all: all, problems: problems, demo: !!inv.demo };
     });
+    /* let the logo go once the page has been built from the answer (the caller's own .then runs in
+       the same breath as this one, so "a moment later" is after it), or once it has failed */
+    var free = function () { setTimeout(letGo, 0); };
+    pr.then(free, free);
+    return pr;
   }
 
   /* ---- shapes the panels ask for -------------------------------------- */

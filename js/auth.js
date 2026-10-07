@@ -260,9 +260,17 @@
      the new ones, and a changed role reloads the page so the right screens
      show. No signal: nothing happens. */
   var verified = false;
+  /* NOT WHILE THE ENTRY ANIMATION IS ON THE GLASS (build 130). On a page that opens through the logo
+     build, these answers used to land while the letters were rising, and each one cost the animation
+     a frame. Nothing here is needed under a black screen, so it waits for the black to go
+     (MM.markbuild.after, which runs it at once on every other page). */
+  function quiet(fn) { if (MM.markbuild && MM.markbuild.after) MM.markbuild.after(fn); else fn(); }
   function verify() {
     if (verified) return;
     verified = true;
+    quiet(verifyNow);
+  }
+  function verifyNow() {
     token().then(function (access) {
       var s = current();
       if (!s) return;
@@ -509,7 +517,7 @@
   if (typeof document !== 'undefined' && document.addEventListener) {
     document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') { tried = {}; flushOffers(); } });
     root.addEventListener('online', function () { tried = {}; flushOffers(); });
-    root.addEventListener('pageshow', function () { flushOffers(); });
+    root.addEventListener('pageshow', function () { quiet(flushOffers); });
   }
 
   MM.auth = {

@@ -2058,6 +2058,13 @@ body.is-login { min-height: 100svh; }
    that could be half-applied at a hand-over. */
 .markbuild.is-lit { opacity: 1; }
 
+/* build 130: what glows by itself on the page (the roofs that breathe, the best-fit unit) stands still
+   while the logo plays over it. Nobody can see it under the black, and each of its frames is drawn by
+   the page, which is busy enough then. It goes on from where it stopped when the black has gone. */
+.mb-running .lp-roof,
+.mb-running .q-u,
+.mb-running .q-u-glow { animation-play-state: paused; }
+
 /* will-change only while it is actually moving */
 .mb-running .mb-part,
 .mb-running .mb-ink,
@@ -2234,7 +2241,8 @@ body.is-login { min-height: 100svh; }
    in from opposite ends. */
 .mb-stage.mb-word2 { top: 38%; }
 .mb-tag.mb-tag2 { top: 55%; }
-.mb-script { will-change: clip-path; }
+/* build 130: the script row is written on by two transforms (js/markbuild.js), no longer a clip-path;
+   its will-change is the .mb-part and .mb-glyph rules above */
 .mb-bar { position: absolute; top: 0; bottom: 0; width: clamp(18px, 7.7vw, 40px); }
 .mb-bar-l { left: 0; transform-origin: 50% 0; }
 .mb-bar-r { right: 0; transform-origin: 50% 100%; }

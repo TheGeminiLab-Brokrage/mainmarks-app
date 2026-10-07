@@ -240,50 +240,56 @@
     if (!stage || !row || !cards.length) return;
     var queued = false, last;
 
-    function inRow() {
-      /* the card whose centre is nearest the centre of the swipe row */
-      var rr = row.getBoundingClientRect(), mid = rr.left + rr.width / 2;
-      var hit = null, best = Infinity;
-      cards.forEach(function (c) {
-        var r = c.getBoundingClientRect();
-        var d = Math.abs(r.left + r.width / 2 - mid);
-        if (d < best) { best = d; hit = c.getAttribute('data-line'); }
-      });
-      return hit;
-    }
-    function onScreen() {
-      /* the card that fills MOST of the screen under the picture — not
-         the one crossing the middle, which lit Wellness while the eye was
-         still on the foot of The Fourth's card */
-      var below = stage.getBoundingClientRect().bottom;
-      var hit = null, most = 90;              /* under 90 px of a card is not "looking at it" */
-      cards.forEach(function (c) {
-        var r = c.getBoundingClientRect();
-        var seen = Math.min(r.bottom, window.innerHeight) - Math.max(r.top, below);
-        if (seen > most) { most = seen; hit = c.getAttribute('data-line'); }
-      });
-      return hit;
-    }
-    /* how far each card is from the row's centre, as --f (0 centred, 1 a
-       card's width away) — the CSS dulls and shrinks by it, so the card
-       comes up to its own colour as it arrives in the middle */
-    function dull() {
-      var on = swipe.matches;
-      var rr = row.getBoundingClientRect(), mid = rr.left + rr.width / 2;
-      cards.forEach(function (c) {
-        if (!on) { c.style.removeProperty('--f'); return; }
-        var r = c.getBoundingClientRect();
-        var f = Math.min(1, Math.abs(r.left + r.width / 2 - mid) / r.width);
-        c.style.setProperty('--f', f.toFixed(3));
-      });
-    }
+    /* ONE PASS: MEASURE EVERYTHING, THEN CHANGE EVERYTHING (build 130). This runs on every frame of a
+       swipe. It used to read a card's place, write that card's --f, read the next card's place, and so
+       on: each write made the next read re-work the page, five times a frame, and then twice more to
+       find the lit card. Measured on a slow phone, that one function was the longest thing on the page.
+       Now every place is read first, in one go, and only then is anything written; and a card whose
+       value has not changed is not written at all. */
+    var fOf = cards.map(function () { return null; });
     function pick() {
       queued = false;
-      dull();
-      if (!stacked.matches) return;
-      var hit = swipe.matches ? inRow() : onScreen();
-      dots.forEach(function (d) { d.classList.toggle('is-on', d.getAttribute('data-line') === hit); });
-      if (hit !== last) { last = hit; lightLine(hit); }
+      var on = swipe.matches, st = stacked.matches;
+
+      /* ---- measure */
+      var rr = row.getBoundingClientRect(), mid = rr.left + rr.width / 2;
+      var rects = (on || st) ? cards.map(function (c) { return c.getBoundingClientRect(); }) : [];
+      var below = (st && !on) ? stage.getBoundingClientRect().bottom : 0, vh = window.innerHeight;
+
+      /* ---- change. How far each card is from the row's centre, as --f (0 centred, 1 a card's width
+         away): the CSS dulls and shrinks by it, so the card comes up to its own colour as it arrives
+         in the middle */
+      cards.forEach(function (c, i) {
+        var v = on ? Math.min(1, Math.abs(rects[i].left + rects[i].width / 2 - mid) / rects[i].width).toFixed(3) : null;
+        if (v === fOf[i]) return;
+        fOf[i] = v;
+        if (v === null) c.style.removeProperty('--f'); else c.style.setProperty('--f', v);
+      });
+      if (!st) return;
+
+      var hit = null;
+      if (on) {
+        /* the card whose centre is nearest the centre of the swipe row */
+        var best = Infinity;
+        cards.forEach(function (c, i) {
+          var d = Math.abs(rects[i].left + rects[i].width / 2 - mid);
+          if (d < best) { best = d; hit = c.getAttribute('data-line'); }
+        });
+      } else {
+        /* the card that fills MOST of the screen under the picture — not
+           the one crossing the middle, which lit Wellness while the eye was
+           still on the foot of The Fourth's card */
+        var most = 90;                          /* under 90 px of a card is not "looking at it" */
+        cards.forEach(function (c, i) {
+          var seen = Math.min(rects[i].bottom, vh) - Math.max(rects[i].top, below);
+          if (seen > most) { most = seen; hit = c.getAttribute('data-line'); }
+        });
+      }
+      if (hit !== last) {
+        last = hit;
+        dots.forEach(function (d) { d.classList.toggle('is-on', d.getAttribute('data-line') === hit); });
+        lightLine(hit);
+      }
     }
     function soon() { if (!queued) { queued = true; requestAnimationFrame(pick); } }
     window.addEventListener('scroll', soon, { passive: true });
@@ -554,8 +560,12 @@
        project card does on the projects page (js/app.js): the build is
        claimed only once it has started, so anything that stops it leaves
        an ordinary link. The logo is fetched now, not on the tap. */
+    /* build 130: the line's page is asked for now, so the tap finds it on the phone (MM.warmNext in
+       js/brand.js). Its first pictures are this page's own (the aerial and the line's lights). */
+    MM.warmNext(a.getAttribute('href'), []);
     if (l.markBuild && l.markBuild.src && MM.markbuild) {
-      if (window.fetch) window.fetch(l.markBuild.src).catch(function () { /* the page lifts the black anyway */ });
+      /* read now and handed over with the tap (build 130, js/markbuild.js) */
+      MM.markbuild.warm(l.markBuild);
       a.addEventListener('click', function (e) {
         if (e.defaultPrevented || e.button !== 0) return;
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -606,7 +616,10 @@
       im.src = src;
       im.alt = '';
       im.setAttribute('aria-hidden', 'true');
-      if (!wide) im.loading = 'lazy';
+      /* NOT lazy (build 130). The five cards are one swipe row: every picture is needed the moment the
+         row is touched, and a lazy one arrived in the middle of the entry animation, where its drawing
+         cost the logo a frame. Loaded with the page, the animation waits for them (js/markbuild.js);
+         and the projects page has usually fetched them already (MM.warmNext). */
       if (cls) im.className = cls;
       return im;
     }

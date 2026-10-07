@@ -370,10 +370,70 @@
     document.body.classList.add('has-sp-bar');
   }
 
+  /* ---- the next page, in hand before the tap (build 130) ---------------
+     Every page of this app is its own document, so a tap is a trip to the host for the page, its
+     scripts and its pictures. On a slow line that is seconds of black before anything moves: measured
+     on 2026-10-07 at about two seconds a request. The host lets a phone keep each file for ten
+     minutes. So the page the person is LOOKING at asks, quietly and one file at a time, for what the
+     next tap will need, and the tap then finds it all on the phone.
+
+       href      the page the tap will open, exactly as the link writes it
+       pictures  what that page shows first
+
+     Only this app's own files, only once this page has finished loading and the browser is idle,
+     never on a phone set to save data. A failure is nothing: the next page asks for itself, as before.
+     It asks for the SAME addresses the page will (the ?v= stamps included), so nothing stale can be
+     kept: a new build has new addresses. */
+  var warmed = {};
+  function warmNext(href, pictures) {
+    if (typeof document === 'undefined' || !root.fetch || !href || warmed[href]) return;
+    var c = root.navigator && root.navigator.connection;
+    if (c && c.saveData) return;
+    warmed[href] = true;
+    var start = function () {
+      var queue = [], seen = {};
+      /* what this page itself loaded is on the phone already: asking again would only cost frames */
+      Array.prototype.forEach.call(document.querySelectorAll('script[src], link[rel="stylesheet"][href]'), function (n) {
+        seen[n.getAttribute('src') || n.getAttribute('href')] = true;
+      });
+      var one = function () {
+        var u = queue.shift();
+        if (!u) return;
+        var next = function () { setTimeout(one, 40); };
+        if (/\.(png|jpe?g|webp|svg|gif)(\?|$)/i.test(u)) {
+          var im = new Image();
+          im.onload = im.onerror = next;
+          im.src = u;
+        } else {
+          root.fetch(u, { credentials: 'same-origin' }).then(function (r) { return r.text(); }).then(next, next);
+        }
+      };
+      root.fetch(href, { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (html) {
+        (html.match(/(?:src|href)="(?:js|css|vendor)\/[^"]+"/g) || []).forEach(function (m) {
+          var u = m.replace(/^(?:src|href)="/, '').replace(/"$/, '');
+          if (!seen[u]) { seen[u] = true; queue.push(u); }
+        });
+        (pictures || []).forEach(function (u) {
+          if (u && /^img\/[A-Za-z0-9._\/-]+$/.test(u) && !seen[u]) { seen[u] = true; queue.push(u); }
+        });
+        one();
+      }).catch(function () { /* the next page asks for itself */ });
+    };
+    var idle = function () {
+      if (root.requestIdleCallback) root.requestIdleCallback(start, { timeout: 3000 });
+      else setTimeout(start, 1200);
+    };
+    var go = function () { if (document.readyState === 'complete') idle(); else root.addEventListener('load', idle); };
+    /* never under the entry animation: measured, each file asked for then cost it a frame. It waits
+       for the black to go (MM.markbuild.after runs it at once on a page that has no black). */
+    if (MM.markbuild && MM.markbuild.after) MM.markbuild.after(go); else go();
+  }
+
   MM.el = el;
   MM.t = t;
   MM.whoMenu = whoMenu;
   MM.salesBar = salesBar;
+  MM.warmNext = warmNext;
   MM.project = project;
   MM.sellableProject = sellableProject;
   MM.applyBrand = applyBrand;

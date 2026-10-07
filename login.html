@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=129">
+<link rel="stylesheet" href="css/styles.css?v=130">
 </head>
 <body class="is-login">
 
@@ -31,7 +31,12 @@
 
     <h1 class="gate-head" data-in="2" data-t-html="Your next chapter&lt;br&gt;starts with&lt;br&gt;Main&amp;nbsp;Marks&lt;span class=&quot;dot&quot; id=&quot;dot&quot;&gt;.&lt;/span&gt;">Your next chapter<br>starts with<br>Main&nbsp;Marks<span class="dot" id="dot">.</span></h1>
 
-    <form class="gate-form" id="signin" autocomplete="on" novalidate>
+    <!-- method and onsubmit are ON THE TAG on purpose (build 130). The fields are named, so that the
+         phone can offer the saved password; a form with named fields and nothing on its own tag sends
+         itself to its own address if Sign in is pressed before js/login.js is running (a slow line),
+         and the address bar then reads login.html?username=...&password=... With these two the page
+         never sends itself; the script's own listener still runs. -->
+    <form class="gate-form" id="signin" method="post" onsubmit="return false" autocomplete="on" novalidate>
 
       <label class="field" data-in="3">
         <span data-t="Work email">Work email</span>
@@ -111,10 +116,10 @@
   </div>
 </div>
 
-<script src="js/config.js?v=129"></script>
-<script src="js/i18n.js?v=129"></script>
-<script src="js/brand.js?v=129"></script>
-<script src="js/auth.js?v=129"></script>
-<script src="js/login.js?v=129"></script>
+<script src="js/config.js?v=130"></script>
+<script src="js/i18n.js?v=130"></script>
+<script src="js/brand.js?v=130"></script>
+<script src="js/auth.js?v=130"></script>
+<script src="js/login.js?v=130"></script>
 </body>
 </html>

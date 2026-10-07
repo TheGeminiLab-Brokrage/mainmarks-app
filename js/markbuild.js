@@ -69,7 +69,125 @@
   } catch (e) { /* no matchMedia: assume motion is fine */ }
 
   var KEY = 'mm.mark';
+  var ART = 'mm.mark.art';       /* the logo's own drawing, handed over with the tap (build 130) */
   var SPEED = 1;                 /* 1.15 would make the whole thing quicker */
+
+  /* ---- THE THREE THINGS THAT KEEP IT SMOOTH (build 130) -----------------
+     Measured frame by frame on a slow phone, 2026-10-07 (Main Marks Store\tests\measure-entry.js),
+     after Muhanad said the Moray entry "is not smooth, it cuts". The choreography was right; what it
+     ran ON was not. Three faults, one answer each, all in this file:
+
+     1. THE LOGO IS IN HAND BEFORE THE TAP. The letters are cut from the logo's own drawing, so the
+        arriving page needs the FILE before it can show anything. It used to ask for it on arrival:
+        the answer queued behind the page building itself, and the lockup was then built in the same
+        breath as its first frame, which came 200 ms late. Now the page being left reads the file while
+        the person is still looking at the card (warm), and hands its text over with the tap (cross).
+        The arriving page builds the lockup in its first moment and asks for nothing. If any of that
+        fails it asks for the file, as before.
+
+     2. THE CLOCK STARTS WHEN THE SCREEN CAN KEEP UP (whenSteady). Two frames of waiting was the rule,
+        and it was not enough: the page under the black was still arriving, and the first letters were
+        drawn late, so they jumped instead of rising. Now the clock starts once the page has finished
+        loading AND three frames in a row have come on time, which is the screen itself saying it can
+        keep up. Until then the black holds: black and still, the one state that cannot stutter.
+
+     3. NOTHING ELSE TALKS WHILE IT PLAYS (after). The store's answers (is he still switched on, his
+        companies, an offer waiting on the phone) used to land while the letters were rising. None of
+        that is needed under a black screen; it waits for the black to go.
+
+     And one rule for anything added later: ONLY transform AND opacity MOVE. A phone draws those two
+     without the page's help. A clip-path, a width, a left: each is redrawn by the page, frame by
+     frame, and stutters exactly when the page is busy. */
+  var art = {};
+  function warm(mark) {
+    var src = safeSrc(mark && mark.src);
+    if (!src) return;
+    if (!/\.svg$/.test(src) || !root.fetch) { (new Image()).src = src; return; }
+    if (art[src] !== undefined) return;
+    art[src] = '';
+    root.fetch(src).then(function (r) { return r.ok ? r.text() : ''; })
+      .then(function (text) { art[src] = text && text.length < 200000 ? text : ''; })
+      .catch(function () { /* the arriving page asks for it itself */ });
+  }
+  /* The drawing handed over with the tap: read once, removed, and only if it is the file asked for. */
+  function handed(src) {
+    try {
+      var raw = sessionStorage.getItem(ART);
+      sessionStorage.removeItem(ART);
+      var a = raw && JSON.parse(raw);
+      return a && a.src === src && typeof a.text === 'string' ? a.text : '';
+    } catch (e) { return ''; }
+  }
+  function withLogo(src, use, fail) {
+    var text = handed(src);
+    if (text) { try { use(text); } catch (e) { fail(); } return; }
+    root.fetch(src).then(function (r) {
+      if (!r.ok) throw new Error('logo ' + r.status);
+      return r.text();
+    }).then(use).catch(fail);
+  }
+
+  /* HOLD_CAP: the longest the black waits for the page before the clock starts anyway, counted from
+     the moment the page's own scripts have run. On a slow line the pictures are still arriving then;
+     waiting for them would be a black screen that looks like a fault. */
+  var HOLD_CAP = 1200;
+  var holds = 0, playing = false;
+  function whenSteady(begin) {
+    var ready = document.readyState === 'loading' ? 0 : Date.now();
+    if (!ready) document.addEventListener('DOMContentLoaded', function () { ready = Date.now(); });
+    var last = 0, good = 0;
+    var start = function () { if (!begin.done) { playing = true; begin(); } };
+    var frame = function (ts) {
+      if (begin.done) return;
+      var gap = last ? ts - last : 0;
+      last = ts;
+      /* on time: under 40 ms, which also passes a phone in low-power mode (30 frames a second).
+         And nothing the page is still waiting for (hold, below). */
+      good = (gap && gap < 40 && !holds && document.readyState === 'complete') ? good + 1 : 0;
+      /* past the cap the page is no longer waited for, but the clock still never starts on the heels
+         of a late frame: measured, that is exactly when the cap ran out (the unit list had just been
+         built), and the first letters paid for it. One frame on time is asked for, for half a second
+         more at most. */
+      var waited = ready ? Date.now() - ready : 0;
+      if (good >= 3 || (waited > HOLD_CAP && gap && gap < 40) || waited > HOLD_CAP + 500) { start(); return; }
+      requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+    /* and if frames never come (a background tab, a browser that has stopped painting), start anyway
+       rather than hold the black */
+    setTimeout(start, HOLD_CAP + 2500);
+  }
+
+  /* THE BIGGEST PIECE OF WORK ON A PRODUCT PAGE IS ITS UNIT LIST: the price file arrives, is read, and
+     the page is built from it in one go. Measured, that one piece of work landed just as the letters
+     began and held the page for over a second on a slow phone. It is asked for over the line, so no
+     "page loaded" says it has come. Two answers, and js/inventory.js uses both:
+       hold()  "I am waiting for something the page is built from." The clock does not start while a
+               hold is out (up to HOLD_CAP, as ever). It answers with the function that lets go.
+       calm()  "Run this now, unless the logo is already moving; then run it when the black has gone."
+               So what comes in time is built under the still black, and what comes late does not cut
+               into the animation: the page is uncovered and fills a moment later. */
+  function hold() {
+    var gone = false;
+    holds++;
+    return function () { if (!gone) { gone = true; holds--; } };
+  }
+  function calm(fn) { if (playing && covered()) after(fn); else fn(); }
+
+  var waiting = [];
+  function covered() { var n = overlay(); return !!(n && n.classList.contains('is-on')); }
+  /* Run `fn` once the black has gone; now, if there is no black. Never forgotten: if the black is
+     somehow still up after eight seconds the work goes ahead anyway. */
+  function after(fn) {
+    if (!covered()) { fn(); return; }
+    waiting.push(fn);
+    setTimeout(release, 8000);
+  }
+  function release() {
+    var list = waiting;
+    waiting = [];
+    list.forEach(function (fn) { try { fn(); } catch (e) { /* one must not stop the next */ } });
+  }
 
   /* ---- the timeline -------------------------------------------------
      Milliseconds from the tap. Phase 1 is the 160ms on the page being
@@ -198,6 +316,11 @@
     try {
       sessionStorage.setItem(KEY, JSON.stringify({ t: Date.now(), src: mark.src }));
     } catch (e) { /* private mode: the project page just arrives plainly */ }
+    /* the logo's drawing goes with the tap, so the arriving page asks for nothing (see `warm`) */
+    try {
+      sessionStorage.removeItem(ART);
+      if (art[mark.src]) sessionStorage.setItem(ART, JSON.stringify({ src: mark.src, text: art[mark.src] }));
+    } catch (e) { /* no room, or private mode: the arriving page fetches the file itself */ }
 
     var ms = reduced ? 120 : T.handoff / SPEED;
     var a = n.animate([{ opacity: 0 }, { opacity: 1 }],
@@ -223,6 +346,10 @@
       n.className = 'markbuild';
       n.removeAttribute('style');
       document.documentElement.classList.remove('mb-running');
+      playing = false;
+      /* what waited for the black to go (see `after`), a moment later so the page's first clear
+         frames are its own */
+      setTimeout(release, 60);
     };
 
     var mark = p && p.markBuild;
@@ -452,10 +579,9 @@
        anyone actually SEES is already a third of the way in. It looks
        like the transition begins in the middle, because it does.
 
-       Two frames of waiting means the page has painted once and the
-       main thread is free, and the assembly starts at its beginning.
-       Every animation is played in the same tick, so they still share
-       one clock. */
+       WHEN that is, is whenSteady's business (top of this file): the
+       page loaded and three frames in a row on time. Every animation
+       is played in the same tick, so they still share one clock. */
     all.forEach(function (a) { a.pause(); a.currentTime = 0; });
 
     var begin = function () {
@@ -470,10 +596,7 @@
       setTimeout(done, d(END) + 2000);
     };
 
-    requestAnimationFrame(function () { requestAnimationFrame(begin); });
-    /* and if frames never come — a background tab, a browser that has
-       stopped painting — start anyway rather than hold the black */
-    setTimeout(begin, 400);
+    whenSteady(begin);
   }
 
   /* ================================================================
@@ -548,19 +671,17 @@
     var lock = n.querySelector('.mb-lock');
     if (!lock || !root.fetch || !root.DOMParser) { fade(n, done); return; }
 
-    /* The logo was already fetched by the card on the page we left, so
-       this is a cache hit. If it fails, the black simply lifts. */
-    root.fetch(src).then(function (r) {
-      if (!r.ok) throw new Error('logo ' + r.status);
-      return r.text();
-    }).then(function (text) {
+    /* The logo's drawing came with the tap (build 130, top of this file),
+       so this runs at once; without it the file is fetched. If it fails,
+       the black simply lifts. */
+    withLogo(src, function (text) {
       var doc = new root.DOMParser().parseFromString(text, 'image/svg+xml');
       var svg = doc.documentElement;
       var vb = (svg.getAttribute('viewBox') || '').split(/\s+/).map(Number);
       var paths = Array.prototype.slice.call(doc.getElementsByTagName('path'));
       if (vb.length !== 4 || vb.some(isNaN) || !paths.length) throw new Error('logo shape');
       play(vb, paths);
-    }).catch(function () { fade(n, done); });
+    }, function () { fade(n, done); });
 
     function play(vb, paths) {
       document.documentElement.classList.add('mb-running');
@@ -634,7 +755,7 @@
       });
 
       /* the script row, whole, behind a window that opens left to right */
-      var script = null;
+      var script = null, scriptInk = null;
       if (low.length) {
         script = el('span', 'mb-part mb-script');
         script.style.left = '0';
@@ -646,6 +767,7 @@
         ss.style.left = '0';
         script.appendChild(ss);
         stage.appendChild(script);
+        scriptInk = ss;
       }
 
       /* the template's bars, at the edges of the frame (Wellness CI p.10) */
@@ -738,10 +860,14 @@
             span(tl.letter, i * tl.step));
       });
 
-      /* the script is written on */
+      /* the script is written on, left to right. The WINDOW slides in while the ink inside it slides
+         back by the same amount, so the ink stands still and only the window's edge travels: two
+         transforms, which a phone draws without the page's help. It was a clip-path until build 130,
+         and a clip-path is redrawn by the page, frame by frame. */
       if (script) {
-        add(script, [{ clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0% 0 0)' }],
-            { delay: d(tl.script[0]), duration: d(tl.script[1] - tl.script[0]), easing: EASE_DRAW, fill: 'both' });
+        var so = { delay: d(tl.script[0]), duration: d(tl.script[1] - tl.script[0]), easing: EASE_DRAW, fill: 'both' };
+        add(script, [{ transform: 'translateX(-100%)' }, { transform: 'none' }], so);
+        add(scriptInk, [{ transform: 'translateX(100%)' }, { transform: 'none' }], so);
       }
 
       /* the lockup line (or, for R- Residence, the slash and the name over) */
@@ -767,7 +893,7 @@
       var last = add(n, [{ opacity: 1 }, { opacity: 0 }],
           { delay: d(tl.reveal[0]), duration: d(tl.reveal[1] - tl.reveal[0]), easing: 'linear', fill: 'both' });
 
-      /* paused until the page has painted, exactly as h:rs */
+      /* paused until the screen can keep up, exactly as h:rs */
       all.forEach(function (a) { a.pause(); a.currentTime = 0; });
       var begin = function () {
         if (begin.done) return;
@@ -777,8 +903,7 @@
         setTimeout(done, d(tl.reveal[1]) + 400);
         setTimeout(done, d(tl.reveal[1]) + 2000);
       };
-      requestAnimationFrame(function () { requestAnimationFrame(begin); });
-      setTimeout(begin, 400);
+      whenSteady(begin);
     }
   }
 
@@ -817,17 +942,14 @@
   function runFourth(p, n, mark, src, done) {
     var lock = n.querySelector('.mb-lock');
     if (!lock || !root.fetch || !root.DOMParser) { fade(n, done); return; }
-    root.fetch(src).then(function (r) {
-      if (!r.ok) throw new Error('logo ' + r.status);
-      return r.text();
-    }).then(function (text) {
+    withLogo(src, function (text) {
       var doc = new root.DOMParser().parseFromString(text, 'image/svg+xml');
       var vb = (doc.documentElement.getAttribute('viewBox') || '').split(/\s+/).map(Number);
       var groups = Array.prototype.slice.call(doc.documentElement.children)
         .filter(function (x) { return x.tagName === 'g'; });
       if (vb.length !== 4 || vb.some(isNaN) || groups.length < 3) throw new Error('logo shape');
       play(vb, groups);
-    }).catch(function () { fade(n, done); });
+    }, function () { fade(n, done); });
 
     function play(vb, groups) {
       var NS = 'http://www.w3.org/2000/svg';
@@ -909,7 +1031,8 @@
       stage.appendChild(the);
       var lob = el('span', 'mb-part mb-f4-lob');
       lob.style.cssText = 'left:0;top:0;width:100%;height:100%';
-      lob.appendChild(full100(glyphs(LOB)));
+      var lobInk = full100(glyphs(LOB));
+      lob.appendChild(lobInk);
       stage.appendChild(lob);
       probe.parentNode.removeChild(probe);
 
@@ -995,7 +1118,9 @@
       });
       /* 3. THE settles on top; LEVEL OF BUSINESS is written on */
       add(the, [{ opacity: 0, transform: 'translateY(-6%)' }, { opacity: 1, transform: 'none' }], at(TF.the));
-      add(lob, [{ clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0% 0 0)' }], at(TF.lob, 0, EASE_DRAW));
+      /* a window sliding in over ink that slides back: two transforms, not a clip-path (build 130) */
+      add(lob, [{ transform: 'translateX(-100%)' }, { transform: 'none' }], at(TF.lob, 0, EASE_DRAW));
+      add(lobInk, [{ transform: 'translateX(100%)' }, { transform: 'none' }], at(TF.lob, 0, EASE_DRAW));
       /* 4. the foot */
       [by, mk].forEach(function (x, i) {
         add(x, [{ opacity: 0, transform: 'translateY(.4em)' }, { opacity: 1, transform: 'none' }], at(TF.foot, i * 80));
@@ -1014,8 +1139,7 @@
         setTimeout(done, d(TF.reveal[1]) + 400);
         setTimeout(done, d(TF.reveal[1]) + 2000);
       };
-      requestAnimationFrame(function () { requestAnimationFrame(begin); });
-      setTimeout(begin, 400);
+      whenSteady(begin);
     }
   }
 
@@ -1029,6 +1153,6 @@
     setTimeout(done, 500);
   }
 
-  MM.markbuild = { cross: cross, run: run };
+  MM.markbuild = { cross: cross, run: run, warm: warm, after: after, hold: hold, calm: calm };
 
 }(window));
