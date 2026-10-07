@@ -284,7 +284,8 @@
   /* THE BROKERAGE COMPANIES (build 125). On the store the list an agent chooses from is the admin's:
      a company she adds is offered to everyone, one she switches off is not. It is fetched once per page,
      in the background, and kept on the phone, so "Who is this offer for?" still has its list with no
-     signal. Until the first fetch lands, the list in js/config.js stands in. */
+     signal. On the demo the list in js/config.js is used; on the real app that file has none (build 128)
+     and a phone with no list yet fetches it when the sheet opens (loadCompanies). */
   var CO_KEY = 'mm.companies.v1';
   function companies(access) {
     return api('/rest/v1/mm_companies?select=id,name&active=eq.true&order=name', null, access).then(function (r) {
@@ -299,6 +300,16 @@
       var a = JSON.parse(localStorage.getItem(CO_KEY) || 'null');
       return Array.isArray(a) && a.length ? a : null;
     } catch (e) { return null; }
+  }
+  /* The list, fetched NOW (build 128). The real app's js/config.js carries no company list any more, so
+     nothing stands in for it: "Who is this offer for?" calls this when the phone has none yet. Answers
+     with [{ id, name }]; rejects with no signal, or when the store does not hand the list over. */
+  function loadCompanies() {
+    return token().then(function (access) { return companies(access); }).then(function () {
+      var a = companyList();
+      if (!a) throw new Error('offline');
+      return a;
+    });
   }
 
   /* EVERY OFFER SENT IS SAVED (build 127). Called when an offer leaves the app. It never stands in the
@@ -497,6 +508,7 @@
     token: token,
     call: call,
     companyList: companyList,
+    loadCompanies: loadCompanies,
     logOffer: logOffer,
     wrongNames: wrongNames,
     mayPropose: mayPropose,

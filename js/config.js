@@ -14,7 +14,7 @@ const CONFIG = {
   /* Bumped on every deploy, and matched by the ?v= on every script tag in
      the HTML. That pair is what stops a returning phone running yesterday's
      JavaScript. See README, "Deploying". */
-  build: 127,
+  build: 128,
 
   /* Where the activity log is sent. Empty = kept on the device only, which
      is where it is today. Filling this in is the whole change when the
@@ -1047,21 +1047,11 @@ const CONFIG = {
          (Desktop\Moray - Main Marks\05 Sales & pricing\Broker company.xlsx, rows 1-76,
          in their order and spelling; only stray spaces tidied). Feeds "Who is this
          offer for?" (build 88; Muhanad: "add all the brokerage company list").
-         THE PUBLIC DEMO LINK carries only a 7-name sample: scripts/make-demo-publish.js
-         cuts this list between the two markers (his choice, 2026-10-03; the contract
-         promises the broker list is never disclosed). */
-      brokerages: /* BROKERAGES:START */ [
-        'Views', 'Nawy', 'High Level', 'Market Standerd', 'Twelve Real Estate', 'We Prime', 'Redz Investment',
-        'السقا', 'Real Challenge', 'Shortcut', 'Th', 'coldwell banker', 'New Avenue', 'The Address Investment',
-        'Real Chance', 'curve', 'Westse', 'M I Invest', 'sokin', 'AMG', 'everscopes', 'الدجوي', 'connect homes',
-        'the lark group', 'silverline', 'Millers', 'Aqar gold', 'B2B', 'seen', 'OMD', 'limitless', 'Equal Estate',
-        'white Line', 'sodik home', 'PRO TITANIUM GROUP', 'Bold Routes', 'المراد للتسويق العقاري', 'Wealth', 'HOPE',
-        'Free Brokers', 'Isola Vista', 'Insider', 'Veterans', 'Crete investment', 'Hello Deal', 'Special Key',
-        'Regor', 'Y the brokers', 'Investa', 'Sand Stone', 'ElHelmy', 'ALQODS القدس', 'Element', 'KHL', 'Red Hills',
-        'Places', 'Fav Deal', 'Frensh House', 'DRI', 'Luxury Housing', 'The House', 'A PLUS', 'Top Managment',
-        'Setaj', 'AK', 'The Land', 'We state', 'NOD', 'The Trust', 'Pharaohs', 'Elkarma', 'GIG', 'Smart Property',
-        'Irtkaz', 'Neo Gen Royal', 'Eska- the stone'
-      ] /* BROKERAGES:END */,
+         NEVER PUBLISHED AS IT STANDS HERE (Muhanad, 2026-10-07, "hide on both": the
+         contract promises the broker list is never disclosed, and a published file is
+         readable without signing in). The publish scripts cut this list between the two
+         markers: the real app takes the companies from the store after sign-in. */
+      brokerages: /* on the real app the companies are in the store, read after sign-in */ [],
       source:  'Moray brochure (Digital Brochure, Oct 2025)',
 
       /* OPEN. Moray is the project the contract buys, so it is the live

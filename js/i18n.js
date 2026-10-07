@@ -395,6 +395,8 @@
     'Groups, channels, status. No single company.': 'جروبات وقنوات وحالة، بدون شركة محددة.',
     'Which company asked?': 'أي شركة طلبت؟',
     'Type the brokerage company': 'اكتب اسم شركة الوساطة',
+    'Loading the companies…': 'جاري تحميل الشركات…',
+    'The companies could not be loaded. Check your connection, then open this again.': 'تعذّر تحميل الشركات. تحقق من الاتصال ثم افتح هذه النافذة مرة أخرى.',
     'Main Marks’ brokerage list will fill this once it is sent. Type the company for now.': 'ستُملأ هذه القائمة بشركات الوساطة لدى Main Marks فور إرسالها. اكتب اسم الشركة الآن.',
     'Send it as': 'أرسله كـ',
     'Offer PDF': 'ملف العرض PDF',

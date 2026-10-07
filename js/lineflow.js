@@ -1167,9 +1167,16 @@
       var drop = el('ul', 'q-who-list'); drop.id = 'qWhoList'; drop.setAttribute('role', 'listbox'); drop.hidden = true;
       field.appendChild(inp); field.appendChild(drop);
       co.appendChild(field);
-      if (!list.length) co.appendChild(el('span', 'q-who-note', t('Main Marks’ brokerage list will fill this once it is sent. Type the company for now.')));
       /* build 127: on the store, the company is one on the admin's list, or a name he sends for approval */
       var STORE = !!(MM.auth.real && MM.auth.real()), fresh = null;
+      /* build 128: THE REAL APP'S FILE CARRIES NO COMPANY LIST (it was readable without signing in). A
+         phone that has not fetched the admin's list yet fetches it as this sheet opens. Until it lands
+         no name can be sent for approval: against an empty list every company would look unlisted. */
+      var loading = STORE && !list.length && !!MM.auth.loadCompanies, listNote = null;
+      if (!list.length) {
+        listNote = el('span', 'q-who-note', STORE ? t('Loading the companies…') : t('Main Marks’ brokerage list will fill this once it is sent. Type the company for now.'));
+        co.appendChild(listNote);
+      }
       var newNote = el('p', 'q-who-note'); newNote.hidden = true;
       co.appendChild(newNote);
       card.appendChild(co);
@@ -1204,14 +1211,22 @@
         check();
       }
 
-      var names = asked && list.indexOf(asked) > 0 ? [asked].concat(list.filter(function (n) { return n !== asked; })) : list;
+      /* the names offered, and their folded forms for the matching below; set again when the list lands */
+      var names = [], folded = {};
+      function setNames(l) {
+        names = asked && l.indexOf(asked) > 0 ? [asked].concat(l.filter(function (n) { return n !== asked; })) : l;
+        folded = {};
+        names.forEach(function (n) {
+          folded[n] = { all: fold(n), words: String(n).split(/[\s\-_.,&/()]+/).map(fold).filter(Boolean) };
+        });
+      }
       var hi = -1;
       /* build 91 (Muhanad: "every letter he types, the list filters to
          whatever is close to what he is typing"): FORGIVING matching. Case,
          spaces and punctuation are ignored and Arabic letter forms folded
          (أ إ آ -> ا, ة -> ه, ى -> ي), then, best first: the name starts with
          it, a word in it does ("banker"), it is inside it, its letters come
-         in order ("nwy" -> Nawy), or it is one slip away ("nawi" -> Nawy; two
+         in order ("acm" -> Acme), or it is one slip away ("acmi" -> Acme; two
          for six letters or more). Nothing close: the list says so, and the
          name is kept as typed. */
       function fold(s) {
@@ -1235,10 +1250,7 @@
         }
         return prev[b.length];
       }
-      var folded = {};
-      names.forEach(function (n) {
-        folded[n] = { all: fold(n), words: String(n).split(/[\s\-_.,&/()]+/).map(fold).filter(Boolean) };
-      });
+      setNames(list);
       function score(n, q) {
         var f = folded[n], all = f.all, words = f.words, i, j;
         if (all.indexOf(q) === 0) return 100;
@@ -1311,7 +1323,9 @@
         });
         /* build 127, ON THE STORE: a name that is not on the list is not kept as typed. He picks a listed
            company, or sends the name to the admin for approval; after three wrong spellings, he cannot. */
-        if (STORE && typed.length >= 2 && !listed(typed)) {
+        /* no list yet: the line under the field says so, once (the same words in this box read twice) */
+        if (STORE && loading) { drop.hidden = true; inp.setAttribute('aria-expanded', 'false'); return; }
+        if (STORE && !loading && typed.length >= 2 && !listed(typed)) {
           if (MM.auth.mayPropose()) {
             var add = el('li', 'q-who-item q-who-new');
             add.setAttribute('role', 'option');
@@ -1384,7 +1398,7 @@
         if (a === 'broker' && !inp.value && !asked) {
           inp.value = (last && last.audience === 'broker' && last.company) || '';
           /* the company he proposed a moment ago is still the one he is sending to */
-          if (STORE && last && last.isNew && inp.value && !listed(inp.value) && MM.auth.mayPropose()) { fresh = inp.value; sayNew(); }
+          if (STORE && !loading && last && last.isNew && inp.value && !listed(inp.value) && MM.auth.mayPropose()) { fresh = inp.value; sayNew(); }
         }
         if (!fmtPicked) setFormat(a === 'broker' ? 'pdf' : 'post', false);
         check();
@@ -1416,6 +1430,20 @@
         close();
         then(who);
       });
+
+      if (loading) {
+        MM.auth.loadCompanies().then(function (a) {
+          loading = false;
+          setNames(a.map(function (b) { return b.name; }).filter(Boolean));
+          if (listNote) listNote.hidden = true;
+          if (document.activeElement === inp) paintDrop(true);
+          check();
+        }, function () {
+          /* `loading` stays on: nothing is sent for approval against a list that never came */
+          if (listNote) listNote.textContent = t('The companies could not be loaded. Check your connection, then open this again.');
+          if (document.activeElement === inp) paintDrop(true);
+        });
+      }
 
       /* not in the demo (a request on its lock screen): Watch it must always get the PDF */
       if (postOnly) setFormat('post', true);
