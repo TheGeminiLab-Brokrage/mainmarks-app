@@ -310,6 +310,8 @@
       e = { id: r.id, k: r.kind, c: r.company_id ? cAt[r.company_id] : null, m: place(r.person_id), d: Math.max(0, Math.min(SPAN, agoOf(d))), t: r.at_min || 0, p: r.product || null };
       if (r.person2_id) e.m2 = place(r.person2_id);
       if (r.channel) e.ch = r.channel;
+      /* build 129: a general broadcast is ONE row however many times it was sent; `n` is how many */
+      if (r.kind === 'offer' && !r.company_id && Number(r.rounds) >= 1) e.n = Number(r.rounds);
       if (r.unit_code) { e.u = r.unit_code; e.area = r.area === null ? null : Number(r.area); }
       if (r.value !== null && r.value !== undefined) e.v = Number(r.value);
       if (r.why) e.why = r.why;

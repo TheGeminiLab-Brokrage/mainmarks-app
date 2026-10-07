@@ -681,6 +681,23 @@
     var send = el('button', 'q-cta', t('Send on WhatsApp')); send.type = 'button';
     acts.appendChild(copy); acts.appendChild(send);
     card.appendChild(acts);
+    /* build 129: A GENERAL BROADCAST GOES OUT A FEW CHATS AT A TIME, so the same post is sent again and
+       again (Muhanad, 2026-10-07). After the first send the button says so and this line counts the
+       sends; the store counts them all as ONE broadcast. Not for a post made for one company.
+         sends     made from this sheet
+         answered  how many of them the store has confirmed
+         known     the broadcast's own count, as the store last gave it (sends made earlier today,
+                   from this sheet or another phone, are in it) */
+    var isBroadcast = !(o.who && o.who.audience === 'broker'), sends = 0, answered = 0, known = 0;
+    var sentLine = el('p', 'q-post-sent'); sentLine.hidden = true; sentLine.setAttribute('aria-live', 'polite');
+    card.appendChild(sentLine);
+    function paintSent() {
+      var n = Math.max(sends, known + (sends - answered));
+      if (!isBroadcast || !n) return;
+      sentLine.hidden = false;
+      sentLine.textContent = n === 1 ? t('Sent once. Counted as one broadcast.') : t('Sent {n} times. Counted as one broadcast.', { n: n });
+      send.textContent = t('Send to the next chats');
+    }
     var note = el('p', 'q-who-note q-post-note'); note.setAttribute('aria-live', 'polite');
     card.appendChild(note);
 
@@ -734,7 +751,14 @@
     });
 
     /* build 127: the post left the app, so the sales app saves it (o.onSent, js/lineflow.js) */
-    function left(stage) { if (typeof o.onSent === 'function') o.onSent(stage); }
+    function left(stage) {
+      if (stage === 'ok') { sends += 1; paintSent(); }
+      if (typeof o.onSent === 'function') o.onSent(stage, function (e) {
+        answered = Math.min(sends, answered + 1);
+        if (e && Number(e.rounds) > known) known = Number(e.rounds);
+        paintSent();
+      });
+    }
     send.addEventListener('click', function () {
       if (send.disabled) return;
       /* the demo's phone answers inside the demo (demo.html) */

@@ -341,10 +341,21 @@
     function kindOf(e) { return e.k === 'offer' ? (e.c === null ? 'broadcast' : 'special') : e.k; }
     function people(e) { return isVisit(e) ? nm(TEAM[e.m].name) + (e.m2 !== undefined ? ' + ' + nm(TEAM[e.m2].name) : '') : e.m2 !== undefined ? t('{a} + {b} (split)', { a: nm(TEAM[e.m].name), b: nm(TEAM[e.m2].name) }) : nm(TEAM[e.m].name); }
     function what(e) { return KIND[kindOf(e)] + (e.c !== null ? ' · ' + nm(book[e.c].name) : ''); }
+    /* build 129: HOW MANY TIMES A BROADCAST WENT, and what that means in plain words (Muhanad: "if the
+       user hovers on it he gets an explanation ... in very simple words"). A laptop shows it on hover,
+       a phone on a tap (the click handler at the foot of this file); the words sit in the page, so a
+       screen reader has them too. Only on a row the store gave a count for. */
+    function sentTimes(e) {
+      if (e.k !== 'offer' || e.c !== null || !e.n) return '';
+      var tip = e.n === 1
+        ? t('This offer was sent once. WhatsApp takes only a few chats each time, so sending it again to more chats still counts as one broadcast.')
+        : t('This offer was sent {n} times. WhatsApp takes only a few chats each time, so one offer needs many sends. It counts as one broadcast.', { n: e.n });
+      return ' · <button class="why" type="button" aria-expanded="false">' + (e.n === 1 ? t('sent once') : t('sent {n} times', { n: e.n })) + '</button><span class="why-tip" role="note">' + esc(tip) + '</span>';
+    }
     function unitText(e) { return nm(prod(e.p) + ' ' + e.u) + (e.area ? ' · ' + t('{n} m²', { n: e.area }) : '') + (e.v ? ' · ' + money(e.v) : ''); }
     function detail(e) { return isVisit(e) ? followed(e).text : e.u ? unitText(e) : prod(e.p) + (e.ch ? ' · ' + CH[e.ch] : ''); }
     function feed(list, withName) {
-      return '<div class="feed">' + list.map(function (e) { return '<div><time>' + when(e) + '</time><span>' + what(e) + '<small>' + (withName ? people(e) + ' · ' : '') + detail(e) + (e.k === 'cancel' ? ' · ' + WHYL[e.why] : '') + '</small></span></div>'; }).join('') + '</div>';
+      return '<div class="feed">' + list.map(function (e) { return '<div><time>' + when(e) + '</time><span>' + what(e) + sentTimes(e) + '<small>' + (withName ? people(e) + ' · ' : '') + detail(e) + (e.k === 'cancel' ? ' · ' + WHYL[e.why] : '') + '</small></span></div>'; }).join('') + '</div>';
     }
     function kv(list) { return '<div class="kv">' + list.map(function (x) { return '<div><b>' + x[0] + '</b><span>' + x[1] + '</span></div>'; }).join('') + '</div>'; }
 
@@ -994,7 +1005,7 @@
       var n = A.tot, list = tileList(k), body, none = '<p class="note">' + t('None recorded in these dates.') + '</p>';
       if (k === 'offers') {
         body = kv([[n.special, t('Special requests')], [n.broadcast, t('Broadcasts')], [distinct(list, 'c').length, t('Companies asked')]]) +
-          '<p class="note">' + (MY ? t('These are counted by themselves each time you send an offer. There is nothing to type.') : t('{x} sales agents sent an offer.', { x: t('{a} of {b}', { a: A.sending, b: TEAM.length }) })) + '</p>' + (list.length ? '<p class="sec">' + t('Newest first') + '</p>' + feed(list.slice(0, 12), !MY) + (list.length > 12 ? (MY ? '<p class="note">' + t('{n} more in these dates.', { n: list.length - 12 }) + '</p>' : more(list.length - 12)) : '') : '');
+          '<p class="note">' + (MY ? t('These are counted by themselves when you send an offer. There is nothing to type. A broadcast is counted once, however many times you send it.') : t('{x} sales agents sent an offer.', { x: t('{a} of {b}', { a: A.sending, b: TEAM.length }) })) + '</p>' + (list.length ? '<p class="sec">' + t('Newest first') + '</p>' + feed(list.slice(0, 12), !MY) + (list.length > 12 ? (MY ? '<p class="note">' + t('{n} more in these dates.', { n: list.length - 12 }) + '</p>' : more(list.length - 12)) : '') : '');
       } else if (k === 'asked') {
         body = list.length ? '<div class="rows">' + list.map(function (c) {
           var who = distinct(A.list.filter(function (e) { return e.c === c.id && e.k === 'offer'; }), 'm').map(function (m) { return esc(TEAM[m].name); }).join(AR ? '، ' : ', ');
@@ -1425,6 +1436,10 @@
     ['mouseover', 'focusin'].forEach(function (ev) { document.addEventListener(ev, function (e) { var c = e.target.closest && e.target.closest('[data-w]'); if (c) barPick(c); }); });
     document.addEventListener('click', function (e) {
       var hit = function (a) { return e.target.closest('[' + a + ']'); };
+      /* build 129: "sent 16 times" explains itself: a tap opens the words under it, a tap anywhere else closes them */
+      var why = e.target.closest('.why');
+      [].forEach.call(document.querySelectorAll('.why[aria-expanded="true"]'), function (b) { if (b !== why) b.setAttribute('aria-expanded', 'false'); });
+      if (why) { why.setAttribute('aria-expanded', why.getAttribute('aria-expanded') === 'true' ? 'false' : 'true'); return; }
       var d = hit('data-dl'), c = hit('data-c'), m = hit('data-m'), f = hit('data-f'), r = hit('data-r'), g = hit('data-go'), k = hit('data-k'), l = hit('data-lang');
       if (e.target.closest('#when')) { menuOpen = !menuOpen; draw(true); }
       else if (e.target.closest('#rSave')) { if (MY) saveMyRecord(); else saveRecord(); }

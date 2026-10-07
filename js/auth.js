@@ -316,7 +316,7 @@
      way of the send: the row is put on a list kept on the phone first, then sent to the store, and what
      the store has not confirmed is sent again on the next page (so an offer made with no signal is
      still counted). Each row carries its own reference, made here, so a row sent twice is saved once.
-     o: { company: name | null (a general broadcast), product, channel: 'pdf' | 'post', unit, area, value }
+     o: { company: name | null (a general broadcast), product, channel: 'pdf' | 'post', unit, area, value, key }
      A company that is not on the admin's list cannot be counted for a company: it is saved as a
      general broadcast, and "Who is this offer for?" says so before the send. */
   var OFFERS_KEY = 'mm.offers.queue.v1';
@@ -334,11 +334,14 @@
      the agent closed the sheet without sending (offerNotSent). A held row found by a LATER page means
      the page died with the sheet open: a closed sheet comes straight back to a living page, so that
      row is an offer that went, and it is saved. */
-  var holding = {};
+  var holding = {}, heard = {};
   function offerLeaving(o) { var ref = logOffer(o, true); if (ref) holding[ref] = true; return ref; }
-  function offerLeft(ref) {
+  /* saved (build 129): called once with the store's row when this send is saved, if this page is still
+     here to hear it. A general broadcast's row says how many times it has left the app today. */
+  function offerLeft(ref, saved) {
     if (!ref) return;
     delete holding[ref];
+    if (typeof saved === 'function') heard[ref] = saved;
     setQueued(queued().map(function (r) { if (r.p_client_ref === ref) delete r.hold; return r; }));
     flushOffers();
   }
@@ -357,7 +360,10 @@
       p_client_ref: ref,
       propose: o.propose && o.company ? String(o.company).trim() : undefined,
       p_company: o.propose ? null : companyId(o.company), p_product: o.product || null, p_channel: o.channel === 'post' ? 'post' : 'pdf',
-      p_unit: o.unit || null, p_area: o.area || null, p_value: o.value || null, p_sent_at: new Date().toISOString() });
+      p_unit: o.unit || null, p_area: o.area || null, p_value: o.value || null, p_sent_at: new Date().toISOString(),
+      /* build 129: what the offer is (js/lineflow.js offerKey). The store joins the sends of one general
+         broadcast on it; left out when the page did not say, and then nothing is joined. */
+      p_offer_key: o.key ? String(o.key).slice(0, 200) : undefined });
     setQueued(q.slice(-200));
     if (!hold) flushOffers();
     return ref;
@@ -381,6 +387,9 @@
         return call('/rest/v1/rpc/mm_log_offer', { method: 'POST', body: body }).then(function (x) {
           /* saved, or refused for good (the store's own code): either way it does not wait any longer */
           if (x.status === 200 || refusedForGood(x)) done(r.p_client_ref);
+          var h = heard[r.p_client_ref];
+          if (x.status === 200 || refusedForGood(x)) delete heard[r.p_client_ref];
+          if (h && x.status === 200) { try { h(x.body); } catch (e) { /* the page's own business */ } }
           next(i + 1);
         });
       };

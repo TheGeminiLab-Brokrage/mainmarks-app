@@ -2847,6 +2847,9 @@ body.is-ready .mv-hint { opacity: 1; }
 .q-post-acts .q-ghost { min-height: 48px; }
 .q-post-note { margin: 10px 0 0; }
 .q-post-note:empty { display: none; }
+/* build 129: how many times this broadcast has been sent, under the buttons (js/post.js). White, not
+   green: green already means "best fit" in this app. */
+.q-post-sent { margin: 12px 0 0; font-size: 13.5px; font-weight: 600; line-height: 1.4; color: var(--white); }
 .q-assume { margin: 18px 0 0; padding-left: 18px; font-size: 12px; line-height: 1.55; color: var(--q-faint); }
 .q-empty { margin-top: 14px; font-size: 13.5px; color: var(--q-dim); }
 .q-src { margin-top: 26px; }

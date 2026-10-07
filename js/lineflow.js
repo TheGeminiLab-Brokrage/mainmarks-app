@@ -433,7 +433,7 @@
         askAudience(function (who) {
           MM.post.open({
             project: p, line: l, options: opts, all: rows, who: who, session: session, demo: demo,
-            onSent: sent(who, 'post', null),
+            onSent: sent(who, 'post', null, offerKey(opts.map(function (x) { return { code: x.unit.code, plan: x.plan && x.plan.id }; }))),
             kit: { handheld: handheld, canShare: canShare, shareOrTimeOut: shareOrTimeOut, saveFile: saveFile }
           });
         }, { postOnly: true });
@@ -1023,7 +1023,7 @@
           if (who.format === 'post' && MM.post) {
             MM.post.open({
               project: p, line: l, unit: c.u, plan: c.pl, buildingName: c.b && c.b.name, who: who,
-              session: session, demo: demo, onSent: sent(who, 'post', c.u),
+              session: session, demo: demo, onSent: sent(who, 'post', c.u, offerKey([{ code: c.u.code, plan: c.pl && c.pl.id }])),
               kit: { handheld: handheld, canShare: canShare, shareOrTimeOut: shareOrTimeOut, saveFile: saveFile }
             });
             return;
@@ -1038,7 +1038,7 @@
             });
             return;
           }
-          deliver(made, offerText(), sent(who, 'pdf', c.u));       /* still inside the Continue tap */
+          deliver(made, offerText(), sent(who, 'pdf', c.u, offerKey([{ code: c.u.code, plan: c.pl && c.pl.id }])));       /* still inside the Continue tap */
         }, { ready: ready, withPdf: withPdf });
       });
       /* the offer leaves the app. A phone: the PDF (and the text) through its
@@ -1111,16 +1111,23 @@
     /* Returns one function, called with 'start' just before a phone's share sheet opens, 'ok' when the
        offer went, 'no' when the agent closed the sheet. On a phone the row is on the phone before the
        sheet opens, so a page the phone throws away while he is in WhatsApp still saves the offer. */
-    function sent(who, channel, u) {
+    /* build 129: WHAT THE OFFER IS, for the store: the unit or units, each with its plan. The same key
+       from the same person on the same day is the same general broadcast sent again, and the store
+       counts it once (mm_log_offer). items: [{ code, plan: plan id or nothing }] */
+    function offerKey(items) {
+      return items.map(function (x) { return x && x.code ? String(x.code).toUpperCase() + (x.plan ? ':' + x.plan : '') : ''; }).filter(Boolean).sort().join('+');
+    }
+    function sent(who, channel, u, key) {
       var ref = null;
       var row = { company: who && who.audience === 'broker' ? who.company : null, propose: !!(who && who.audience === 'broker' && who.isNew), product: SOLD_AS[l.id] || null, channel: channel,
-        unit: u ? u.code : null, area: u ? u.area : null, value: u ? (u.listPrice || u.finalPrice || null) : null };
-      return function (stage) {
+        unit: u ? u.code : null, area: u ? u.area : null, value: u ? (u.listPrice || u.finalPrice || null) : null, key: key || null };
+      /* saved: told the store's row once this send is saved (the post sheet shows its count) */
+      return function (stage, saved) {
         if (!MM.auth.offerLeaving) return;
         if (stage === 'start') { ref = MM.auth.offerLeaving(row); return; }
         if (stage === 'no') { MM.auth.offerNotSent(ref); ref = null; return; }
         if (!ref) ref = MM.auth.offerLeaving(row);
-        MM.auth.offerLeft(ref); ref = null;
+        MM.auth.offerLeft(ref, saved); ref = null;
       };
     }
     /* how.ready (build 88): the offer PDF being made for a real phone; Continue

@@ -421,6 +421,9 @@
     'The post text. You can edit it before sending.': 'نص البوست. يمكنك تعديله قبل الإرسال.',
     'Copy text': 'انسخ النص',
     'Send on WhatsApp': 'أرسل على واتساب',
+    'Send to the next chats': 'أرسل إلى المحادثات التالية',
+    'Sent once. Counted as one broadcast.': 'أُرسل مرة واحدة. يُحتسب نشراً عاماً واحداً.',
+    'Sent {n} times. Counted as one broadcast.': 'مرات الإرسال: {n}. يُحتسب نشراً عاماً واحداً.',
     'The post could not be made: {e}': 'تعذّر تجهيز البوست: {e}',
     'Copied. Paste it into WhatsApp.': 'تم النسخ. الصقه في واتساب.',
     'Select the text above and copy it.': 'حدد النص بالأعلى وانسخه.',
@@ -1113,7 +1116,12 @@
     'Latest with you': 'آخر ما تم معك',
     'No activity with you in these dates.': 'لا نشاط معك في هذه التواريخ.',
     'Record something with this company': 'سجّل شيئاً مع هذه الشركة',
-    'These are counted by themselves each time you send an offer. There is nothing to type.': 'تُحتسب تلقائياً في كل مرة ترسل فيها عرضاً. لا شيء تكتبه.',
+    'These are counted by themselves when you send an offer. There is nothing to type. A broadcast is counted once, however many times you send it.': 'تُحتسب تلقائياً عند إرسال العرض. لا شيء تكتبه. النشر العام يُحتسب مرة واحدة مهما تكرر إرساله.',
+    /* build 129: one broadcast, many sends. The Arabic counts with "مرات الإرسال: n", which is right for any number */
+    'sent once': 'أُرسل مرة واحدة',
+    'sent {n} times': 'مرات الإرسال: {n}',
+    'This offer was sent once. WhatsApp takes only a few chats each time, so sending it again to more chats still counts as one broadcast.': 'أُرسل هذا العرض مرة واحدة. واتساب يقبل عدداً قليلاً من المحادثات في كل مرة، لذلك إرساله مرة أخرى إلى محادثات أكثر يبقى نشراً عاماً واحداً.',
+    'This offer was sent {n} times. WhatsApp takes only a few chats each time, so one offer needs many sends. It counts as one broadcast.': 'عدد مرات إرسال هذا العرض: {n}. واتساب يقبل عدداً قليلاً من المحادثات في كل مرة، لذلك يحتاج العرض الواحد إلى الإرسال عدة مرات. ويُحتسب نشراً عاماً واحداً.',
     '{n} more in these dates.': 'و{n} أخرى في هذه التواريخ.'
   };
 
