@@ -1129,7 +1129,17 @@
     'The daily target is at least {b} offers sent as a general broadcast to all the companies. An offer sent again to more chats still counts as one.': 'الهدف اليومي: {b} عروض على الأقل تُرسل كنشر عام إلى كل الشركات. العرض الذي يُرسل مرة أخرى إلى محادثات أكثر يُحتسب مرة واحدة.',
     'This offer was sent once. WhatsApp takes only a few chats each time, so sending it again to more chats still counts as one broadcast.': 'أُرسل هذا العرض مرة واحدة. واتساب يقبل عدداً قليلاً من المحادثات في كل مرة، لذلك إرساله مرة أخرى إلى محادثات أكثر يبقى نشراً عاماً واحداً.',
     'This offer was sent {n} times. WhatsApp takes only a few chats each time, so one offer needs many sends. It counts as one broadcast.': 'عدد مرات إرسال هذا العرض: {n}. واتساب يقبل عدداً قليلاً من المحادثات في كل مرة، لذلك يحتاج العرض الواحد إلى الإرسال عدة مرات. ويُحتسب نشراً عاماً واحداً.',
-    '{n} more in these dates.': 'و{n} أخرى في هذه التواريخ.'
+    '{n} more in these dates.': 'و{n} أخرى في هذه التواريخ.',
+    /* ---- build 135: Team Pulse on the real store. The Arabic is ours. ---- */
+    'Showing {dates} · your team only': 'المعروض: {dates} · فريقك فقط',
+    'Main Marks · Team Pulse': 'Main Marks · نبض الفريق',
+    'No team yet': 'لا يوجد فريق بعد',
+    'Your account is not set as the manager of a team yet, so there is no team activity to show. Ask the admin to set you as a team’s manager.': 'حسابك غير معيَّن مديراً لأي فريق بعد، لذلك لا يوجد نشاط فريق لعرضه. اطلب من المسؤول تعيينك مديراً لأحد الفرق.',
+    'A workshop is already recorded for {name} at {company} on {date}.': 'توجد ورشة عمل مسجّلة بالفعل باسم {name} لدى {company} بتاريخ {date}.',
+    'An orientation is already recorded for {name} at {company} on {date}.': 'توجد جلسة تعريفية مسجّلة بالفعل باسم {name} لدى {company} بتاريخ {date}.',
+    'A cancellation cannot be dated before its reservation ({date}).': 'لا يمكن أن يكون تاريخ الإلغاء قبل تاريخ الحجز ({date}).',
+    'A contract cannot be dated before its reservation ({date}).': 'لا يمكن أن يكون تاريخ العقد قبل تاريخ الحجز ({date}).',
+    'This sales agent is no longer in your team. Open the page again and choose another.': 'هذا المندوب لم يعد في فريقك. افتح الصفحة مرة أخرى واختر مندوباً آخر.'
   };
 
   /* ---- the sheet's words and config values --------------------------- */

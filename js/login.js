@@ -43,9 +43,9 @@
        has no start.html, and a manager must land on the projects, not on a missing page. */
     if (CHANGE) raw = '';
     if (me && me.role === 'admin') return 'admin.html';
-    /* build 124: on the store a manager goes straight to the sales app. Team Pulse still draws the demo
-       book, and it stays closed there until it reads the store. */
-    if (!raw) return me && me.role === 'sales_manager' && CONFIG.salesTeam && !REAL ? 'start.html' : 'index.html';
+    /* build 124 sent a manager on the store straight to the sales app, because Team Pulse still drew the
+       demo book. build 135: Team Pulse reads the store, so he lands on "Lead or sell?" there as well. */
+    if (!raw) return me && me.role === 'sales_manager' && (REAL || CONFIG.salesTeam) ? 'start.html' : 'index.html';
     if (/^[a-z0-9\-]+\.html(\?[^#]*)?$/i.test(raw)) return raw;
     return 'index.html';
   }

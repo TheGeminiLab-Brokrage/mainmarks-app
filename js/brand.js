@@ -301,8 +301,9 @@
     menu.hidden = true;
     menu.appendChild(el('p', 'who-n', name));
     if (o.role) menu.appendChild(el('p', 'who-r', o.role));
-    /* build 115: a sales manager's way from the sales app to his team (manager.html) */
-    if (session && session.role === 'sales_manager' && CONFIG.salesTeam && !session.real && !o.noMode && box.parentNode && !box.parentNode.querySelector('.mode-switch')) {
+    /* build 115: a sales manager's way from the sales app to his team (manager.html).
+       build 135: on the store as well, where the team is in the database, not in the settings file. */
+    if (session && session.role === 'sales_manager' && (session.real || CONFIG.salesTeam) && !o.noMode && box.parentNode && !box.parentNode.querySelector('.mode-switch')) {
       var team = el('a', 'mode-switch');
       team.href = 'manager.html';
       team.setAttribute('aria-label', t('Team Pulse'));

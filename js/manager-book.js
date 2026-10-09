@@ -263,7 +263,23 @@
 
      WRITING goes through the database's own functions, which refuse what must be refused; `add` and
      `remove` therefore answer with a PROMISE here, and reject with the store's code (MM_...) or
-     'offline'. The page has the words. */
+     'offline'. The page has the words.
+
+     A SALES MANAGER'S BOOK (build 135, Team Pulse on the store). The database hands a manager the
+     rows of the people in the team he leads, his own, and a deal or a visit one of them shared with
+     another team (mm_can_see). So nothing here chooses rows: it only says who is who.
+       team   the names a row can carry, in this order:
+                [0, own)       the sales agents he leads TODAY: the dial, "nothing sent yet", every count
+                [own, mine)    himself (he sells too), then an agent of his team since switched off: a
+                               row of theirs is his team's, and the page lists them only when one exists
+                [mine, mates)  the sales agents of the other teams, for "split the deal with"
+                after that     anyone else a row names
+       me     his own place in `team`; leads = how many teams he leads (0: the admin has not set him yet)
+       companies  the listed companies, plus any other company a row of HIS TEAM stands on (switched off
+                  since, or waiting for the admin). A company waiting because ANOTHER team proposed it
+                  is left out: its name alone would say that team is working with it.
+       add    carries `p_for`: a manager records for anyone in his team (the database checks that he
+              leads that person); cancel is his alone and goes through mm_cancel. */
   function buildStore(inv, got, session) {
     var today = new Date(); today.setHours(0, 0, 0, 0);
     var clock = new Date(), now = clock.getHours() * 60 + clock.getMinutes();
@@ -285,9 +301,23 @@
        because a deal can be shared across teams and then shows to both managers. After `mates` comes
        anyone else a row of his names (a colleague since switched off). */
     var byName = function (a, b) { return a.name.localeCompare(b.name); };
-    var team = got.people.filter(function (p) { return p.id === me.id || (me.team_id && p.team_id === me.team_id && p.role === 'sales' && p.active); }).sort(byName).map(card);
-    var own = team.length;
-    team = team.concat(got.people.filter(function (p) { return p.id !== me.id && p.role === 'sales' && p.active && p.team_id && p.team_id !== me.team_id; }).sort(byName).map(card));
+    /* build 135: anyone who is not a sales agent reads this book as the one who LEADS (a sales manager) */
+    var lead = me.role !== 'sales', led = {}, leads = 0, team, own, mineN;
+    (got.teams || []).forEach(function (x) { if (lead && (x.manager_id === me.id || x.director_id === me.id)) { led[x.id] = x; leads++; } });
+    if (lead) {
+      var agent = function (p) { return p.id !== me.id && p.role === 'sales' && !!p.team_id; };
+      var gone = function (p) { var c = card(p); c.off = true; return c; };
+      team = got.people.filter(function (p) { return agent(p) && p.active && led[p.team_id]; }).sort(byName).map(card);
+      own = team.length;
+      team.push(card(me));
+      team = team.concat(got.people.filter(function (p) { return agent(p) && !p.active && led[p.team_id]; }).sort(byName).map(gone));
+      mineN = team.length;
+      team = team.concat(got.people.filter(function (p) { return agent(p) && p.active && !led[p.team_id]; }).sort(byName).map(card));
+    } else {
+      team = got.people.filter(function (p) { return p.id === me.id || (me.team_id && p.team_id === me.team_id && p.role === 'sales' && p.active); }).sort(byName).map(card);
+      own = team.length;
+      team = team.concat(got.people.filter(function (p) { return p.id !== me.id && p.role === 'sales' && p.active && p.team_id && p.team_id !== me.team_id; }).sort(byName).map(card));
+    }
     var mates = team.length, at = {};
     team.forEach(function (p, i) { at[p.id] = i; });
     function place(id) {
@@ -295,14 +325,25 @@
       if (at[id] === undefined) { at[id] = team.length; team.push(people[id] ? card(people[id]) : { id: id, name: '—', title: '', code: '' }); }
       return at[id];
     }
-    var mine = (got.teams || []).filter(function (x) { return x.id === me.team_id; })[0];
-    var boss = mine && mine.manager_id && people[mine.manager_id];
-    var manager = boss ? { name: boss.name, title: boss.title || 'Sales Manager', code: boss.staff_code || '' } : null;
+    var manager;
+    if (lead) {
+      /* the page is his own. Who he reports to is the director the admin set on his team, when there is one. */
+      var over = Object.keys(led).map(function (k) { return led[k]; }).filter(function (x) { return x.director_id && x.director_id !== me.id && people[x.director_id]; })[0];
+      manager = { name: me.name, title: me.title || 'Sales Manager', code: me.staff_code || '' };
+      if (over) { manager.reportsTo = people[over.director_id].name; manager.reportsTitle = people[over.director_id].title || 'Sales Director'; }
+    } else {
+      var mine = (got.teams || []).filter(function (x) { return x.id === me.team_id; })[0];
+      var boss = mine && mine.manager_id && people[mine.manager_id];
+      manager = boss ? { name: boss.name, title: boss.title || 'Sales Manager', code: boss.staff_code || '' } : null;
+    }
 
     /* every company a row can stand on: listed, switched off, or waiting for the admin. A spelling the
-       admin moved onto another company holds no rows, and is left out. */
-    var companies = [], ids = [], open = [], waits = [], cAt = {};
-    got.companies.filter(function (c) { return !c.merged_into; }).forEach(function (c, i) { companies.push(c.name); ids.push(c.id); open.push(!!c.active); waits.push(!!c.pending); cAt[c.id] = i; });
+       admin moved onto another company holds no rows, and is left out. A manager's list is every company
+       (the ones that never asked his team are on it), so there a company that is not listed is kept only
+       when a row of his team stands on it. */
+    var companies = [], ids = [], open = [], waits = [], cAt = {}, used = {};
+    if (lead) got.events.forEach(function (r) { if (r.company_id) used[r.company_id] = 1; });
+    got.companies.filter(function (c) { return !c.merged_into && (!lead || c.active || used[c.id]); }).forEach(function (c, i) { companies.push(c.name); ids.push(c.id); open.push(!!c.active); waits.push(!!c.pending); cAt[c.id] = i; });
 
     /* A moment the store gives (with its time zone) as the day and minute IN CAIRO, which is how every
        row's own day and minute are kept. Nothing when the browser cannot say: the page then leaves the
@@ -364,7 +405,7 @@
 
     return {
       demo: false, live: true, span: SPAN, today: today, now: now,
-      me: at[me.id], mates: mates, own: own,
+      me: at[me.id], mates: mates, own: own, mine: mineN, leads: lead ? leads : undefined,
       manager: manager, team: team, companies: companies, products: PRODUCTS, why: WHY,
       events: function () { return events.concat(follow); },
       dateOf: dateOf, agoOf: agoOf, iso: iso, fromIso: fromIso,
@@ -382,7 +423,9 @@
           p_kind: r.k, p_company: ids[r.c] || null, p_date: iso(r.date),
           p_product: u ? productOf(u) : (r.p || null), p_unit: r.u || null, p_area: u ? u.area : null, p_value: r.v || null,
           p_with: r.m2 === undefined || r.m2 === null || !team[r.m2] ? null : team[r.m2].id,
-          p_of: r.of || null, p_for: null,
+          /* a manager's entry is for the person he chose. Not on a contract made from a reservation: it
+             keeps that reservation's names, whoever they are. A sales agent's entry is always his own. */
+          p_of: r.of || null, p_for: lead && !r.of && team[r.m] && team[r.m].id !== me.id ? team[r.m].id : null,
           p_client_ref: 'r-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12)
         }).then(function (saved) {
           var e = row(saved);
@@ -402,7 +445,18 @@
         });
       },
       removable: removable,
-      cancel: function () { return Promise.reject(new Error('MM_NOT_ALLOWED')); },
+      /* a reservation is cancelled by the manager of the team, never by a sales agent. It is kept and
+         marked; the cancellation is its own row, with its own date and reason. */
+      cancel: function (id, date, why) {
+        if (!lead) return Promise.reject(new Error('MM_NOT_ALLOWED'));
+        return rpc('mm_cancel', { p_reservation: id, p_date: iso(date), p_why: why }).then(function (saved) {
+          var e = row(saved);
+          if (!e) throw new Error('MM_FAILED');
+          events.push(e);
+          events.forEach(function (x) { if (x.id === e.of) { x.end = 'cancel'; x.endD = e.d; } });
+          return e;
+        });
+      },
       reset: function () { /* nothing is kept on the phone */ }
     };
   }
@@ -418,12 +472,29 @@
         return x.body;
       });
     };
+    /* EVERY ROW, WHATEVER THE STORE'S PAGE SIZE (build 135). The store hands over at most one page of
+       rows per question (a thousand), whatever limit is asked for, and says nothing when it stops
+       there. One sales agent's twelve weeks fit in a page; a team's do not, and a manager's figures
+       would simply be too small. So the rows are asked for page by page. A sales agent's are asked
+       again only when a page came back full; a manager's until a page comes back empty, so that a
+       smaller page size set on the store one day cannot cut his team's figures short either. */
+    var whole = s.role !== 'sales';
+    var pages = function (path) {
+      var size = 1000, out = [];
+      var next = function (from) {
+        return get(path + '&limit=' + size + '&offset=' + from).then(function (rows) {
+          out = out.concat(rows);
+          return rows.length && (whole || rows.length >= size) ? next(from + rows.length) : out;
+        });
+      };
+      return next(0);
+    };
     return Promise.all([
       MM.inventory.load(P.inventory),
       get('/rest/v1/mm_people?select=id,name,title,staff_code,role,team_id,active'),
-      get('/rest/v1/mm_teams?select=id,name,manager_id'),
+      get('/rest/v1/mm_teams?select=id,name,manager_id,director_id'),
       get('/rest/v1/mm_companies?select=id,name,active,pending,merged_into&order=name'),
-      get('/rest/v1/mm_events?select=*&on_date=gte.' + since + '&order=on_date.asc,at_min.asc&limit=20000'),
+      pages('/rest/v1/mm_events?select=*&on_date=gte.' + since + '&order=on_date.asc,at_min.asc,id.asc'),
       s.role === 'sales' ? get('/rest/v1/rpc/mm_team_followups', { method: 'POST', body: {} }) : Promise.resolve([])
     ]).then(function (a) {
       var make = function () { return buildStore(a[0], { people: a[1], teams: a[2], companies: a[3], events: a[4], follow: a[5] }, s); };

@@ -47,6 +47,8 @@ button, input, select { font: inherit; }
 .swap svg { width: 13px; height: 13px; color: var(--acc); }
 .swap:hover { border-color: var(--acc); }
 .card > .swap { position: absolute; top: 14px; inset-inline-end: 14px; }
+/* build 135: the profile's name starts under the pill. A real name is longer than the demo's and ran into it. */
+.card > .swap + .me { margin-top: 24px; }
 .hd h1 { margin: 0; font-size: 23px; font-weight: 700; letter-spacing: -.01em; }
 .when { all: unset; box-sizing: border-box; cursor: pointer; justify-self: end; display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; padding: 8px 12px; min-height: 36px; border-radius: 999px; background: var(--acc); color: #000; white-space: nowrap; }
 .when svg { width: 14px; height: 14px; }
