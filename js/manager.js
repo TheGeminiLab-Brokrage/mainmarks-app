@@ -93,7 +93,12 @@
       var list = rest;
       rest = [];
       each(list);
-      if (list.length) setTimeout(function () { if (on && !due && !waiting) ripe(); }, 0);
+      /* build 133: asked again whether or not `then` has spoken. It used to ask only when nothing was due,
+         and so a `then` that came WHILE the lines were being drawn was never acted on if anything at all
+         had waited for them: the store not answering (it fails at once, and the price file waits here) and
+         the tap from Profile (due from the first moment) both left the dial standing for good. If what
+         waited has just called `then` itself, the page is already being built and `on` is down. */
+      if (list.length) setTimeout(function () { if (on && !waiting) ripe(); }, 0);
       else ripe();
     }
     function ripe() {
