@@ -900,14 +900,25 @@
          answered  how many of them the store has confirmed
          known     the broadcast's own count, as the store last gave it (sends made earlier today,
                    from this sheet or another phone, are in it) */
-    var isBroadcast = !(o.who && o.who.audience === 'broker'), sends = 0, answered = 0, known = 0;
+    /* build 134 (Muhanad, 2026-10-09): a post made for ONE company says so too, when the store joined it
+       to a send made before it (the same unit to the same company within ten minutes is one special
+       request, a post or a PDF alike). Only on the store's word: this sheet cannot know by itself whether
+       a send was joined. And when the offer has gone both ways, the line says how many of each
+       (o.kit.sentWords, js/lineflow.js; `row` is the store's last answer). */
+    var isBroadcast = !(o.who && o.who.audience === 'broker'), sends = 0, answered = 0, known = 0, row = null;
     var sentLine = el('p', 'q-post-sent'); sentLine.hidden = true; sentLine.setAttribute('aria-live', 'polite');
     card.appendChild(sentLine);
     function paintSent() {
-      var n = Math.max(sends, known + (sends - answered));
-      if (!isBroadcast || !n) return;
+      var n = Math.max(sends, known + (sends - answered)), words = o.kit && o.kit.sentWords;
+      if (!isBroadcast) {
+        if (known < 2 || !words) return;
+        sentLine.hidden = false;
+        sentLine.textContent = words(row, known, false);
+        return;
+      }
+      if (!n) return;
       sentLine.hidden = false;
-      sentLine.textContent = n === 1 ? t('Sent once. Counted as one broadcast.') : t('Sent {n} times. Counted as one broadcast.', { n: n });
+      sentLine.textContent = words ? words(row, n, true) : n === 1 ? t('Sent once. Counted as one broadcast.') : t('Sent {n} times. Counted as one broadcast.', { n: n });
       send.textContent = t('Send to the next chats');
     }
     var note = el('p', 'q-who-note q-post-note'); note.setAttribute('aria-live', 'polite');
@@ -967,7 +978,7 @@
       if (stage === 'ok') { sends += 1; paintSent(); }
       if (typeof o.onSent === 'function') o.onSent(stage, function (e) {
         answered = Math.min(sends, answered + 1);
-        if (e && Number(e.rounds) > known) known = Number(e.rounds);
+        if (e && Number(e.rounds) >= known) { known = Number(e.rounds); row = e; }
         paintSent();
       });
     }

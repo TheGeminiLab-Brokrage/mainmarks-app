@@ -533,17 +533,38 @@
        user hovers on it he gets an explanation ... in very simple words"). A laptop shows it on hover,
        a phone on a tap (the click handler at the foot of this file); the words sit in the page, so a
        screen reader has them too. Only on a row the store gave a count for. */
+    /* build 134 (Muhanad, 2026-10-09): A SPECIAL REQUEST SAYS IT TOO, when the same unit went again to the
+       same company within ten minutes and the store counted it once. Not on a request sent once: that
+       is every request, and the line would be noise. */
     function sentTimes(e) {
-      if (e.k !== 'offer' || e.c !== null || !e.n) return '';
-      var tip = e.n === 1
+      if (e.k !== 'offer' || !e.n || (e.c !== null && e.n < 2)) return '';
+      var tip = e.c !== null
+        ? t('This offer was sent {n} times to the same company within ten minutes. The same unit sent again to the same company counts as one special request, even on another payment plan.', { n: e.n })
+        : e.n === 1
         ? t('This offer was sent once. WhatsApp takes only a few chats each time, so sending it again to more chats still counts as one broadcast.')
         : t('This offer was sent {n} times. WhatsApp takes only a few chats each time, so one offer needs many sends. It counts as one broadcast.', { n: e.n });
       return ' · <button class="why" type="button" aria-expanded="false">' + (e.n === 1 ? t('sent once') : t('sent {n} times', { n: e.n })) + '</button><span class="why-tip" role="note">' + esc(tip) + '</span>';
     }
+    /* build 134, HOW AND WHEN IT WENT, on a row sent more than once (his words: "send twice showing one
+       pdf one post and the time ofcourse"). Sent twice, once each way: each send with its own time,
+       "WhatsApp post 06:27 · Offer PDF 06:31". Otherwise how many of each, then the first and the last
+       time. A row the store kept before it counted this says only what it knows: the times, or nothing. */
+    function sentHow(e) {
+      if (e.k !== 'offer' || !e.n || e.n < 2) return '';
+      var known = e.np !== undefined && e.nq !== undefined, timed = e.lt !== undefined;
+      var at = function (m) { return '<bdi>' + hhmm(m) + '</bdi>'; };
+      if (known && timed && e.n === 2 && e.np === 1 && e.nq === 1 && e.ch && e.lc && e.lc !== e.ch && e.lt >= e.t) return CH[e.ch] + ' ' + at(e.t) + ' · ' + CH[e.lc] + ' ' + at(e.lt);
+      var out = [];
+      if (known && e.np) out.push(count(e.np, 'pdf'));
+      if (known && e.nq) out.push(count(e.nq, 'post'));
+      /* the first and the last time; within one minute the row's own time has said it already */
+      if (timed && e.lt !== e.t) out.push('<bdi>' + hhmm(Math.min(e.t, e.lt)) + ' – ' + hhmm(Math.max(e.t, e.lt)) + '</bdi>');
+      return out.join(' · ');
+    }
     function unitText(e) { return nm(prod(e.p) + ' ' + e.u) + (e.area ? ' · ' + t('{n} m²', { n: e.area }) : '') + (e.v ? ' · ' + money(e.v) : ''); }
     function detail(e) { return isVisit(e) ? followed(e).text : e.u ? unitText(e) : prod(e.p) + (e.ch ? ' · ' + CH[e.ch] : ''); }
     function feed(list, withName) {
-      return '<div class="feed">' + list.map(function (e) { return '<div><time>' + when(e) + '</time><span>' + what(e) + sentTimes(e) + '<small>' + (withName ? people(e) + ' · ' : '') + detail(e) + (e.k === 'cancel' ? ' · ' + WHYL[e.why] : '') + '</small></span></div>'; }).join('') + '</div>';
+      return '<div class="feed">' + list.map(function (e) { var how = sentHow(e); return '<div><time>' + when(e) + '</time><span>' + what(e) + sentTimes(e) + '<small>' + (withName ? people(e) + ' · ' : '') + detail(e) + (e.k === 'cancel' ? ' · ' + WHYL[e.why] : '') + '</small>' + (how ? '<small class="how">' + how + '</small>' : '') + '</span></div>'; }).join('') + '</div>';
     }
     function kv(list) { return '<div class="kv">' + list.map(function (x) { return '<div><b>' + x[0] + '</b><span>' + x[1] + '</span></div>'; }).join('') + '</div>'; }
 
@@ -858,7 +879,23 @@
         '<span>' + (n.contract ? t('{x} signed in these dates', { x: '<b>' + count(n.contract, 'contract') + '</b>' }) : t('No contract signed in these dates')) +
           (A.prev ? ' · ' + t('the time before: {v}', { v: '<b>' + money(A.prev.value) + '</b>' }) : '') + '</span>' +
         (A.open.length ? '<span>' + t('{v} reserved and not signed yet · {x} open today', { v: '<b>' + money(held) + '</b>', x: count(A.open.length, 'reservation') }) + '</span>' : '') + '</div>' +
-        '<div class="fun" role="img" aria-label="' + esc(t('From request to contract')) + '">' + bar('f1', t('Special requests'), n.special) + bar('f2', t('Meetings'), n.meeting) + bar('f3', t('Reservations'), n.reservation) + bar('f4', t('Contracts'), n.contract) + '</div></section>';
+        '<div class="fun" role="img" aria-label="' + esc(t('From request to contract')) + '">' + bar('f1', t('Special requests'), n.special) + bar('f2', t('Meetings'), n.meeting) + bar('f3', t('Reservations'), n.reservation) + bar('f4', t('Contracts'), n.contract) + '</div>' + dutyToday() + '</section>';
+    }
+    /* build 134, TODAY'S BROADCASTS AGAINST THE DAILY TARGET (Muhanad, 2026-10-09: "let us make the bodcast
+       count available for the sales in the today view"). One quiet line UNDER his sales, never above them
+       and never a 30-day total: his first look stays his own sales, and this is the one thing he owes
+       today. Always today, whatever dates the page shows. One broadcast is one offer, however many times
+       it was sent (the store counts it so). The target is the settings file's (CONFIG.salesDay); with
+       none, there is no line. The words explain themselves on a tap, as "sent n times" does. */
+    function dutyToday() {
+      var goal = Number(((typeof CONFIG !== 'undefined' && CONFIG.salesDay) || {}).broadcasts) || 0;
+      if (!MY || !goal) return '';
+      var done = events.filter(function (e) { return e.k === 'offer' && e.c === null && e.d === 0 && e.m === ME; }).length, dots = '', i;
+      for (i = 0; i < goal && goal <= 6; i++) dots += '<i' + (i < done ? ' class="on"' : '') + '></i>';
+      var tip = t('The daily target is at least {b} offers sent as a general broadcast to all the companies. An offer sent again to more chats still counts as one.', { b: goal });
+      return '<div class="duty"><span>' + t('Today') + '</span><span class="dots" aria-hidden="true">' + dots + '</span>' +
+        '<button class="why" type="button" aria-expanded="false">' + (done >= goal ? count(done, 'broadcast') : t('{a} of {b} broadcasts', { a: done, b: goal })) + '</button>' +
+        '<span class="why-tip" role="note">' + esc(tip) + '</span></div>';
     }
     function fateOf(e) { return e.end === 'cancel' ? t('later cancelled, {date}', { date: fmt(e.endD) }) : e.end === 'contract' ? t('became a contract') : t('still open'); }
     /* the other name on a row of his: who also went, or who the deal is split with */

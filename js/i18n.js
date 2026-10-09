@@ -424,6 +424,9 @@
     'Send to the next chats': 'أرسل إلى المحادثات التالية',
     'Sent once. Counted as one broadcast.': 'أُرسل مرة واحدة. يُحتسب نشراً عاماً واحداً.',
     'Sent {n} times. Counted as one broadcast.': 'مرات الإرسال: {n}. يُحتسب نشراً عاماً واحداً.',
+    /* build 134: a special request joined to one sent before; and an offer that went both ways */
+    'Sent {n} times. Counted as one special request.': 'مرات الإرسال: {n}. يُحتسب طلباً خاصاً واحداً.',
+    'As an offer PDF: {a}. As a WhatsApp post: {b}.': 'ملف العرض PDF: {a}. بوست واتساب: {b}.',
     'The post could not be made: {e}': 'تعذّر تجهيز البوست: {e}',
     'Copied. Paste it into WhatsApp.': 'تم النسخ. الصقه في واتساب.',
     'Select the text above and copy it.': 'حدد النص بالأعلى وانسخه.',
@@ -1120,6 +1123,10 @@
     /* build 129: one broadcast, many sends. The Arabic counts with "مرات الإرسال: n", which is right for any number */
     'sent once': 'أُرسل مرة واحدة',
     'sent {n} times': 'مرات الإرسال: {n}',
+    /* build 134: the same on a special request, and today's broadcasts against the daily target */
+    'This offer was sent {n} times to the same company within ten minutes. The same unit sent again to the same company counts as one special request, even on another payment plan.': 'عدد مرات إرسال هذا العرض إلى الشركة نفسها خلال عشر دقائق: {n}. إرسال الوحدة نفسها مرة أخرى إلى الشركة نفسها يُحتسب طلباً خاصاً واحداً، حتى مع خطة سداد أخرى.',
+    '{a} of {b} broadcasts': '{a} من {b} في النشر العام',
+    'The daily target is at least {b} offers sent as a general broadcast to all the companies. An offer sent again to more chats still counts as one.': 'الهدف اليومي: {b} عروض على الأقل تُرسل كنشر عام إلى كل الشركات. العرض الذي يُرسل مرة أخرى إلى محادثات أكثر يُحتسب مرة واحدة.',
     'This offer was sent once. WhatsApp takes only a few chats each time, so sending it again to more chats still counts as one broadcast.': 'أُرسل هذا العرض مرة واحدة. واتساب يقبل عدداً قليلاً من المحادثات في كل مرة، لذلك إرساله مرة أخرى إلى محادثات أكثر يبقى نشراً عاماً واحداً.',
     'This offer was sent {n} times. WhatsApp takes only a few chats each time, so one offer needs many sends. It counts as one broadcast.': 'عدد مرات إرسال هذا العرض: {n}. واتساب يقبل عدداً قليلاً من المحادثات في كل مرة، لذلك يحتاج العرض الواحد إلى الإرسال عدة مرات. ويُحتسب نشراً عاماً واحداً.',
     '{n} more in these dates.': 'و{n} أخرى في هذه التواريخ.'

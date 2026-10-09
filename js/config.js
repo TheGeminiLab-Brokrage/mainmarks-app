@@ -14,12 +14,17 @@ const CONFIG = {
   /* Bumped on every deploy, and matched by the ?v= on every script tag in
      the HTML. That pair is what stops a returning phone running yesterday's
      JavaScript. See README, "Deploying". */
-  build: 133,
+  build: 134,
 
   /* Where the activity log is sent. Empty = kept on the device only, which
      is where it is today. Filling this in is the whole change when the
      database is stood up. */
   activity: { url: '', key: '' },
+
+  /* THE SALES AGENT'S DAY (build 134). Muhanad, 2026-10-07: an agent's daily duty is "at least 3
+     offers" sent as a general broadcast to all the brokerage companies. My activity shows today's
+     count against it, one line under his sales. Remove the number and the line goes. */
+  salesDay: { broadcasts: 3 },
 
   /* STORE:START */
   /* THE REAL STORE (build 122). The database where people sign in as themselves.

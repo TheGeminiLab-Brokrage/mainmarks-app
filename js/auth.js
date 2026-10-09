@@ -402,12 +402,24 @@
           next(i + 1);
         });
       };
-      /* a company not on the list: the store names it first (the same name always gets the same company) */
-      (r.propose ? call('/rest/v1/rpc/mm_propose_company', { method: 'POST', body: { p_name: r.propose } }).then(function (x) {
-        if (x.status === 200 && typeof x.body === 'string') { body.p_company = x.body; return save(); }
-        if (refusedForGood(x)) done(r.p_client_ref);
-        next(i + 1);
-      }) : save()).catch(function () { flushing = false; });
+      /* a company not on the list: the store names it first (the same name always gets the same company).
+         build 134: the name goes WITH THE TIME THE OFFER LEFT THE PHONE (Muhanad, 2026-10-09). An agent who
+         has since been given his third wrong-spelling mark is refused a new name, but not the one on an
+         offer that was already on its way: the store compares this time with the moment the mark landed,
+         and the offer waits for the admin like any other. Before, the store refused the name and the
+         offer was dropped here, two lines down. A store that does not take the time yet answers "no
+         such function" (404): the name is then sent alone, as before. */
+      var propose = function (withTime) {
+        var named = { p_name: r.propose };
+        if (withTime && r.p_sent_at) named.p_sent_at = r.p_sent_at;
+        return call('/rest/v1/rpc/mm_propose_company', { method: 'POST', body: named }).then(function (x) {
+          if (withTime && x.status === 404) return propose(false);
+          if (x.status === 200 && typeof x.body === 'string') { body.p_company = x.body; return save(); }
+          if (refusedForGood(x)) done(r.p_client_ref);
+          next(i + 1);
+        });
+      };
+      (r.propose ? propose(true) : save()).catch(function () { flushing = false; });
     };
     next(0);
   }

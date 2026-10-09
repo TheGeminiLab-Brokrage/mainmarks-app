@@ -2778,6 +2778,8 @@ body.is-ready .mv-hint { opacity: 1; }
 .q-cta:disabled { opacity: .5; cursor: default; }
 .q-cta:focus-visible { outline: 2px solid var(--white); outline-offset: 2px; }
 .q-note { font-size: 12.5px; color: var(--q-dim); }
+/* build 134: what the store counted for the offer PDF just sent, on its own line under the note */
+.q-counted { flex-basis: 100%; color: var(--white); font-weight: 600; }
 /* build 84: who is this offer for, asked before every offer leaves the app */
 .q.q-who { position: fixed; inset: 0; z-index: 60; padding: 0; display: flex; align-items: flex-end; justify-content: center; }
 .q-who-dim { position: absolute; inset: 0; background: rgba(0, 0, 0, .6); opacity: 0; transition: opacity .25s ease; }

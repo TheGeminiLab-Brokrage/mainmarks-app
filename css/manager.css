@@ -397,3 +397,14 @@ html[lang="ar"] .sales > b small { margin-inline: 8px 0; }
 .why:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; border-radius: 3px; }
 .why-tip { display: none; position: absolute; z-index: 3; inset-inline: 0; top: calc(100% + 6px); padding: 10px 12px; border-radius: 12px; background: #241a12; border: 1px solid var(--edge); box-shadow: 0 10px 28px rgba(0, 0, 0, .55); font-size: 12.5px; font-weight: 400; line-height: 1.5; color: var(--ink); }
 .why:hover + .why-tip, .why:focus-visible + .why-tip, .why[aria-expanded="true"] + .why-tip { display: block; }
+/* build 134: how and when a row sent more than once went ("WhatsApp post 06:27 - Offer PDF 06:31") */
+.feed small.how { color: var(--ink); opacity: .86; }
+/* build 134: today's broadcasts against the daily target, one quiet line under his sales */
+.duty { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; border-top: 1px solid var(--edge); padding-top: 12px; font-size: 12px; color: var(--mut); }
+.duty > span:first-child { margin-inline-end: auto; }
+.duty .dots { display: inline-flex; gap: 5px; }
+.duty .dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--never); }
+.duty .dots i.on { background: var(--acc); }
+.duty .why { color: var(--ink); font-weight: 700; font-size: 12.5px; }
+/* its explanation opens INSIDE the card, under the line: one that floats is painted over by the tiles below */
+.duty .why-tip { position: static; flex-basis: 100%; box-shadow: none; }

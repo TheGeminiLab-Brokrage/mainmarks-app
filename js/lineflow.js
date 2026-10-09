@@ -434,7 +434,7 @@
           MM.post.open({
             project: p, line: l, options: opts, all: rows, who: who, session: session, demo: demo,
             onSent: sent(who, 'post', null, offerKey(opts.map(function (x) { return { code: x.unit.code, plan: x.plan && x.plan.id }; }))),
-            kit: { handheld: handheld, canShare: canShare, shareOrTimeOut: shareOrTimeOut, saveFile: saveFile }
+            kit: { handheld: handheld, canShare: canShare, shareOrTimeOut: shareOrTimeOut, saveFile: saveFile, sentWords: sentWords }
           });
         }, { postOnly: true });
       });
@@ -912,8 +912,18 @@
       var copy = el('button', 'q-ghost', t('Copy offer text'));
       copy.type = 'button';
       var note = el('span', 'q-note');
+      /* build 134: once the store has saved an offer PDF it says how many times that offer has gone, and
+         this line says so, as the post sheet does: always for a general broadcast, and for a special
+         request when it was joined to one sent before (the same unit, the same company, ten minutes). */
+      var counted = el('span', 'q-note q-counted'); counted.hidden = true; counted.setAttribute('aria-live', 'polite');
+      function paintCounted(e) {
+        var n = e ? Number(e.rounds) : 0, broadcast = !(e && e.company_id);
+        if (!n || (!broadcast && n < 2)) return;
+        counted.textContent = sentWords(e, n, broadcast);
+        counted.hidden = false;
+      }
       /* build 126: "Copy offer text" is off the page (Muhanad, 2026-10-07). The post has its own "Copy text". */
-      actions.appendChild(send); actions.appendChild(note);
+      actions.appendChild(send); actions.appendChild(note); actions.appendChild(counted);
       var assume = el('ul', 'q-assume');
       (p.assumptions || []).forEach(function (a) { assume.appendChild(el('li', null, t(a))); });
 
@@ -924,6 +934,7 @@
         var s = MM.plans.schedule({ listPrice: u.listPrice, discount: pl.discount || 0, plan: pl, terms: p.terms });
         figures.textContent = '';
         current = null;
+        counted.hidden = true;                                   /* another plan is another offer */
         if (!s || s.broken) {
           /* a schedule that does not foot is not shown at all */
           figures.appendChild(el('p', 'q-empty', t('This plan could not be worked out for this unit, so it is not shown.')));
@@ -1024,7 +1035,7 @@
             MM.post.open({
               project: p, line: l, unit: c.u, plan: c.pl, buildingName: c.b && c.b.name, who: who,
               session: session, demo: demo, onSent: sent(who, 'post', c.u, offerKey([{ code: c.u.code, plan: c.pl && c.pl.id }])),
-              kit: { handheld: handheld, canShare: canShare, shareOrTimeOut: shareOrTimeOut, saveFile: saveFile }
+              kit: { handheld: handheld, canShare: canShare, shareOrTimeOut: shareOrTimeOut, saveFile: saveFile, sentWords: sentWords }
             });
             return;
           }
@@ -1045,8 +1056,11 @@
          share sheet. A laptop: WhatsApp Web with the text, and the PDF saved to
          attach, because a laptop's share flyout can hang for ever (playbook 01,
          4) and wa.me cannot carry a file (5). No PDF for this unit: the text. */
-      function deliver(made, text, left) {
+      function deliver(made, text, leaves) {
         var file = null;
+        /* build 134: 'ok' also asks to be told the store's row, for the line above */
+        counted.hidden = true;
+        var left = function (stage) { if (stage === 'ok') leaves('ok', paintCounted); else leaves(stage); };
         try { if (made) file = new File([made.blob], made.name, { type: 'application/pdf' }); } catch (e) { file = null; }
         /* copy the text FIRST: once the share sheet is open the page has lost
            focus and the clipboard refuses; WhatsApp on an iPhone often drops
@@ -1116,6 +1130,18 @@
        counts it once (mm_log_offer). items: [{ code, plan: plan id or nothing }] */
     function offerKey(items) {
       return items.map(function (x) { return x && x.code ? String(x.code).toUpperCase() + (x.plan ? ':' + x.plan : '') : ''; }).filter(Boolean).sort().join('+');
+    }
+    /* build 134: WHAT THE STORE SAYS ABOUT A SEND, in the agent's words (Muhanad, 2026-10-09). A general
+       broadcast is one however many times it goes that day; a special request is one when the same unit
+       goes again to the same company within ten minutes; a post and a PDF count alike, and when the
+       offer went both ways the line says how many of each. e: the store's row; n: how many times it has
+       gone (the post sheet counts its own sends ahead of the store's answer). */
+    function sentWords(e, n, broadcast) {
+      var s = broadcast ? (n === 1 ? t('Sent once. Counted as one broadcast.') : t('Sent {n} times. Counted as one broadcast.', { n: n }))
+                        : t('Sent {n} times. Counted as one special request.', { n: n });
+      var a = e ? Number(e.sent_pdf) : 0, b = e ? Number(e.sent_post) : 0;
+      if (a > 0 && b > 0 && a + b === n) s += ' ' + t('As an offer PDF: {a}. As a WhatsApp post: {b}.', { a: a, b: b });
+      return s;
     }
     function sent(who, channel, u, key) {
       var ref = null;

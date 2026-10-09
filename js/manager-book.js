@@ -304,14 +304,40 @@
     var companies = [], ids = [], open = [], waits = [], cAt = {};
     got.companies.filter(function (c) { return !c.merged_into; }).forEach(function (c, i) { companies.push(c.name); ids.push(c.id); open.push(!!c.active); waits.push(!!c.pending); cAt[c.id] = i; });
 
+    /* A moment the store gives (with its time zone) as the day and minute IN CAIRO, which is how every
+       row's own day and minute are kept. Nothing when the browser cannot say: the page then leaves the
+       time out, never shows a wrong one. */
+    function cairo(stamp) {
+      try {
+        var at = new Date(stamp);
+        if (isNaN(at)) return null;
+        var p = {};
+        new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Cairo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+          .formatToParts(at).forEach(function (x) { p[x.type] = x.value; });
+        var h = Number(p.hour) % 24, m = Number(p.minute);
+        if (!p.year || isNaN(h) || isNaN(m)) return null;
+        return { day: p.year + '-' + p.month + '-' + p.day, min: h * 60 + m };
+      } catch (x) { return null; }
+    }
     function row(r) {
       var d = fromIso(r.on_date), e;
       if (!d || (r.company_id && cAt[r.company_id] === undefined)) return null;
       e = { id: r.id, k: r.kind, c: r.company_id ? cAt[r.company_id] : null, m: place(r.person_id), d: Math.max(0, Math.min(SPAN, agoOf(d))), t: r.at_min || 0, p: r.product || null };
       if (r.person2_id) e.m2 = place(r.person2_id);
       if (r.channel) e.ch = r.channel;
-      /* build 129: a general broadcast is ONE row however many times it was sent; `n` is how many */
-      if (r.kind === 'offer' && !r.company_id && Number(r.rounds) >= 1) e.n = Number(r.rounds);
+      /* build 129: a general broadcast is ONE row however many times it was sent; `n` is how many.
+         build 134: so is a special request sent again within ten minutes, and the row says HOW its sends
+         went (Muhanad: "showing one pdf one post and the time"):
+           np, nq  how many went as an offer PDF, how many as a WhatsApp post; left out when the store does
+                   not know (a row sent more than once before the store kept it)
+           lc, lt  how it LAST went, and the minute of that day; `ch` and `t` are how and when it FIRST went */
+      if (r.kind === 'offer' && Number(r.rounds) >= 1) {
+        e.n = Number(r.rounds);
+        if (e.n === 1 && r.channel) { e.np = r.channel === 'pdf' ? 1 : 0; e.nq = r.channel === 'post' ? 1 : 0; }
+        else if (typeof r.sent_pdf === 'number' && typeof r.sent_post === 'number' && r.sent_pdf + r.sent_post === e.n) { e.np = r.sent_pdf; e.nq = r.sent_post; }
+        if (e.n > 1 && r.last_channel) e.lc = r.last_channel;
+        if (e.n > 1 && r.last_sent) { var last = cairo(r.last_sent); if (last && last.day === r.on_date) e.lt = last.min; }
+      }
       if (r.unit_code) { e.u = r.unit_code; e.area = r.area === null ? null : Number(r.area); }
       if (r.value !== null && r.value !== undefined) e.v = Number(r.value);
       if (r.why) e.why = r.why;
