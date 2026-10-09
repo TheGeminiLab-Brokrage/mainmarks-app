@@ -484,7 +484,7 @@
     'Send these {n} options on WhatsApp': 'أرسل {n} اختيارات على واتساب',
     '{n} options': '{n} اختيارات',
     'The picture that goes with the post: the master plan with the building lit, and the options numbered on their floor': 'الصورة المرافقة للمنشور: المخطط العام والمبنى مضاء، والاختيارات مرقمة على مخطط دورها',
-    'No picture for these units yet: they are not all traced on one floor drawing. The text goes alone.': 'لا توجد صورة لهذه الوحدات بعد: ليست كلها مرسومة على مخطط دور واحد. سيُرسل النص وحده.',
+    'No picture for these units yet: one of them has no traced floor drawing. The text goes alone.': 'لا توجد صورة لهذه الوحدات بعد: إحداها مخطط دورها غير مرسوم. سيُرسل النص وحده.',
     'The lowest price per m² of the {n} that match': 'الأقل سعراً للمتر بين الوحدات المطابقة ({n})',
     'Also the lowest price per m² that matches': 'وهي أيضاً الأقل سعراً للمتر بين المطابقة',
     'EGP {v} above the {max} limit': '{v} جنيه فوق حد {max}',

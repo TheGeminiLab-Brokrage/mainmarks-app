@@ -205,10 +205,19 @@
   var PIC = {
     en: { building: function (b) { return 'BUILDING ' + b; }, use: function (u) { return (USE_EN[u.type] || u.type).toUpperCase(); },
           area: function (u) { return money(u.area) + ' m²'; }, where: function (u, b) { return (FLOOR_EN[u.fid] || u.floor) + ' · Building ' + b; },
-          sample: 'SAMPLE · terms to be confirmed' },
+          sample: 'SAMPLE · terms to be confirmed',
+          /* build 131, options on more than one floor (pictureFloors) */
+          floorTag: function (f) { return (FLOOR_EN[f] || f).toUpperCase(); },
+          floorName: function (u) { return FLOOR_EN[u.fid] || u.floor; },
+          floors: function (fids, b) { return fids.map(function (f) { return FLOOR_EN[f] || f; }).join(' and ') + ' · Building ' + b; },
+          buildings: function (bs) { return 'Buildings ' + bs.join(' and '); } },
     ar: { building: function (b) { return 'مبنى ' + b; }, use: function (u) { return USE_AR[u.type] || u.type; },
           area: function (u) { return money(u.area) + ' متر'; }   /* the posts' word; a canvas puts ² on the wrong side in Arabic */, where: function (u, b) { return (FLOOR_AR[u.fid] || u.floor) + ' · مبنى ' + b; },
-          sample: 'عينة · الشروط قيد التأكيد' }
+          sample: 'عينة · الشروط قيد التأكيد',
+          floorTag: function (f) { return FLOOR_AR[f] || f; },
+          floorName: function (u) { return FLOOR_AR[u.fid] || u.floor; },
+          floors: function (fids, b) { return fids.map(function (f) { return FLOOR_AR[f] || f; }).join(' و') + ' · مبنى ' + b; },
+          buildings: function (bs) { return 'مباني ' + bs.join(' و'); } }
   };
 
   /* o: { project, unit, buildingName, lang } -> Promise<Blob> */
@@ -344,8 +353,10 @@
        picture  the master plan with the building lit; under it the floor
                 drawing with every option in orange. The numbers sit just
                 OUTSIDE the drawing, level with their unit: on the unit they
-                covered the drawing's own code and size. Only when every
-                option is traced on ONE floor drawing; otherwise text alone.
+                covered the drawing's own code and size. Options on more than
+                one floor (build 131): each floor's drawing, side by side, and
+                the list under them (pictureFloors). Text alone only when an
+                option has no traced drawing at all.
        caption  what the options share (floor, plan) once on top; then each
                 option: code, size, why it is there, price, instalment.
 
@@ -408,6 +419,18 @@
     if (x.role !== 'value') return x.role;
     var a = x.unit.listPrice / x.unit.area, b = first.unit.listPrice / first.unit.area;
     return (b - a) / b < THIN && x.unit.listPrice < first.unit.listPrice ? 'lower' : 'value';
+  }
+  /* build 131: two options side by side on a floor (E219 and E218) put their numbers on the same spot
+     beside the drawing, one over the other. Numbers on the same side are kept `min` apart, top to
+     bottom, each moved down only as far as it must. list: [{ x, y, n }] -> the same list */
+  function apart(list, min) {
+    var sides = {};
+    list.forEach(function (v) { (sides[v.x] = sides[v.x] || []).push(v); });
+    Object.keys(sides).forEach(function (k) {
+      var s = sides[k].sort(function (a, b) { return a.y - b.y || a.n - b.n; });
+      for (var i = 1; i < s.length; i++) if (s[i].y - s[i - 1].y < min) s[i].y = s[i - 1].y + min;
+    });
+    return list;
   }
   function samePlace(opts) {
     return opts.every(function (x) { return x.unit.fid === opts[0].unit.fid && x.unit.building === opts[0].unit.building; });
@@ -475,15 +498,16 @@
     return lines.join('\n');
   }
 
-  /* one picture needs every option traced on the SAME floor drawing */
+  /* a picture needs every option traced on its own floor drawing; one floor or several (build 131) */
   function canPictureOptions(p, opts) {
-    return !!(opts && opts.length > 1 && samePlace(opts) && opts.every(function (x) { return canPicture(p, x.unit); }));
+    return !!(opts && opts.length > 1 && opts.every(function (x) { return canPicture(p, x.unit); }));
   }
 
   /* o: { project, options, lang } -> Promise<Blob> */
   function pictureOptions(o) {
     var p = o.project, opts = o.options, AR_PIC = o.lang === 'ar', L = AR_PIC ? 'ar' : 'en', W8 = PIC[L], X = OPT[L];
-    if (!canPictureOptions(p, opts)) return Promise.reject(new Error('These units are not all on one traced drawing'));
+    if (!canPictureOptions(p, opts)) return Promise.reject(new Error('One of these units has no traced drawing'));
+    if (!samePlace(opts)) return pictureFloors(o);
     var u0 = opts[0].unit, a = p.offer.art, box = p.plates[u0.building][u0.fid], R = p.offer.masterFromFloor;
     var fontsReady = root.document && document.fonts && document.fonts.load
       ? Promise.all(['600 100px Manrope', '500 30px Manrope', '700 22px Manrope', '600 30px "IBM Plex Sans Arabic"', '500 30px "IBM Plex Sans Arabic"']
@@ -552,6 +576,7 @@
         var top = MH + PAD, dx = W - PAD - DW;
         ctx.drawImage(plate, dx, top, DW, DH);
         ctx.strokeStyle = RULE; ctx.lineWidth = 2; ctx.strokeRect(dx, top, DW, DH);
+        var nums = [];
         opts.forEach(function (x, i) {
           var shape = p.unitShapes[x.unit.code];
           var pts = shape.map(function (q) { return [dx + (q[0] - box[0]) / bw * DW, top + (q[1] - box[1]) / bh * DH]; });
@@ -559,8 +584,9 @@
           poly(ctx, pts); ctx.strokeStyle = ORANGE; ctx.lineWidth = 4; ctx.stroke();
           var cx = shape.reduce(function (s, q) { return s + q[0]; }, 0) / shape.length;
           var cy = shape.reduce(function (s, q) { return s + q[1]; }, 0) / shape.length;
-          badge(cx < (box[0] + box[2]) / 2 ? dx - 21 : dx + DW + 21, top + (cy - box[1]) / bh * DH, 17, i + 1);
+          nums.push({ x: cx < (box[0] + box[2]) / 2 ? dx - 21 : dx + DW + 21, y: top + (cy - box[1]) / bh * DH, n: i + 1 });
         });
+        apart(nums, 40).forEach(function (q) { badge(q.x, q.y, 17, q.n); });
 
         /* the left column: the logo, what they share, one row per option, the key plan */
         var lx = PAD, lw = dx - GAP - PAD, y = top;
@@ -618,6 +644,192 @@
           cv.toBlob(function (b) { b ? ok(b) : fail(new Error('Could not make the picture.')); }, 'image/jpeg', 0.9);
         });
       });
+  }
+
+  /* ---- OPTIONS ON MORE THAN ONE FLOOR (build 131) ----------------------
+     Muhanad, 2026-10-09: "when i tried to send 3 options while a search with budget there was no image".
+     A budget search mixes floors: on Moray Wellness every clinic for sale is in Building E, 7 on the 1st
+     floor and 20 on the 2nd, so the best fit and the step up are often a floor apart, and the picture
+     above (one floor) was dropped. Here: the master plan with the building lit; each floor's drawing,
+     side by side and named, every option numbered on its own floor; the list under them, each row
+     saying its floor. The one-floor picture above is unchanged. */
+  var FLOOR_ORDER = ['street', 'ground', 'first', 'second', 'third', 'fourth', 'fifth'];
+  function placesOf(opts) {
+    var out = [];
+    opts.forEach(function (x, i) {
+      var u = x.unit, g = out.filter(function (q) { return q.building === u.building && q.fid === u.fid; })[0];
+      if (!g) { g = { building: u.building, fid: u.fid, buildingName: x.buildingName, items: [] }; out.push(g); }
+      g.items.push({ x: x, n: i + 1 });
+    });
+    return out.sort(function (a, b) {
+      return String(a.building).localeCompare(String(b.building)) || FLOOR_ORDER.indexOf(a.fid) - FLOOR_ORDER.indexOf(b.fid);
+    });
+  }
+  function pictureFloors(o) {
+    var p = o.project, opts = o.options, AR_PIC = o.lang === 'ar', L = AR_PIC ? 'ar' : 'en', W8 = PIC[L], X = OPT[L];
+    var u0 = opts[0].unit, a = p.offer.art, R = p.offer.masterFromFloor, places = placesOf(opts);
+    var oneBuilding = places.every(function (q) { return q.building === places[0].building; });
+    var fontsReady = root.document && document.fonts && document.fonts.load
+      ? Promise.all(['600 100px Manrope', '500 30px Manrope', '700 22px Manrope', '600 30px "IBM Plex Sans Arabic"', '500 30px "IBM Plex Sans Arabic"']
+          .map(function (f) { return document.fonts.load(f, AR_PIC ? 'عيادة' : 'A'); })).catch(function () {})
+      : Promise.resolve();
+    var loads = [loadImage(a.master), a.logoOrange ? loadImage(a.logoOrange) : Promise.resolve(null), fontsReady];
+    places.forEach(function (q) { loads.push(loadImage(a.plates[q.building][q.fid])); });
+    return Promise.all(loads).then(function (g) {
+      var master = g[0], logo = g[1];
+      places.forEach(function (q, i) { q.img = g[3 + i]; q.box = p.plates[q.building][q.fid]; q.letter = bLetter(q.buildingName, { building: q.building }); });
+      var W = 1200, F = '"Manrope", "IBM Plex Sans Arabic", "Segoe UI", Arial, sans-serif';
+      var PAD = 44, GAP = 90, EDGE = 40, TAGH = 62, ROW = 132;
+      var ms = W / master.naturalWidth, MH = Math.round(master.naturalHeight * ms);
+      /* the drawings a little smaller than the one-floor picture's 860, so the picture stays a phone's
+         length; smaller still only if they would not fit across. GAP leaves room for a number on
+         either side of the line between two drawings; EDGE for the numbers on the outer sides. */
+      var ratio = function (q) { return (q.box[2] - q.box[0]) / (q.box[3] - q.box[1]); };
+      var sumR = places.reduce(function (s, q) { return s + ratio(q); }, 0);
+      var DH = Math.min(760, Math.floor((W - 2 * PAD - 2 * EDGE - GAP * (places.length - 1)) / sumR));
+      places.forEach(function (q) { q.dw = Math.round(DH * ratio(q)); });
+      var rowW = places.reduce(function (s, q) { return s + q.dw; }, 0) + GAP * (places.length - 1);
+      var lgw = logo ? 300 : 0, lgh = logo ? Math.round(lgw * logo.naturalHeight / logo.naturalWidth) : 0;
+      var HEADH = Math.max(lgh, 96);
+      var top = MH + PAD, listTop = top + TAGH + DH + PAD;
+      var H = listTop + 2 + PAD + HEADH + 30 + opts.length * ROW + 2 + PAD;
+      var cv = document.createElement('canvas');
+      cv.width = W; cv.height = H;
+      var ctx = cv.getContext('2d');
+      ctx.imageSmoothingQuality = 'high';
+      if (AR_PIC && 'direction' in ctx) ctx.direction = 'rtl';
+      ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, W, H);
+      ctx.drawImage(master, 0, 0, W, MH);
+
+      /* each building lit on the master plan through the measured fit, the rest veiled, one pin each */
+      var lit = {};
+      places.forEach(function (q) {
+        if (lit[q.building]) return;
+        var box = q.box, mb = (p.plates[q.building] || {})[R.floor || 'first'] || box;
+        var toM = function (x, y) {
+          x = mb[0] + (x - box[0]) * (mb[2] - mb[0]) / (box[2] - box[0]);
+          y = mb[1] + (y - box[1]) * (mb[3] - mb[1]) / (box[3] - box[1]);
+          return [(R.s * x + R.tx) * ms, (R.s * y + R.ty) * ms];
+        };
+        lit[q.building] = { e0: toM(box[0], box[1]), e1: toM(box[2], box[3]), letter: q.letter };
+      });
+      var keys = Object.keys(lit);
+      ctx.fillStyle = 'rgba(255,255,255,.55)';
+      ctx.beginPath();
+      ctx.rect(0, 0, W, MH);
+      keys.forEach(function (k) { var r = lit[k]; ctx.rect(r.e0[0], r.e0[1], r.e1[0] - r.e0[0], r.e1[1] - r.e0[1]); });
+      ctx.fill('evenodd');
+      keys.forEach(function (k) {
+        var r = lit[k], e0 = r.e0, e1 = r.e1;
+        ctx.strokeStyle = ORANGE; ctx.lineWidth = 5;
+        ctx.strokeRect(e0[0], e0[1], e1[0] - e0[0], e1[1] - e0[1]);
+        var tag = W8.building(r.letter);
+        ctx.font = '700 22px ' + F;
+        var tw = ctx.measureText(tag).width + 28, tx = e0[0] - tw - 12, ty = e0[1] + 6;
+        if (tx < 12) tx = e1[0] + 12;
+        ctx.fillStyle = ORANGE;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(tx, ty, tw, 38, 19); else ctx.rect(tx, ty, tw, 38);
+        ctx.fill();
+        ctx.fillStyle = '#FFFFFF'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+        ctx.fillText(tag, tx + 14, ty + 20);
+        pin(ctx, (e0[0] + e1[0]) / 2, (e0[1] + e1[1]) / 2, 64, ORANGE);
+      });
+      ctx.fillStyle = RULE; ctx.fillRect(0, MH, W, 2);
+
+      function badge(x, y, r, n) {
+        ctx.save();
+        if ('direction' in ctx) ctx.direction = 'ltr';
+        ctx.fillStyle = ORANGE; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = r / 7; ctx.stroke();
+        ctx.fillStyle = '#FFFFFF'; ctx.font = '700 ' + Math.round(r * 1.15) + 'px ' + F;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(String(n), x, y + r * 0.06);
+        ctx.restore();
+      }
+      function pill(text, cx, y) {
+        ctx.font = (AR_PIC ? '600 24px ' : '700 22px ') + F;
+        if ('letterSpacing' in ctx && !AR_PIC) ctx.letterSpacing = '3px';
+        var w = ctx.measureText(text).width + 36;
+        ctx.fillStyle = ORANGE;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(cx - w / 2, y, w, 40, 20); else ctx.rect(cx - w / 2, y, w, 40);
+        ctx.fill();
+        ctx.fillStyle = '#FFFFFF'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(text, cx, y + 21);
+        if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+        ctx.textAlign = 'left';
+      }
+
+      /* the floors, side by side in floor order, each named above its drawing */
+      var dx = Math.round((W - rowW) / 2);
+      places.forEach(function (q) {
+        var box = q.box, bw = box[2] - box[0], bh = box[3] - box[1], dtop = top + TAGH;
+        var name = W8.floorTag(q.fid) + (oneBuilding ? '' : ' · ' + W8.building(q.letter));
+        pill(name, dx + q.dw / 2, top + 6);
+        ctx.drawImage(q.img, dx, dtop, q.dw, DH);
+        ctx.strokeStyle = RULE; ctx.lineWidth = 2; ctx.strokeRect(dx, dtop, q.dw, DH);
+        var nums = [];
+        q.items.forEach(function (it) {
+          var shape = p.unitShapes[it.x.unit.code];
+          var pts = shape.map(function (s) { return [dx + (s[0] - box[0]) / bw * q.dw, dtop + (s[1] - box[1]) / bh * DH]; });
+          poly(ctx, pts); ctx.fillStyle = 'rgba(250,97,38,.42)'; ctx.fill();
+          poly(ctx, pts); ctx.strokeStyle = ORANGE; ctx.lineWidth = 4; ctx.stroke();
+          var cx = shape.reduce(function (s, v) { return s + v[0]; }, 0) / shape.length;
+          var cy = shape.reduce(function (s, v) { return s + v[1]; }, 0) / shape.length;
+          nums.push({ x: cx < (box[0] + box[2]) / 2 ? dx - 21 : dx + q.dw + 21, y: dtop + (cy - box[1]) / bh * DH, n: it.n });
+        });
+        apart(nums, 40).forEach(function (v) { badge(v.x, v.y, 17, v.n); });
+        dx += q.dw + GAP;
+      });
+
+      /* under them: the logo, what they share, one row per option with its floor */
+      var lx = PAD, lw = W - 2 * PAD, y = listTop;
+      ctx.fillStyle = RULE; ctx.fillRect(0, y, W, 2);
+      y += 2 + PAD;
+      if (logo) ctx.drawImage(logo, lx, y + (HEADH - lgh) / 2, lgw, lgh);
+      var hx = lx + (logo ? lgw + 44 : 0);
+      ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+      ctx.fillStyle = GREY; ctx.font = (AR_PIC ? '600 26px ' : '700 22px ') + F;
+      if ('letterSpacing' in ctx && !AR_PIC) ctx.letterSpacing = '4px';
+      ctx.fillText(X.picHead(opts.length, u0), hx, y + HEADH / 2 - 8);
+      if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+      ctx.font = '500 30px ' + F;
+      ctx.fillText(oneBuilding ? W8.floors(places.map(function (q) { return q.fid; }), places[0].letter) : W8.buildings(keys.map(function (k) { return lit[k].letter; })),
+        hx, y + HEADH / 2 + 34);
+      y += HEADH + 30;
+      opts.forEach(function (x, i) {
+        var u = x.unit, place = places.filter(function (q) { return q.building === u.building && q.fid === u.fid; })[0];
+        ctx.fillStyle = RULE; ctx.fillRect(lx, y, lw, 2);
+        badge(lx + 30, y + ROW / 2 + 1, 30, i + 1);
+        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+        ctx.save();
+        if ('direction' in ctx) ctx.direction = 'ltr';
+        ctx.fillStyle = TEAL; ctx.font = '600 62px ' + F;
+        ctx.fillText(u.code, lx + 82, y + 66);
+        var cw = ctx.measureText(u.code).width;
+        ctx.restore();
+        ctx.fillStyle = CHAR; ctx.font = '500 34px ' + F;
+        ctx.fillText(W8.area(u), lx + 82 + cw + 22, y + 64);
+        ctx.fillStyle = GREY; ctx.font = (AR_PIC ? '600 ' : '500 ') + '28px ' + F;
+        ctx.fillText(X.picRole[roleOf(x, opts[0])] + ' · ' + (oneBuilding ? W8.floorName(u) : W8.where(u, place.letter)), lx + 82, y + 108);
+        y += ROW;
+      });
+      ctx.fillStyle = RULE; ctx.fillRect(lx, y, lw, 2);
+
+      if (p.post && p.post.sample) {
+        ctx.font = '700 22px ' + F;
+        var label = W8.sample, sw = ctx.measureText(label).width + 32;
+        ctx.fillStyle = ORANGE;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(16, 16, sw, 40, 20); else ctx.rect(16, 16, sw, 40);
+        ctx.fill();
+        ctx.fillStyle = '#FFFFFF'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.fillText(label, 32, 37);
+      }
+      return new Promise(function (ok, fail) {
+        cv.toBlob(function (b) { b ? ok(b) : fail(new Error('Could not make the picture.')); }, 'image/jpeg', 0.9);
+      });
+    });
   }
 
   /* ================================================================ sheet */
@@ -828,7 +1040,7 @@
       });
     } else {
       shot.appendChild(el('p', 'q-who-note', many
-        ? t('No picture for these units yet: they are not all traced on one floor drawing. The text goes alone.')
+        ? t('No picture for these units yet: one of them has no traced floor drawing. The text goes alone.')
         : t('No picture for this unit yet: its floor drawing is not traced. The text goes alone.')));
     }
 
