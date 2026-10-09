@@ -3339,6 +3339,10 @@ body.is-ready .mv-hint { opacity: 1; }
 .sp-bar a[aria-current="page"] svg { filter: drop-shadow(0 0 8px rgba(247, 149, 30, .8)); }
 .sp-bar a[aria-current="page"]::before { content: ""; position: absolute; top: 1px; width: 18px; height: 3px; border-radius: 2px; background: #F7951E; box-shadow: 0 0 10px rgba(247, 149, 30, .9); }
 .sp-bar a:focus-visible, .sp-fab:focus-visible { outline: 2px solid #F7951E; outline-offset: 2px; }
+/* build 132: tapped, the heartbeat draws itself again while My activity opens on the pulse */
+.sp-bar a.beat svg path { stroke-dasharray: 40; animation: sp-beat .6s cubic-bezier(.4, 0, .2, 1) both; }
+@keyframes sp-beat { from { stroke-dashoffset: 40; } to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { .sp-bar a.beat svg path { animation: none; } }
 .sp-fab { position: fixed; z-index: 41; inset-inline-end: max(16px, calc(50% - 224px)); bottom: calc(96px + env(safe-area-inset-bottom, 0px)); width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #F7951E; color: #000; box-shadow: 0 8px 26px rgba(247, 149, 30, .4); }
 .sp-fab svg { width: 20px; height: 20px; }
 html[lang="ar"] .sp-bar { font-family: "IBM Plex Sans Arabic", Manrope, Tahoma, sans-serif; }

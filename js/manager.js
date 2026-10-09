@@ -38,6 +38,171 @@
      salesperson are worked out by the same lines, so the two pages cannot disagree. `MY` is true on
      my.html; `ME` (set in start) is the salesperson's place in the team. */
   var MY = document.documentElement.getAttribute('data-view') === 'my';
+  /* ---- THE PULSE (build 132) -----------------------------------------------------------------
+     Muhanad, 2026-10-09, "Look 1" of the mock he tapped: when a sales agent taps the heartbeat to see
+     his activity, the manager start page's dial sweeps in and the orange heartbeat draws through it,
+     alone on the screen, and then My activity comes up exactly as it was. His reason for this look
+     and not a dial ON the page: a sales agent's first look stays his own total sales; active, gone
+     quiet and inactive are the manager's to work with.
+
+     The drawing is in my.html and is on the glass from the first frame; css/manager.css moves it.
+     This decides WHEN, by the rules js/markbuild.js was measured into (build 130), and measured again
+     here (Main Marks Store\tests\measure-pulse.js, a processor slowed six times):
+       - IT STARTS WHEN THE SCREEN CAN KEEP UP (steady): the page loaded and three frames in a row
+         on time, never held longer than CAP. Until then the empty dial stands still.
+       - NOTHING ELSE WORKS WHILE THE LINES ARE BEING DRAWN. His figures and the price file arrive
+         when the line gives them, and reading them is real work: measured, it landed in the middle
+         of the sweep and held a frame for a third of a second. So this page offers what a product
+         page's logo build offers (MM.entry: hold, calm, after), and js/inventory.js, js/auth.js and
+         js/manager-book.js use it without knowing which animation it is:
+           calm(fn)   now, unless the lines are moving; then the moment they have come to rest
+           after(fn)  once the dial has gone (is he still signed in, an offer waiting on the phone)
+       - THE PAGE IS BUILT AT REST, UNDER THE DIAL, AND THE DIAL LIFTS WHEN THE SCREEN CAN KEEP UP
+         AGAIN (build, below).
+       - IF HIS FIGURES ARE NOT HERE YET the heartbeat keeps beating until they are (.wait): on a
+         slow line the wait is the pulse, not an empty screen.
+     Not for Profile, not for the plus, not for a person who asked for less motion: then `then` runs
+     what it is given at once and all of this is no more than a function call.
+     It stands before the sign-in check on purpose: that check asks the store whether he is still
+     switched on, and it must find `after` here to wait behind. */
+  var pulse = (function () {
+    var el = MY ? document.getElementById('pulseIn') : null;
+    var MIN = 1380, CAP = 1200;
+    /* a person who asked for less motion has no pulse (the stylesheet removes the dial as well). Asked of
+       the setting itself, not of the dial: on Profile the dial is hidden and the pulse must still be
+       there for the tap on the heartbeat. */
+    var can = !!el && !!window.requestAnimationFrame && !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    var on = can && !el.hidden, began = 0, due = null, timer = 0, replay = false, waiting = false, lifting = false;
+    var rest = [], gone = [];
+    var api;
+    function each(list) { list.forEach(function (fn) { try { fn(); } catch (e) { /* one must not stop the next */ } }); }
+    function moving() { return on && !!began && Date.now() - began < MIN; }
+    function begin() {
+      if (!on || began) return;
+      began = Date.now();
+      el.classList.add('play');
+      /* the heartbeat on the bar draws itself again with it */
+      var b = document.querySelector('#tab [data-t="my"]');
+      if (b) { if (b.classList.contains('beat')) { b.classList.remove('beat'); void b.offsetWidth; } b.classList.add('beat'); }
+      timer = setTimeout(rested, MIN);
+    }
+    /* the lines have been drawn. What waited for that (calm) runs now; it is usually his figures, and
+       reading them ends in `then`, which goes on to build the page. */
+    function rested() {
+      if (!on) return;
+      var list = rest;
+      rest = [];
+      each(list);
+      if (list.length) setTimeout(function () { if (on && !due && !waiting) ripe(); }, 0);
+      else ripe();
+    }
+    function ripe() {
+      if (!on) return;
+      if (!due) { waiting = true; el.classList.add('wait'); return; }      /* his figures are not here yet: it keeps beating */
+      if (!waiting) { build(); return; }
+      /* they came while the heartbeat was drawing itself again: build when the line is whole (the end of
+         a beat, 1.3 s at most), so the page's work never freezes a half-drawn line */
+      waiting = false;
+      var beat = el.querySelector('.g-beat'), done = false;
+      var whole = function () {
+        if (done) return;
+        done = true;
+        beat.removeEventListener('animationiteration', whole);
+        if (!on) return;
+        el.classList.add('rest');
+        build();
+      };
+      beat.addEventListener('animationiteration', whole);
+      setTimeout(whole, 1400);
+    }
+    /* BUILD THE PAGE NOW, STILL, UNDER THE DIAL; THEN LIFT WHEN THE SCREEN CAN KEEP UP AGAIN. Measured:
+       building My activity holds the page for well over a second on the slowed processor, and its first
+       drawing for a few frames more. Lifting on the heels of that made every frame of the lift late. So
+       draw() builds the page without its rise while `building` is up and leaves the rise in `enter`; the
+       dial lifts, and the cards rise under it, only once two frames in a row have come on time (half a
+       second at most). */
+    function build() {
+      var fn = due;
+      due = null; on = false; replay = false; lifting = true;
+      api.building = true;
+      try { fn(); } finally {
+        api.building = false;
+        steady(function () {
+          var enter = api.enter;
+          api.enter = null;
+          if (enter) enter();
+          el.classList.add('leave');
+          setTimeout(function () {
+            el.hidden = true; el.className = 'pulse-in';
+            lifting = false;
+            var list = gone;
+            gone = [];
+            each(list);
+          }, 460);
+        }, 500, 2);
+      }
+    }
+    /* `go` once the page has loaded and `need` frames in a row have come on time (under 40 ms, which
+       also passes a phone in low-power mode); past `cap` one frame on time is enough, and half a second
+       after that it goes anyway. The rule of whenSteady in js/markbuild.js, which this page does not load. */
+    function steady(go, cap, need) {
+      var t0 = Date.now(), last = 0, good = 0, went = false;
+      var start = function () { if (!went) { went = true; go(); } };
+      var frame = function (ts) {
+        if (went) return;
+        var gap = last ? ts - last : 0, waited = Date.now() - t0;
+        last = ts;
+        good = (gap && gap < 40 && document.readyState === 'complete') ? good + 1 : 0;
+        if (good >= need || (waited > cap && gap && gap < 40) || waited > cap + 500) { start(); return; }
+        requestAnimationFrame(frame);
+      };
+      requestAnimationFrame(frame);
+      /* frames never came (a background tab): go anyway rather than hold the dial */
+      setTimeout(start, cap + 2500);
+    }
+    if (on) steady(begin, CAP, 3);
+    api = {
+      building: false,       /* true while `fn` runs under the dial: draw() then builds without the rise */
+      enter: null,           /* the rise draw() left for the lift */
+      /* `fn` builds the page: now if there is no pulse, otherwise when it has played */
+      then: function (fn) {
+        if (!on) { fn(); return; }
+        due = fn;
+        if (began && Date.now() - began >= MIN) ripe();
+      },
+      /* now, unless the lines are being drawn; then the moment they are at rest */
+      calm: function (fn) { if (moving()) rest.push(fn); else fn(); },
+      /* once the dial has gone; now if there is none. Never forgotten: after eight seconds it runs anyway. */
+      after: function (fn) {
+        if (!on && !lifting) { fn(); return; }
+        var ran = false, once = function () { if (!ran) { ran = true; fn(); } };
+        gone.push(once);
+        setTimeout(once, 8000);
+      },
+      /* the heartbeat tapped from another tab of this page: play it over the page, then `fn`.
+         Answers false when there is no pulse to play, and the caller goes straight on. */
+      again: function (fn) {
+        if (!can || on || lifting) return false;
+        clearTimeout(timer);
+        el.className = 'pulse-in again'; el.hidden = false;
+        on = true; replay = true; waiting = false; began = 0; due = fn;
+        requestAnimationFrame(begin);
+        return true;
+      },
+      /* he tapped somewhere else while it was coming in: drop it */
+      cancel: function () {
+        if (!on || !replay) return;
+        clearTimeout(timer);
+        on = false; replay = false; due = null;
+        el.hidden = true; el.className = 'pulse-in';
+        each(rest); rest = [];
+      }
+    };
+    return api;
+  }());
+  /* the price file needs no hold here: the pulse does not wait for it, its reading does (calm) */
+  if (MY) MM.entry = { hold: function () { return function () {}; }, calm: pulse.calm, after: pulse.after };
+
   var session = MM.auth.require(MY ? 'my.html' : 'manager.html');
   if (!session) return;
   /* build 127: on the store My activity reads the store (js/manager-book.js). Team Pulse still draws the
@@ -118,9 +283,27 @@
       '<a class="btn ghost" href="index.html">' + t('Open the sales app') + '</a></section>';
   }
 
-  MM.managerBook.load().then(start, fail);
+  /* build 132: a sales agent's bar is drawn as soon as the page's words are in place, not when his
+     figures arrive, so the bar he tapped on the page before is still there under his thumb while the
+     pulse plays. Only "Quick Offer" answers until the page is built. (After DOMContentLoaded on
+     purpose: js/i18n.js rewrites every [data-t] in the page then, and these buttons carry one.) */
+  var started = false;
+  function barFirst() {
+    if (started || !MY) return;
+    var asked = (location.hash || '').slice(1);
+    $('tab').innerHTML = TABS.map(function (x) { return '<button type="button" data-t="' + x[0] + '"' + (x[0] === (asked === 'profile' ? 'profile' : 'my') ? ' aria-current="page"' : '') + '>' + svg(x[0]) + '<span>' + x[1] + '</span></button>'; }).join('');
+    $('tab').classList.add('three');
+    $('tab').hidden = false;
+  }
+  if (MY) {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', barFirst); else barFirst();
+    $('tab').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!started && b && b.dataset.t === 'offer') location.href = 'index.html'; });
+  }
+
+  MM.managerBook.load().then(function (B) { pulse.then(function () { start(B); }); }, function () { pulse.then(fail); });
 
   function start(B) {
+    started = true;
     var TEAM = B.team, MGR = B.manager, SPAN = B.span, NOW = B.now;
     /* `all` is the team's rows. `events` is what this page shows: the team's for the manager, and for a
        salesperson only the rows that carry his name (his own, a deal split with him, a visit he joined). */
@@ -906,12 +1089,14 @@
 
     /* ---- drawing ---------------------------------------------------------- */
     function draw(keep) {
-      var scr = $('scr'), y = window.scrollY;
-      scr.className = 'scr' + (keep ? '' : ' in');
+      /* build 132: under the pulse the page is built still, and rises when the dial lifts (pulse.enter) */
+      var scr = $('scr'), y = window.scrollY, hush = !keep && pulse.building;
+      scr.className = 'scr' + (keep || hush ? '' : ' in');
       scr.innerHTML = SCREENS[look.tab]();
       [].forEach.call(scr.children, function (el, i) { el.style.setProperty('--i', i); });
       window.scrollTo(0, keep ? y : 0);
-      if (!keep) countUp(scr);
+      if (hush) pulse.enter = function () { scr.classList.add('in'); countUp(scr); };
+      else if (!keep) countUp(scr);
       deckInit('deck'); deckInit('mv');
       $('fab').hidden = look.tab === 'profile';
       [].forEach.call($('tab').children, function (b) { if (b.dataset.t === look.tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
@@ -1420,7 +1605,17 @@
     $('tab').hidden = false;
     if (MY) $('tab').classList.add('three');
     /* a salesperson's first tab is the sales app itself, which is another page */
-    $('tab').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; if (b.dataset.t === 'offer') { location.href = 'index.html'; return; } look.tab = b.dataset.t; menuOpen = false; closeSheet(); draw(); });
+    $('tab').addEventListener('click', function (e) {
+      var b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.t === 'offer') { location.href = 'index.html'; return; }
+      var go = function () { look.tab = b.dataset.t; menuOpen = false; closeSheet(); draw(); };
+      /* build 132: the heartbeat tapped from Profile plays the pulse too, and the page comes up after it */
+      if (MY && b.dataset.t === 'my' && look.tab !== 'my') {
+        [].forEach.call($('tab').children, function (x) { if (x === b) x.setAttribute('aria-current', 'page'); else x.removeAttribute('aria-current'); });
+        if (pulse.again(go)) return;
+      } else pulse.cancel();
+      go();
+    });
     $('veil').addEventListener('click', closeSheet);
     $('fab').addEventListener('click', function () { if (MY) { myRec.company = -1; openMyRecord(); } else openRecord(); });
     /* the record form checks a unit code as it is typed, and a corrected field clears the last refusal */

@@ -399,7 +399,14 @@
       get('/rest/v1/mm_companies?select=id,name,active,pending,merged_into&order=name'),
       get('/rest/v1/mm_events?select=*&on_date=gte.' + since + '&order=on_date.asc,at_min.asc&limit=20000'),
       s.role === 'sales' ? get('/rest/v1/rpc/mm_team_followups', { method: 'POST', body: {} }) : Promise.resolve([])
-    ]).then(function (a) { return buildStore(a[0], { people: a[1], teams: a[2], companies: a[3], events: a[4], follow: a[5] }, s); });
+    ]).then(function (a) {
+      var make = function () { return buildStore(a[0], { people: a[1], teams: a[2], companies: a[3], events: a[4], follow: a[5] }, s); };
+      /* build 132: making the book out of the answers is real work, and on My activity they can arrive
+         while the pulse is drawing its lines. Then it waits for the lines to rest (MM.entry.calm, js/manager.js). */
+      var e = MM.entry;
+      if (!e || !e.calm) return make();
+      return new Promise(function (ok, no) { e.calm(function () { try { ok(make()); } catch (x) { no(x); } }); });
+    });
   }
 
   /* Resolves to the book; rejects when the inventory cannot be read, because a

@@ -264,7 +264,8 @@
      build, these answers used to land while the letters were rising, and each one cost the animation
      a frame. Nothing here is needed under a black screen, so it waits for the black to go
      (MM.markbuild.after, which runs it at once on every other page). */
-  function quiet(fn) { if (MM.markbuild && MM.markbuild.after) MM.markbuild.after(fn); else fn(); }
+  /* build 132: My activity opens on the pulse, which offers the same `after` as MM.entry (js/manager.js) */
+  function quiet(fn) { var e = MM.markbuild || MM.entry; if (e && e.after) e.after(fn); else fn(); }
   function verify() {
     if (verified) return;
     verified = true;

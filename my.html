@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300..800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/manager.css?v=131">
+<link rel="stylesheet" href="css/manager.css?v=132">
 </head>
 <body>
 
@@ -22,6 +22,33 @@
      page), My activity, Profile. The plus button records an orientation, a
      workshop, a meeting, a reservation or a contract. -->
 <div class="glow" aria-hidden="true"></div>
+
+<!-- THE PULSE (build 132; Muhanad, 2026-10-09, "Look 1" of the mock he tapped): a sales agent taps
+     the heartbeat to see his activity, and the manager start page's dial sweeps in with the orange
+     heartbeat drawn through it, alone on the screen; then My activity comes up exactly as it was.
+
+     IT IS IN THE PAGE ITSELF, AND THE SCRIPT BELOW IT IS INLINE, ON PURPOSE: it has to be on the
+     glass in the first frame, before any script of this page has arrived, so that the wait for his
+     figures is the pulse and never an empty screen. Profile and the plus are not the pulse: they
+     open at once. A person who asked for less motion never sees it (css/manager.css).
+     js/manager.js runs it: when it starts, how long it stays, and what waits for it. -->
+<div class="pulse-in" id="pulseIn" aria-hidden="true">
+  <div class="pi-wrap">
+    <div class="pi-halo"></div>
+    <svg class="pi-dial" viewBox="0 0 240 128">
+      <path class="g-track" d="M 20 116 A 100 100 0 0 1 220 116"/>
+      <path class="g-arc g-a" style="--k:0" d="M 20 116 A 100 100 0 0 1 220 116" stroke-dasharray="124.8 629" stroke-dashoffset="0"/>
+      <path class="g-arc g-q" style="--k:1" d="M 20 116 A 100 100 0 0 1 220 116" stroke-dasharray="21.1 629" stroke-dashoffset="-128.8"/>
+      <path class="g-arc g-i" style="--k:2" d="M 20 116 A 100 100 0 0 1 220 116" stroke-dasharray="77.7 629" stroke-dashoffset="-153.9"/>
+      <path class="g-beat" pathLength="100" d="M 62 100 h 34 l 9 -26 l 13 44 l 11 -32 l 7 14 h 42"/>
+    </svg>
+    <p class="pi-label" data-t="My activity">My activity</p>
+  </div>
+</div>
+<script>
+(function () { if (/^#(profile|record)$/.test(location.hash)) document.getElementById('pulseIn').hidden = true; }());
+</script>
+
 <main class="scr" id="scr"></main>
 <button class="fab" id="fab" type="button" hidden aria-label="Record an orientation, a workshop, a meeting, a reservation or a contract" data-t-aria="Record an orientation, a workshop, a meeting, a reservation or a contract"></button>
 <nav class="tab" id="tab" aria-label="Sections" data-t-aria="Sections" hidden></nav>
@@ -29,12 +56,12 @@
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Details" data-t-aria="Details"></div>
 <div class="toast" id="toast" role="status"></div>
 
-<script src="js/config.js?v=131"></script>
-<script src="js/i18n.js?v=131"></script>
-<script src="js/auth.js?v=131"></script>
-<script src="js/inventory.js?v=131"></script>
-<script src="js/xlsx.js?v=131"></script>
-<script src="js/manager-book.js?v=131"></script>
-<script src="js/manager.js?v=131"></script>
+<script src="js/config.js?v=132"></script>
+<script src="js/i18n.js?v=132"></script>
+<script src="js/auth.js?v=132"></script>
+<script src="js/inventory.js?v=132"></script>
+<script src="js/xlsx.js?v=132"></script>
+<script src="js/manager-book.js?v=132"></script>
+<script src="js/manager.js?v=132"></script>
 </body>
 </html>

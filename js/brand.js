@@ -359,6 +359,8 @@
       if (x[3]) a.setAttribute('aria-current', 'page');
       a.innerHTML = icon(x[1]);
       a.appendChild(el('span', null, x[2]));
+      /* build 132: the heartbeat draws itself again under the thumb, and My activity opens on the pulse */
+      if (x[0] === 'my.html') a.addEventListener('click', function () { a.classList.remove('beat'); void a.offsetWidth; a.classList.add('beat'); });
       bar.appendChild(a);
     });
     var plus = el('a', 'sp-fab');
@@ -368,6 +370,10 @@
     document.body.appendChild(bar);
     document.body.appendChild(plus);
     document.body.classList.add('has-sp-bar');
+    /* build 132: My activity is one tap from every page, and it opens on the pulse. With its files
+       already on the phone the pulse starts at once; on a slow line it would otherwise be seconds of
+       the page before. warmNext is declared below and waits for this page to be idle. */
+    warmNext('my.html', []);
   }
 
   /* ---- the next page, in hand before the tap (build 130) ---------------

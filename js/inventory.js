@@ -157,7 +157,8 @@
        the logo began to move. While the black is still holding, the logo waits for it (hold). If the
        logo is already moving when the file arrives, the reading waits for the black to go (calm). On a
        page with no logo build, and in the check scripts, neither does anything. */
-    var mb = (typeof MM !== 'undefined' && MM.markbuild) || null;
+    /* build 132: on My activity the pulse stands in the logo build's place (MM.entry, js/manager.js) */
+    var mb = (typeof MM !== 'undefined' && (MM.markbuild || MM.entry)) || null;
     var letGo = mb && mb.hold ? mb.hold() : function () {};
     var pr = fetch(url, { cache: 'no-store' }).then(function (r) {
       if (!r.ok) throw new Error('The inventory answered HTTP ' + r.status + '.');
