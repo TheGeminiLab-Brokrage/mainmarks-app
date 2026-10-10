@@ -50,7 +50,12 @@
     MM_NAME_TAKEN: 'This name is already on the list.',
     MM_NOT_YOURSELF: 'You cannot do this to your own account.',
     MM_NOT_ALLOWED: 'This account is not an admin account.',
-    MM_NOT_SIGNED_IN: 'This account is not an admin account.'
+    MM_NOT_SIGNED_IN: 'This account is not an admin account.',
+    /* build 136: removing an entry */
+    MM_NO_REASON: 'Write why it is being removed.',
+    MM_NO_SUCH_ENTRY: 'This entry is no longer there. Open the page again.',
+    MM_RESERVATION_NOT_OPEN: 'This reservation has been signed or cancelled since. Open the page again.',
+    MM_UNIT_RESERVED: 'The unit has been reserved again since, so this cancellation can no longer be removed.'
   };
   function why(r) {
     var code = r && r.body && r.body.message;
@@ -72,6 +77,105 @@
   }
   function person(id) { return people.filter(function (p) { return p.id === id; })[0] || null; }
   function team(id) { return teams.filter(function (x) { return x.id === id; })[0] || null; }
+
+  /* ---- THE HISTORY (build 136) -----------------------------------------
+     Muhanad, 2026-10-09: a wrong entry is corrected by the manager for his team and by the admin for
+     everybody, a contract by the admin only, and every such change "should reads in a place ... in
+     nehal account and the director account and the cco to make sure there is no minpulation". Agreed
+     on a mock (2026-10-10): the place is this tab. It is the store's own record (mm_audit), which the
+     store writes in the same step as the change and which nobody can write to, the admin included.
+     One line for each entry recorded, cancelled, taken back the same day by the person who made it,
+     or removed with a reason. An offer is not in it: an offer is never removed.
+     It is also where she removes a wrong entry: a line whose entry still stands opens with the
+     reason field and the button. The store asks "is this the admin?" itself (mm_remove).
+     The lines come 200 at a time, the newest first. Which entries still stand is read whole, page by
+     page: the store hands over one page of rows per question and says nothing when it stops. */
+  var HPAGE = 200;
+  var hist = { rows: null, standing: {}, more: false, filter: 'all', busy: false, failed: false };
+  function getAll(path) {
+    var out = [];
+    var next = function (from) {
+      return MM.auth.call(path + '&limit=1000&offset=' + from).then(function (r) {
+        if (r.status !== 200 || !Array.isArray(r.body)) throw new Error('store');
+        out = out.concat(r.body);
+        return r.body.length ? next(from + r.body.length) : out;
+      });
+    };
+    return next(0);
+  }
+  function loadHistory(older) {
+    var from = older && hist.rows ? hist.rows.length : 0;
+    hist.busy = true;
+    return Promise.all([
+      MM.auth.call('/rest/v1/mm_audit?select=id,at,by_id,action,detail&action=in.(record,cancel,take_back,remove)&order=id.desc&limit=' + HPAGE + '&offset=' + from),
+      older ? Promise.resolve(null) : getAll('/rest/v1/mm_events?select=id,kind,ended&kind=neq.offer&order=id.asc')
+    ]).then(function (r) {
+      if (r[0].status !== 200 || !Array.isArray(r[0].body)) throw new Error('store');
+      hist.rows = (older && hist.rows ? hist.rows : []).concat(r[0].body);
+      hist.more = r[0].body.length === HPAGE;
+      if (r[1]) { hist.standing = {}; r[1].forEach(function (e) { hist.standing[e.id] = e; }); }
+      hist.busy = false; hist.failed = false;
+    }).catch(function () { hist.busy = false; hist.failed = true; });
+  }
+  var KINDL = { orientation: t('Orientation'), workshop: t('Workshop'), meeting: t('Meeting'), reservation: t('Reservation'), contract: t('Contract'), cancel: t('Cancelled reservation') };
+  var ACT = { record: ['rec', t('Recorded')], cancel: ['', t('Cancelled')], take_back: ['tb', t('Taken back the same day')], remove: ['rm', t('Removed')] };
+  var PRODL = { 'Commercial': t('Commercial'), 'Offices': t('Offices'), 'The Fourth': 'The Fourth', 'Clinics': t('Clinics'), 'Serviced apartments': t('Serviced apartments') };
+  var WHYL = { 'Client withdrew': t('Client withdrew'), 'Payment not made': t('Payment not made'), 'Moved to another unit': t('Moved to another unit'), 'Other': t('Other') };
+  var LOCALE = AR ? 'ar-EG-u-nu-latn' : 'en-GB';
+  function companyName(id) { var c = companies.filter(function (x) { return x.id === id; })[0]; return c ? c.name : t('a company no longer listed'); }
+  function money(v) { return t('EGP {n}', { n: Math.round(Number(v)).toLocaleString('en-US') }); }
+  /* a moment the store gives, as the day and the time in Cairo; a day the store gives, as it is */
+  function whenAt(stamp) { try { return new Intl.DateTimeFormat(LOCALE, { timeZone: 'Africa/Cairo', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(stamp)); } catch (e) { return ''; } }
+  function dayText(iso) { var p = String(iso || '').split('-'); try { return p.length === 3 ? new Intl.DateTimeFormat(LOCALE, { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]))) : ''; } catch (e) { return String(iso || ''); } }
+  function histTitle(d) { return [KINDL[d.kind] || d.kind, d.unit_code, d.company_id ? companyName(d.company_id) : '', d.value ? money(d.value) : ''].filter(Boolean).join(' · '); }
+  function histIs(h, f) { return f === 'all' || (f === 'contract' ? !!h.detail && h.detail.kind === 'contract' : h.action === f); }
+  function histLine(h) {
+    var d = h.detail || {}, a = ACT[h.action] || ['', h.action], by = person(h.by_id), who = person(d.person_id), who2 = person(d.person2_id);
+    var bits = [who ? nm(who.name) + (who2 ? ' + ' + nm(who2.name) : '') : '', by ? t('by {name}', { name: nm(by.name) }) : '', '<bdi>' + esc(whenAt(h.at)) + '</bdi>'].filter(Boolean);
+    return '<button class="hl" type="button" data-h="' + esc(h.id) + '"><span class="k ' + a[0] + '">' + a[1] + '</span><b>' + esc(histTitle(d)) + '</b><small>' + bits.join(' · ') + '</small>' +
+      (h.action === 'remove' && d.reason ? '<q>' + esc(d.reason) + '</q>' : (h.action === 'cancel' && d.why ? '<small>' + (WHYL[d.why] || esc(d.why)) + '</small>' : '')) + '</button>';
+  }
+  function screenHistory() {
+    var html = head(t('History'), t('Everything recorded, taken back, cancelled or removed, the newest first. Nobody can change a line.'));
+    if (hist.rows === null) return html + '<p class="note center">' + (hist.failed ? t('The history could not be opened. Check the connection and open the page again.') : t('Opening the history…')) + '</p>';
+    var shown = hist.rows.filter(function (h) { return histIs(h, hist.filter); });
+    html += '<div class="chips">' + [['all', t('All')], ['remove', t('Removed')], ['take_back', t('Taken back')], ['cancel', t('Cancelled')], ['contract', t('Contracts')]].map(function (c) {
+      /* a count is shown only when every line is on the page: a count of the first 200 would be a wrong number */
+      return '<button class="chip" type="button" data-hf="' + c[0] + '" aria-pressed="' + (hist.filter === c[0]) + '">' + c[1] + (hist.more ? '' : ' ' + hist.rows.filter(function (h) { return histIs(h, c[0]); }).length) + '</button>';
+    }).join('') + '</div>';
+    html += shown.length ? '<section class="card"><div class="hist">' + shown.map(histLine).join('') + '</div></section>' : '<p class="note center">' + t('Nothing here yet.') + '</p>';
+    if (hist.more) html += '<button class="btn ghost" type="button" id="hMore">' + t('Show older lines') + '</button>';
+    return html;
+  }
+  function openHistory(id) {
+    var h = (hist.rows || []).filter(function (x) { return String(x.id) === String(id); })[0]; if (!h) return;
+    var d = h.detail || {}, a = ACT[h.action] || ['', h.action], by = person(h.by_id), who = person(d.person_id), who2 = person(d.person2_id), live = hist.standing[d.id], act = '';
+    var rows = [[t('Brokerage company'), nm(d.company_id ? companyName(d.company_id) : '')], [t('Date'), '<bdi>' + esc(dayText(d.on_date)) + '</bdi>']];
+    if (d.unit_code) rows.push([t('Unit'), nm((d.product ? (PRODL[d.product] || d.product) + ' ' : '') + d.unit_code) + (d.area ? ' · ' + t('{n} m²', { n: Number(d.area) }) : '')]);
+    else if (d.product) rows.push([t('Unit type'), PRODL[d.product] || esc(d.product)]);
+    if (d.value) rows.push([d.kind === 'contract' ? t('Contract price') : t('Reservation price'), money(d.value)]);
+    if (who) rows.push([t('Sales agent'), nm(who.name) + (who2 ? ' + ' + nm(who2.name) : '')]);
+    if (d.why) rows.push([t('Reason'), WHYL[d.why] || esc(d.why)]);
+    rows.push([a[1], (by ? nm(by.name) + ' · ' : '') + '<bdi>' + esc(whenAt(h.at)) + '</bdi>']);
+    if (h.action === 'remove') rows.push([t('Why it was removed'), esc(d.reason || '')]);
+    if (h.action === 'record' || h.action === 'cancel') {
+      if (!live) act = '<p class="note">' + t('This entry has since been removed or taken back. It is no longer counted.') + '</p>';
+      else if (live.kind === 'reservation' && live.ended) act = '<p class="note">' + (live.ended === 'contract' ? t('This reservation was signed. Remove its contract first.') : t('This reservation was cancelled. Remove the cancellation first.')) + '</p>';
+      else act = '<label class="fld">' + t('Why is it being removed') + '<input id="hWhy" type="text" maxlength="200" autocomplete="off"></label><p class="note bad" id="aErr" hidden></p>' +
+        '<button class="btn" type="button" id="hGo" data-id="' + esc(d.id) + '">' + t('Remove this entry') + '</button>' +
+        '<p class="note">' + t('A reason is required. The removal and its reason stay in this history. To correct the entry, the sales agent or his manager records it again.') + '</p>';
+    }
+    showSheet('<div><h3>' + (KINDL[d.kind] || esc(d.kind || '')) + '</h3><p class="role">' + a[1] + (d.company_id ? ' · ' + nm(companyName(d.company_id)) : '') + '</p></div>' +
+      '<div class="facts">' + rows.map(function (r) { return '<div><span>' + r[0] + '</span><b>' + r[1] + '</b></div>'; }).join('') + '</div><div class="form">' + act + '</div>');
+  }
+  function removeEntry(btn) {
+    var why = ($('hWhy') ? $('hWhy').value : '').replace(/\s+/g, ' ').trim();
+    if (why.length < 3) return bad(t('Write why it is being removed.'));
+    send(btn, rpc('mm_remove', { p_id: btn.dataset.id, p_reason: why }), function () {
+      closeSheet();
+      loadHistory().then(function () { draw(); toast(t('Removed. It is in the history with your reason.')); });
+    });
+  }
 
   /* ---- the email, from the name and the role -------------------------
      First two names, small letters, a dot between. "Abd el-Rahman Saleh"
@@ -95,6 +199,7 @@
     people: '<path d="M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1"/><circle cx="9.5" cy="7" r="3.5"/><path d="M21 19v-1a4 4 0 0 0-3-3.8M16 3.6a3.5 3.5 0 0 1 0 6.8"/>',
     companies: '<path d="M4 20V6l8-3v17M12 9h8v11M2 20h20M7 9v0M7 13v0M7 17v0M16 13v0M16 17v0"/>',
     me: '<circle cx="12" cy="8" r="4"/><path d="M4 20a8 8 0 0 1 16 0"/>',
+    history: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
     plus: '<path d="M12 5v14M5 12h14"/>'
   };
   function svg(k) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[k] + '</svg>'; }
@@ -161,12 +266,14 @@
   }
   function draw() {
     var keep = document.activeElement && document.activeElement.id === 'find';
-    $('scr').innerHTML = tab === 'people' ? screenPeople() : tab === 'companies' ? screenCompanies() : screenMe();
-    $('tab').innerHTML = [['people', t('People')], ['companies', t('Companies')], ['me', t('Account')]].map(function (x) {
+    $('scr').innerHTML = tab === 'people' ? screenPeople() : tab === 'companies' ? screenCompanies() : tab === 'history' ? screenHistory() : screenMe();
+    /* the history is read the first time its tab is opened, not with the accounts */
+    if (tab === 'history' && hist.rows === null && !hist.busy && !hist.failed) loadHistory().then(function () { if (tab === 'history') draw(); });
+    $('tab').innerHTML = [['people', t('People')], ['companies', t('Companies')], ['history', t('History')], ['me', t('Account')]].map(function (x) {
       return '<button type="button" data-t="' + x[0] + '"' + (tab === x[0] ? ' aria-current="page"' : '') + '>' + svg(x[0]) + '<span>' + x[1] + '</span></button>';
     }).join('');
     $('tab').hidden = false;
-    $('fab').hidden = tab === 'me';
+    $('fab').hidden = tab === 'me' || tab === 'history';
     $('fab').innerHTML = svg('plus');
     $('fab').setAttribute('aria-label', tab === 'companies' ? t('Add a company') : t('Add a person'));
     if (keep) { var f = $('find'); f.focus(); f.setSelectionRange(f.value.length, f.value.length); }
@@ -377,7 +484,11 @@
     var hit = function (a) { return e.target.closest('[' + a + ']'); };
     var p = hit('data-p'), c = hit('data-c'), f = hit('data-f'), tb = e.target.closest('#tab [data-t]'), l = hit('data-lang'), tm = hit('data-team');
     if (e.target.closest('#veil')) closeSheet();
-    else if (tb) { tab = tb.dataset.t; find = ''; draw(); window.scrollTo(0, 0); }
+    else if (tb) { tab = tb.dataset.t; find = ''; if (tab === 'history') hist.failed = false; draw(); window.scrollTo(0, 0); }
+    else if (hit('data-hf')) { hist.filter = hit('data-hf').dataset.hf; draw(); }
+    else if (e.target.closest('#hGo')) removeEntry(e.target.closest('#hGo'));
+    else if (e.target.closest('#hMore')) { e.target.closest('#hMore').disabled = true; loadHistory(true).then(draw); }
+    else if (hit('data-h')) openHistory(hit('data-h').dataset.h);
     else if (p) openPerson(p.dataset.p);
     else if (c) openCompany(companies.filter(function (x) { return x.id === c.dataset.c; })[0]);
     else if (tm) openTeam(team(tm.dataset.team));

@@ -44,6 +44,7 @@
   var MM = root.MM || (root.MM = {});
   var SPAN = 83;                                   /* the book goes back 12 weeks */
   var KEY = 'mm.manager.records.v1';               /* what was recorded on this phone */
+  var GONE = 'mm.manager.removed.v1';              /* demo book only: what the manager removed on this phone (build 136) */
   var WHY = ['Client withdrew', 'Payment not made', 'Moved to another unit', 'Other'];
   var PRODUCTS = ['Commercial', 'Offices', 'The Fourth', 'Clinics', 'Serviced apartments'];
 
@@ -226,6 +227,34 @@
     }
     stored.forEach(apply);
 
+    /* REMOVING AN ENTRY WITH A REASON (build 136; Muhanad, 2026-10-10). On the real app this is the store's
+       rule (mm_remove) and the reason is kept in the history for the admin, the director and the CCO.
+       The demo book only stands in for it so the screen can be shown: the entry goes from this phone's
+       copy, a contract is refused the way the store refuses a manager, and nothing is kept of the reason. */
+    function readGone() { try { var a = JSON.parse(root.localStorage.getItem(GONE) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+    var goneIds = readGone();
+    function reopen() {
+      events.forEach(function (e) {
+        if (e.k !== 'reservation' || !e.end) return;
+        var ended = events.some(function (x) { return e.end === 'cancel' ? x.of === e.id : (x.k === 'contract' && (x.of === e.id || (x.c === e.c && x.u === e.u))); });
+        if (!ended) { delete e.end; delete e.endD; }
+      });
+    }
+    if (goneIds.length) { events = events.filter(function (e) { return goneIds.indexOf(e.id) === -1; }); reopen(); }
+    function removeWhy(id, reason) {
+      var e = events.filter(function (x) { return x.id === id; })[0];
+      if (!e) return Promise.reject(new Error('MM_NO_SUCH_ENTRY'));
+      if (String(reason || '').replace(/\s+/g, ' ').trim().length < 3) return Promise.reject(new Error('MM_NO_REASON'));
+      if (e.k === 'offer') return Promise.reject(new Error('MM_NOT_ALLOWED'));
+      if (e.k === 'contract') return Promise.reject(new Error('MM_ADMIN_ONLY'));
+      if (e.k === 'reservation' && e.end) return Promise.reject(new Error('MM_RESERVATION_NOT_OPEN'));
+      events.splice(events.indexOf(e), 1);
+      reopen();
+      if (e.mine) { stored = stored.filter(function (r) { return r.id !== id; }); writeStore(stored); }
+      else { goneIds.push(id); try { root.localStorage.setItem(GONE, JSON.stringify(goneIds)); } catch (x) { /* this visit only */ } }
+      return Promise.resolve(true);
+    }
+
     var kept = 0;                                    /* never the list's length: an entry can be taken back, and an id must not come round again */
     function keep(r) { r.id = 'r' + Date.now() + '-' + (kept++); var e = apply(r); if (e) { stored.push(r); writeStore(stored); } return e; }
     book = {
@@ -244,9 +273,9 @@
         return keep({ k: r.k, c: companies[r.c], m: team[r.m].code, m2: r.m2 == null ? null : team[r.m2].code, date: iso(r.date), t: d === 0 ? now : 12 * 60,
           p: u ? productOf(u) : r.p, u: r.u || null, area: u ? u.area : null, v: r.v || 0, of: r.of || null, made: iso(today) });
       },
-      remove: remove, removable: removable,
+      remove: remove, removable: removable, removeWhy: removeWhy,
       cancel: function (id, date, why) { return keep({ k: 'cancel', of: id, date: iso(date), t: agoOf(date) === 0 ? now : 12 * 60, why: why }); },
-      reset: function () { try { root.localStorage.removeItem(KEY); } catch (e) { /* nothing to clear */ } }
+      reset: function () { try { root.localStorage.removeItem(KEY); root.localStorage.removeItem(GONE); } catch (e) { /* nothing to clear */ } }
     };
     return book;
   }
@@ -386,6 +415,9 @@
       if (r.ended) { e.end = r.ended; if (r.ended_on && fromIso(r.ended_on)) e.endD = Math.max(0, agoOf(fromIso(r.ended_on))); }
       e.made = r.made_on;
       e.mine = r.created_by === me.id;
+      /* build 136: who entered it and when, for the sheet an entry opens to. Only where someone leads:
+         a sales agent's own page does not name who entered a row, and his list of names stays as it was. */
+      if (lead) { e.by = place(r.created_by); var made = r.created_at ? cairo(r.created_at) : null; if (made) e.at = made; }
       return e;
     }
     var events = got.events.map(row).filter(Boolean);
@@ -455,6 +487,18 @@
           events.push(e);
           events.forEach(function (x) { if (x.id === e.of) { x.end = 'cancel'; x.endD = e.d; } });
           return e;
+        });
+      },
+      /* REMOVING A WRONG ENTRY, WITH A REASON (build 136; the store's mm_remove). The manager for his own
+         team, never a contract; the store decides, keeps the whole entry with the reason in the history,
+         and refuses with a code the page has the words for. Only where someone leads. */
+      removeWhy: !lead ? undefined : function (id, reason) {
+        var e = events.filter(function (x) { return x.id === id; })[0];
+        if (!e) return Promise.reject(new Error('MM_NO_SUCH_ENTRY'));
+        return rpc('mm_remove', { p_id: id, p_reason: reason }).then(function () {
+          if (e.of) events.forEach(function (x) { if (x.id === e.of) { delete x.end; delete x.endD; } });
+          events.splice(events.indexOf(e), 1);
+          return true;
         });
       },
       reset: function () { /* nothing is kept on the phone */ }

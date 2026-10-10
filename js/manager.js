@@ -581,16 +581,24 @@
     }
     function unitText(e) { return nm(prod(e.p) + ' ' + e.u) + (e.area ? ' · ' + t('{n} m²', { n: e.area }) : '') + (e.v ? ' · ' + money(e.v) : ''); }
     function detail(e) { return isVisit(e) ? followed(e).text : e.u ? unitText(e) : prod(e.p) + (e.ch ? ' · ' + CH[e.ch] : ''); }
+    /* build 136: on the manager's page an ENTRY in a feed opens to its own sheet (who entered it, and the
+       way to remove it with a reason). An offer is not an entry: it was sent, and it stays as it is. */
     function feed(list, withName) {
-      return '<div class="feed">' + list.map(function (e) { var how = sentHow(e); return '<div><time>' + when(e) + '</time><span>' + what(e) + sentTimes(e) + '<small>' + (withName ? people(e) + ' · ' : '') + detail(e) + (e.k === 'cancel' ? ' · ' + WHYL[e.why] : '') + '</small>' + (how ? '<small class="how">' + how + '</small>' : '') + '</span></div>'; }).join('') + '</div>';
+      return '<div class="feed">' + list.map(function (e) { var how = sentHow(e), tap = !MY && e.k !== 'offer'; return '<div' + (tap ? ' class="tap" role="button" tabindex="0" data-e="' + esc(e.id) + '"' : '') + '><time>' + when(e) + '</time><span>' + what(e) + sentTimes(e) + '<small>' + (withName ? people(e) + ' · ' : '') + detail(e) + (e.k === 'cancel' ? ' · ' + WHYL[e.why] : '') + '</small>' + (how ? '<small class="how">' + how + '</small>' : '') + '</span></div>'; }).join('') + '</div>';
     }
     function kv(list) { return '<div class="kv">' + list.map(function (x) { return '<div><b>' + x[0] + '</b><span>' + x[1] + '</span></div>'; }).join('') + '</div>'; }
 
     /* ---- the half-dial gauge -------------------------------------------- */
+    /* build 136 (Muhanad, 2026-10-10): A NUMBER UNDER THE DIAL EXPLAINS ITSELF. He read "13 special requests"
+       in the dial and "2 · Sent a special request" under it, and could not tell that the 2 counts PEOPLE.
+       His choice: no more words on the card ("it would be a lot of wording"); the number says what it
+       counts when the pointer reaches it (a laptop) or it is tapped (a phone), the way "sent 2 times"
+       does. `tip` is that one line; without it the number is drawn as before. */
     function legend(segs) {
       return '<div class="legend">' + segs.map(function (g) {
         var d = g.delta ? ' <small><bdi>' + (g.delta > 0 ? '+' : '−') + Math.abs(g.delta) + '</bdi></small>' : '';
-        return '<div class="lg"><i class="s-' + g.k + '"></i><b><span data-n="' + g.n + '">' + g.n + '</span>' + d + '</b><span>' + g.label + '</span></div>';
+        var fig = '<b><span data-n="' + g.n + '">' + g.n + '</span>' + d + '</b><span>' + g.label + '</span>';
+        return '<div class="lg"><i class="s-' + g.k + '"></i>' + (g.tip ? '<button class="why" type="button" aria-expanded="false">' + fig + '</button><span class="why-tip" role="note">' + esc(g.tip) + '</span>' : fig) + '</div>';
       }).join('') + '</div>';
     }
     /* segs: [{ k: colour, n, label, delta }] */
@@ -634,14 +642,16 @@
     /* ONE DAY: the gauge is the TEAM. Who took a company's request, who only broadcast, who sent nothing. */
     function cardHeroDay() {
       var a = A.crew.filter(function (p) { return p.n.special > 0; }).length, b = A.crew.filter(function (p) { return !p.n.special && p.n.broadcast > 0; }).length;
-      var segs = [{ k: 'active', n: a, label: t('Sent a special request') }, { k: 'quiet', n: b, label: t('Broadcast only') }, { k: 'never', n: OWN - a - b, label: t('Nothing sent yet') }];
+      var segs = [{ k: 'active', n: a, label: t('Sent a special request'), tip: t('How many of your sales agents sent at least one special request. It counts people, not requests.') },
+        { k: 'quiet', n: b, label: t('Broadcast only'), tip: t('How many of your sales agents sent broadcasts and no special request.') },
+        { k: 'never', n: OWN - a - b, label: t('Nothing sent yet'), tip: t('How many of your sales agents have sent no offer at all.') }];
       var n = '<b>' + A.normal + '</b>';
       var line = A.normal === null ? '' : '<p class="eff">' + (period.to === 0 ? t('A normal day by {time}: {n} special requests', { time: hhmm(NOW), n: n }) : t('A normal full day: {n} special requests', { n: n })) + ' · <b>' + vs(A.tot.special, A.normal, 'normal') + '</b></p>';
       return '<section class="card"><h2>' + t('Your team') + ' <em>' + periodName() + ' · ' + count(OWN, 'salesperson') + '</em></h2>' + gauge(segs, A.tot.special, t('special requests')) + line + '</section>';
     }
     /* A WEEK OR MORE: the gauge is the COMPANIES, with how each count moved since the day before these dates. */
     function cardHeroBook() {
-      var segs = ORDER.map(function (k) { return { k: k, n: count4[k], label: STATE[k], delta: A.delta ? A.delta[k] : 0 }; });
+      var segs = ORDER.map(function (k) { return { k: k, n: count4[k], label: STATE[k], delta: A.delta ? A.delta[k] : 0, tip: STATE_TEXT[k] }; });
       return '<section class="card"><h2>' + t('Brokerage health') + ' <em>' + t('as of today') + ' · ' + count(book.length, 'company') + '</em></h2>' + gauge(segs, count4.active, t('active of {n}', { n: book.length })) +
         '<p class="eff">' + t('Your team worked with {x} companies', { x: '<b>' + t('{a} of {b}', { a: A.reached, b: book.length }) + '</b>' }) + ' · ' + t('{n} effective', { n: '<b>' + A.effective + '</b>' }) +
         (A.delta ? ' · ' + t('changes since {date}', { date: fmt(period.from + 1) }) : '') + '</p></section>';
@@ -659,6 +669,30 @@
         ['reservation', t('Reservations'), n.reservation, n.cancel ? t('{n} cancelled in these dates', { n: n.cancel }) : t('none cancelled')],
         ['contract', t('Contracts'), n.contract, n.value ? t('{v} total sales', { v: money(n.value) }) : '']];
       return '<div class="stats">' + list.map(function (x) { return '<button class="stat" type="button" data-s="' + x[0] + '">' + num(x[2]) + '<span>' + x[1] + '</span>' + (x[3] ? '<small>' + x[3] + '</small>' : '') + '</button>'; }).join('') + '</div>';
+    }
+    /* build 136, WHO STILL OWES HIS BROADCASTS (Muhanad, 2026-10-10). His rule is at least three broadcasts a
+       day from every sales agent. "Nothing sent yet" named only a person who had sent nothing AT ALL: an
+       agent with special requests and no broadcast, or one broadcast of three, was on no list, and the
+       manager "need to see it in order to audit and tell them to send". His words for the look: "we can
+       have the dots, and the number ... and maybe something that highlights who is not sending ... we do
+       not want to make a lot of numbers, letters". So this card takes that card's place on a single day:
+       every sales agent he leads, one dot for each broadcast the target asks for (lit for each one sent
+       that day) and ONE number, the least first. A zero is the highlight. A person who has sent no offer
+       at all keeps the "No offers yet" mark the old card gave him. One broadcast is one offer, however
+       many times it was sent (the store counts it so). The target is the settings file's
+       (CONFIG.salesDay); with none, the old card stands. */
+    function cardDuty() {
+      var goal = Number(((typeof CONFIG !== 'undefined' && CONFIG.salesDay) || {}).broadcasts) || 0;
+      if (!goal || goal > 6) return cardIdle();
+      var list = A.crew.slice().sort(function (a, b) { return a.n.broadcast - b.n.broadcast || a.n.offers - b.n.offers || a.name.localeCompare(b.name); });
+      var tip = t('The daily target is at least {b} offers sent as a general broadcast to all the companies. An offer sent again to more chats still counts as one.', { b: goal });
+      return '<section class="card duty-card"><h2>' + t('Broadcasts') + ' <em><button class="why" type="button" aria-expanded="false">' + periodName() + ' · ' + t('{n} each', { n: goal }) + '</button><span class="why-tip" role="note">' + esc(tip) + '</span></em></h2>' +
+        (list.length ? '<div class="rows">' + list.map(function (p) {
+          var n = p.n.broadcast, dots = '', i;
+          for (i = 0; i < goal; i++) dots += '<i' + (i < n ? ' class="on"' : '') + '></i>';
+          return '<button class="row duty-row' + (n ? '' : ' none') + '" type="button" data-m="' + p.id + '" aria-label="' + esc(p.name + ': ' + count(n, 'broadcast')) + '"><span class="who"><span class="nm">' + esc(p.name) + '</span>' +
+            (p.n.offers ? '' : '<span class="idle">' + t('No offers yet') + '</span>') + '</span><span class="dots" aria-hidden="true">' + dots + '</span><span class="val">' + n + '</span></button>';
+        }).join('') + '</div>' : noTeam(true)) + '</section>';
     }
     function cardIdle() {
       var idle = A.crew.filter(function (p) { return !p.n.offers; });
@@ -733,7 +767,12 @@
         [['quiet', t('Gone quiet'), count4.quiet], ['nomeet', t('Many requests, no meeting'), noMeetCount()], ['never', t('Never asked'), count4.never], ['fresh', t('New in these dates'), A.fresh.length]].map(function (g, i) { return '<button class="go' + (i ? '' : ' first') + '" type="button" data-go="' + g[0] + '"><span>' + g[1] + '</span><b>' + g[2] + '</b></button>'; }).join('') + '</div></section>';
     }
     function fate(e) { return e.k === 'cancel' ? ' · ' + WHYL[e.why] : e.k !== 'reservation' ? '' : e.end === 'cancel' ? ' · ' + t('later cancelled, {date}', { date: fmt(e.endD) }) : e.end === 'contract' ? ' · ' + t('became a contract') : ' · ' + t('still open'); }
-    function dealRow(e) { return '<div class="row flat' + (e.k === 'cancel' ? ' gone' : '') + '"><span class="nm">' + KIND[e.k] + ' · ' + nm(prod(e.p) + ' ' + e.u) + '</span><span class="val">' + mil(e.v) + '<small>' + t('EGP M') + '</small></span><span class="sub">' + nm(book[e.c].name) + ' · ' + people(e) + ' · ' + when(e) + fate(e) + '</span></div>'; }
+    function dealRow(e) {
+      var inner = '<span class="nm">' + KIND[e.k] + ' · ' + nm(prod(e.p) + ' ' + e.u) + '</span><span class="val">' + mil(e.v) + '<small>' + t('EGP M') + '</small></span><span class="sub">' + nm(book[e.c].name) + ' · ' + people(e) + ' · ' + when(e) + fate(e) + '</span>';
+      /* build 136: the manager opens a deal to its own sheet; on a sales agent's page it stays a plain row */
+      return MY ? '<div class="row flat' + (e.k === 'cancel' ? ' gone' : '') + '">' + inner + '</div>'
+                : '<button class="row' + (e.k === 'cancel' ? ' gone' : '') + '" type="button" data-e="' + esc(e.id) + '">' + inner + '</button>';
+    }
     function more(n) { return '<p class="note">' + t('{n} more in the download.', { n: n }) + '</p>'; }
     function cardDeals() { return '<section class="card wide last"><h2>' + t('Reservations, contracts, cancellations') + ' <em>' + A.deals.length + '</em></h2>' + (A.deals.length ? '<div class="rows">' + A.deals.slice(0, 5).map(dealRow).join('') + '</div>' + (A.deals.length > 5 ? more(A.deals.length - 5) : '') : '<p class="note">' + t('None recorded in these dates.') + '</p>') + '</section>'; }
     function cardFeed() { var l = A.list.slice().sort(newest).slice(0, 7); return '<section class="card"><h2>' + t('Latest activity') + ' <em>' + t('newest first') + '</em></h2>' + (l.length ? feed(l, true) : '<p class="note">' + t('No activity in these dates.') + '</p>') + '</section>'; }
@@ -887,7 +926,8 @@
     }
     function visitRow(x) {
       var e = x.e;
-      return '<button class="row" type="button" data-c="' + e.c + '"><span class="nm">' + esc(book[e.c].name) + '</span><span class="val d">' + when(e) + '</span><span class="sub">' + people(e) + '</span><span class="mv-out' + (x.f.ok ? ' ok' : '') + '">' + x.f.text + '</span></button>';
+      /* build 136: a visit opens to its own sheet, which has the way on to the company's page */
+      return '<button class="row" type="button" data-e="' + esc(e.id) + '"><span class="nm">' + esc(book[e.c].name) + '</span><span class="val d">' + when(e) + '</span><span class="sub">' + people(e) + '</span><span class="mv-out' + (x.f.ok ? ' ok' : '') + '">' + x.f.text + '</span></button>';
     }
 
     /* ---- A SALESPERSON'S PAGE (build 121; mocked first, round 1 of 2026-10-06) ----------------
@@ -946,8 +986,65 @@
       var list = companyMatches(key);
       showSheet('<div><h3>' + (key === 'effective' ? t('Effective') : STATE[key]) + '</h3><p class="role">' + count(list.length, 'company') + ' · ' + t('as of today') + '</p></div>' + rankHead(key) + '<div class="rows">' + list.map(rankRow(key)).join('') + '</div>');
     }
+    /* ---- AN ENTRY, OPENED BY THE MANAGER, AND REMOVED WITH A REASON (build 136) ---------------------
+       Muhanad, 2026-10-09: a wrong entry is corrected by "the manger for his team nehal for every one ...
+       contract can be corrected by nehal onle", and every change is read by the admin, the director and
+       the CCO "to make sure there is no minpulation". Agreed with him on a mock (2026-10-10): a
+       correction is the wrong entry REMOVED WITH A WRITTEN REASON and then recorded again the right way
+       with the plus; the history keeps both lines. So every entry in the manager's lists opens to this
+       sheet: what it is, whose it is, who entered it and when, and the way to remove it. The rule itself
+       is the store's (mm_remove): this sheet only does not offer what the store would refuse. A contract
+       has no button for him, and neither has a reservation that has since been signed or cancelled. */
+    function openTeamEntry(e) {
+      var rows = [[t('Brokerage company'), nm(book[e.c].name)], [t('Date'), fmt(e.d) + ' ' + B.dateOf(e.d).getFullYear()]], at, act;
+      if (e.u) rows.push([t('Unit'), nm(prod(e.p) + ' ' + e.u) + (e.area ? ' · ' + t('{n} m²', { n: e.area }) : '')]); else if (e.p) rows.push([t('Unit type'), prod(e.p)]);
+      if (e.v) rows.push([e.k === 'contract' ? t('Contract price') : t('Reservation price'), t('EGP {n}', { n: Math.round(e.v).toLocaleString('en-US') })]);
+      rows.push([isVisit(e) ? t('Who went') : t('Sales agent'), nm(TEAM[e.m].name)]);
+      if (e.m2 !== undefined) rows.push([isVisit(e) ? t('Also went') : t('Split with'), nm(TEAM[e.m2].name)]);
+      if (isVisit(e)) rows.push([t('What followed'), followed(e).text]);
+      if (e.k === 'reservation') rows.push([t('Today'), fateOf(e)]);
+      if (e.k === 'cancel') rows.push([t('Reason'), WHYL[e.why] || esc(e.why || '')]);
+      if (e.by !== undefined && TEAM[e.by]) {
+        at = e.at && agoOf(e.at.day) !== null ? ' · <bdi>' + fmt(agoOf(e.at.day)) + ' ' + hhmm(e.at.min) + '</bdi>' : '';
+        rows.push([t('Entered by'), nm(TEAM[e.by].name) + at]);
+      }
+      if (!B.removeWhy) act = '';
+      else if (e.k === 'contract') act = '<p class="note">' + t('Only the admin can remove a contract. If this one is wrong, tell the admin what to change.') + '</p>';
+      else if (e.k === 'reservation' && e.end) act = '<p class="note">' + (e.end === 'contract' ? t('This reservation was signed. Its contract is removed first, and only the admin can do that.') : t('This reservation was cancelled. Remove the cancellation first.')) + '</p>';
+      else act = '<label class="fld">' + t('Why is it being removed') + '<input id="rmWhy" type="text" maxlength="200" autocomplete="off"></label><p class="note bad" id="rErr" hidden></p>' +
+        '<button class="btn" type="button" id="rmGo" data-id="' + esc(e.id) + '">' + t('Remove this entry') + '</button>' +
+        '<p class="note">' + t('A reason is required. To correct an entry, remove it, then record it again with the plus. The removal and its reason are kept on record.') + '</p>';
+      showSheet('<div><h3>' + KIND[kindOf(e)] + '</h3><p class="role">' + nm(book[e.c].name) + ' · ' + fmt(e.d) + '</p></div><div class="facts">' + rows.map(function (r) { return '<div><span>' + r[0] + '</span><b>' + r[1] + '</b></div>'; }).join('') + '</div>' +
+        '<div class="form">' + act + '<button class="btn ghost" type="button" data-c="' + e.c + '">' + t('Open the company’s page') + '</button></div>');
+    }
+    function removeTeamEntry(id) {
+      var e = events.filter(function (x) { return x.id === id; })[0], field = $('rmWhy'), btn = $('rmGo');
+      var why = field ? field.value.replace(/\s+/g, ' ').trim() : '';
+      var bad = function (msg) { var n = $('rErr'); if (n) { n.textContent = msg; n.hidden = false; } };
+      if (!e || !btn || btn.disabled) return;
+      if (why.length < 3) return bad(t('Write why it is being removed.'));
+      var what = KIND[kindOf(e)] + ' · ' + book[e.c].name;
+      btn.disabled = true; btn.classList.add('busy');
+      B.removeWhy(id, why).then(function () {
+        load(); refresh(); compute(); closeSheet(); draw(true);
+        toast(t('Removed: {what}', { what: what }));
+      }, function (x) { if ($('rmGo')) { $('rmGo').disabled = false; $('rmGo').classList.remove('busy'); bad(notRemoved(x)); } });
+    }
+    /* the store's refusal of a removal, in words */
+    function notRemoved(x) {
+      var m = String((x && x.message) || '');
+      if (m === 'offline') return t('No connection. This was not saved. Try again when you are online.');
+      if (m === 'MM_NO_REASON') return t('Write why it is being removed.');
+      if (m === 'MM_ADMIN_ONLY') return t('Only the admin can remove a contract. If this one is wrong, tell the admin what to change.');
+      if (m === 'MM_RESERVATION_NOT_OPEN') return t('This reservation has been signed or cancelled since. Open the page again.');
+      if (m === 'MM_UNIT_RESERVED') return t('The unit has been reserved again since, so this cancellation can no longer be removed.');
+      if (m === 'MM_NO_SUCH_ENTRY') return t('This entry is no longer there. Open the page again.');
+      if (m === 'MM_NOT_SIGNED_IN') return t('You are signed out. Sign in again.');
+      return t('This could not be removed. Try again.');
+    }
     function openEntry(id) {
       var e = events.filter(function (x) { return x.id === id; })[0]; if (!e) return;
+      if (!MY) return openTeamEntry(e);
       var rows = [[t('Brokerage company'), nm(book[e.c].name)], [t('Date'), fmt(e.d) + ' ' + B.dateOf(e.d).getFullYear()]];
       if (e.u) rows.push([t('Unit'), nm(prod(e.p) + ' ' + e.u) + (e.area ? ' · ' + t('{n} m²', { n: e.area }) : '')]); else if (e.p) rows.push([t('Unit type'), prod(e.p)]);
       if (e.v) rows.push([e.k === 'contract' ? t('Contract price') : t('Reservation price'), t('EGP {n}', { n: Math.round(e.v).toLocaleString('en-US') })]);
@@ -1115,7 +1212,7 @@
       my: function () { return head(t('My activity')) + cardSales() + tiles() + cardDeck() + cardEntered(); },
       /* SHORT ON PURPOSE: the gauge first, four tiles, two short lists. Everything else is one tap away. */
       home: function () {
-        return A.single ? head(t('Your team')) + noTeam() + cardHeroDay() + tiles() + cardIdle() + cardTeamShort()
+        return A.single ? head(t('Your team')) + noTeam() + cardHeroDay() + tiles() + cardDuty() + cardTeamShort()
                         : head(t('Your companies')) + noTeam() + cardHeroBook() + tiles() + cardMovement() + cardDeck() + cardTeamShort();
       },
       companies: function () {
@@ -1748,7 +1845,11 @@
       else if (e.target.id === 'rV') delete e.target.dataset.auto;
     });
     $('sheet').addEventListener('change', function (e) { if ($('rErr')) $('rErr').hidden = true; if (e.target.id === 'rR' && $('rFree')) fromReservation(); });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeSheet(); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeSheet();
+      /* build 136: an entry in a feed is a row that opens; the keyboard opens it too */
+      else if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[role="button"][data-e]')) { e.preventDefault(); openEntry(e.target.dataset.e); }
+    });
     /* a week's bar says what it holds when the pointer or the keyboard reaches it; a tap does the same */
     ['mouseover', 'focusin'].forEach(function (ev) { document.addEventListener(ev, function (e) { var c = e.target.closest && e.target.closest('[data-w]'); if (c) barPick(c); }); });
     document.addEventListener('click', function (e) {
@@ -1761,6 +1862,7 @@
       if (e.target.closest('#when')) { menuOpen = !menuOpen; draw(true); }
       else if (e.target.closest('#rSave')) { if (MY) saveMyRecord(); else saveRecord(); }
       else if (e.target.closest('#out')) { MM.auth.signOut(); location.replace(MY ? 'login.html' : 'login.html?next=manager.html'); }
+      else if (e.target.closest('#rmGo')) removeTeamEntry(e.target.closest('#rmGo').dataset.id);
       else if (hit('data-rm')) removeEntry(hit('data-rm').dataset.rm);
       else if (hit('data-rec')) { myRec.company = +hit('data-rec').dataset.rec; openMyRecord(); }
       else if (hit('data-e')) openEntry(hit('data-e').dataset.e);
