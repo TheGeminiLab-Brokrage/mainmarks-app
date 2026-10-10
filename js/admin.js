@@ -69,10 +69,12 @@
     return Promise.all([
       rpc('mm_admin_people'),
       MM.auth.call('/rest/v1/mm_teams?select=id,name,manager_id&order=name'),
-      MM.auth.call('/rest/v1/mm_companies?select=id,name,active,pending,proposed_by,merged_into&order=name')
+      /* build 137: page by page (getAll, below). About two thousand companies are coming, and one
+         question would have handed her the first thousand and said nothing. */
+      getAll('/rest/v1/mm_companies?select=id,name,active,pending,proposed_by,merged_into&order=name.asc,id.asc')
     ]).then(function (r) {
-      if (r[0].status !== 200 || r[1].status !== 200 || r[2].status !== 200) throw new Error('store');
-      people = r[0].body; teams = r[1].body; companies = r[2].body;
+      if (r[0].status !== 200 || r[1].status !== 200) throw new Error('store');
+      people = r[0].body; teams = r[1].body; companies = r[2];
     });
   }
   function person(id) { return people.filter(function (p) { return p.id === id; })[0] || null; }

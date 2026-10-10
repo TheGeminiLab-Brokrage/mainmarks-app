@@ -452,3 +452,18 @@ html[lang="ar"] .sales > b small { margin-inline: 8px 0; }
 .hist small { font-size: 11.5px; line-height: 1.45; color: var(--mut); }
 .hist q { font-size: 12.5px; line-height: 1.45; color: var(--ink); }
 .duty-card h2 .why-tip { text-align: start; }
+
+/* ---- build 137 (Muhanad, 2026-10-10) ------------------------------------------------------------
+   WHILE A SHEET IS OPEN THE BAR AND THE PLUS STEP ASIDE. On a laptop the sheet stands in the middle,
+   a little above the foot of the screen, and the bar stood under it with its lower edge showing
+   below the sheet's: "there is overlab bars". A phone's sheet covers them anyway. They come back a
+   moment after the sheet has started down. (html.is-locked is set by showSheet, js/manager.js and
+   js/admin.js, so this holds for the sales agent's page, the manager's and the admin's.) */
+.tab, .fab { transition: opacity .2s ease .12s, visibility 0s linear .12s; }
+html.is-locked .tab, html.is-locked .fab { opacity: 0; visibility: hidden; transition: opacity .15s ease, visibility 0s linear .15s; }
+/* THE COMPANIES LIST OPENS ON ITS FIRST SIX AND SCROLLS INSIDE ITSELF, like the payment schedule. The
+   height is set by js/manager.js (listFit) to end where the seventh row starts; the one here stands
+   until it has. The heading of the columns is outside the box, so it stays in place. */
+.rows.inbox { max-height: 420px; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; scrollbar-width: thin; scrollbar-color: var(--edge) transparent; padding-inline-end: 10px; }
+.rows.inbox:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; border-radius: 6px; }
+.inbox-hint { margin: 0; padding-top: 10px; border-top: 1px solid var(--edge); font-size: 11px; letter-spacing: .06em; color: var(--faint); }

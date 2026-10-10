@@ -800,9 +800,40 @@
         return '<button class="row rk" type="button" data-c="' + c.id + '"><span class="no">' + (i + 1) + '</span><span class="nm">' + esc(c.name) + '</span><span class="val">' + m.get(c) + '</span>' + strip(c) + '<span class="sub">' + sub + '</span></button>';
       };
     }
+    /* build 137, THE LIST OPENS ON ITS FIRST SIX AND SCROLLS INSIDE ITSELF (Muhanad, 2026-10-10: "the user
+       can scroll all the 78 companies this is not the best we can make it like the payment plan card to
+       show top 6 and then he can scroll inside it because when we recive the final companies sheet it
+       will be about 2000 company"). The box ends exactly where the seventh row starts (listFit, once it
+       is on screen), as the payment schedule ends where Year 4 starts, and the line under it says how
+       many more there are. With two thousand names the rows are also drawn a part at a time, as he
+       scrolls: a phone should not build two thousand rows on every letter typed in the search. The
+       search and the chips still look through every company, drawn or not. */
+    var LIST_FIRST = 6, LIST_PART = 40, listRows = [];
     function companyList() {
-      var list = companyMatches(look.filter, look.query);
-      return '<h2>' + t('History with your team') + ' <em>' + t('{n} shown', { n: list.length }) + '</em></h2>' + (list.length ? rankHead(look.filter) + '<div class="rows">' + list.map(rankRow(look.filter)).join('') + '</div>' : '<p class="note">' + t('No company matches.') + '</p>');
+      var list = listRows = companyMatches(look.filter, look.query), more = list.length - LIST_FIRST;
+      return '<h2>' + t('History with your team') + ' <em>' + t('{n} shown', { n: list.length }) + '</em></h2>' +
+        (list.length ? rankHead(look.filter) + '<div class="rows' + (more > 0 ? ' inbox" tabindex="0" role="region" aria-label="' + esc(t('Companies')) : '') + '" id="cbox">' + list.slice(0, LIST_PART).map(rankRow(look.filter)).join('') + '</div>' +
+            (more > 0 ? '<p class="inbox-hint">' + t('{n} more · scroll the list', { n: more }) + '</p>' : '')
+          : '<p class="note">' + t('No company matches.') + '</p>');
+    }
+    function listFit() {
+      var box = $('cbox'), r = box && box.classList.contains('inbox') ? box.children[LIST_FIRST] : null;
+      if (!r) return;
+      box.style.maxHeight = '';
+      box.style.maxHeight = Math.round(r.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop) + 'px';
+    }
+    function listInit() {
+      var box = $('cbox');
+      if (!box || !box.classList.contains('inbox')) return;
+      listFit();
+      /* the letters arrive after the first look and change a row's height by a hair */
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(listFit);
+      box.addEventListener('scroll', function () {
+        var from = box.children.length;
+        if (from >= listRows.length || box.scrollTop + box.clientHeight < box.scrollHeight - 240) return;
+        var row = rankRow(look.filter);
+        box.insertAdjacentHTML('beforeend', listRows.slice(from, from + LIST_PART).map(function (c, i) { return row(c, from + i); }).join(''));
+      });
     }
 
     /* ---- MOVEMENT (build 119) ---------------------------------------------
@@ -1268,7 +1299,7 @@
       window.scrollTo(0, keep ? y : 0);
       if (hush) pulse.enter = function () { scr.classList.add('in'); countUp(scr); };
       else if (!keep) countUp(scr);
-      deckInit('deck'); deckInit('mv');
+      deckInit('deck'); deckInit('mv'); listInit();
       $('fab').hidden = look.tab === 'profile';
       [].forEach.call($('tab').children, function (b) { if (b.dataset.t === look.tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
       try { history.replaceState(null, '', '#' + look.tab); } catch (e) { /* the tab is simply not remembered */ }
@@ -1892,7 +1923,8 @@
       period.from = Math.max(a, b); period.to = Math.min(a, b);
       compute(); draw(true);
     });
-    $('scr').addEventListener('input', function (e) { if (e.target.id === 'q') { look.query = e.target.value; $('clist').innerHTML = companyList(); } });
+    $('scr').addEventListener('input', function (e) { if (e.target.id === 'q') { look.query = e.target.value; $('clist').innerHTML = companyList(); listInit(); } });
+    window.addEventListener('resize', listFit);
 
     var asked = (location.hash || '').slice(1);
     if (SCREENS[asked] && (MY ? asked === 'my' || asked === 'profile' : asked !== 'my')) look.tab = asked;

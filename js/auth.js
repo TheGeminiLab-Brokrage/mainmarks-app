@@ -296,10 +296,22 @@
      signal. On the demo the list in js/config.js is used; on the real app that file has none (build 128)
      and a phone with no list yet fetches it when the sheet opens (loadCompanies). */
   var CO_KEY = 'mm.companies.v1';
+  /* THE WHOLE LIST, PAGE BY PAGE (build 137). The store hands over at most a thousand rows per question,
+     whatever is asked, and says nothing when it stops there; the final list is about two thousand
+     companies (Muhanad, 2026-10-10). So it is asked for a page at a time until a page comes back empty.
+     A list that came only in part is never kept: the phone keeps the one it had. */
   function companies(access) {
-    return api('/rest/v1/mm_companies?select=id,name&active=eq.true&order=name', null, access).then(function (r) {
-      if (r.status !== 200 || !Array.isArray(r.body)) return;
-      try { localStorage.setItem(CO_KEY, JSON.stringify(r.body)); } catch (e) { /* this visit only */ }
+    var all = [];
+    var next = function (from) {
+      return api('/rest/v1/mm_companies?select=id,name&active=eq.true&order=name.asc,id.asc&limit=1000&offset=' + from, null, access).then(function (r) {
+        if (r.status !== 200 || !Array.isArray(r.body)) return false;
+        all = all.concat(r.body);
+        return r.body.length ? next(from + r.body.length) : true;
+      });
+    };
+    return next(0).then(function (whole) {
+      if (!whole) return;
+      try { localStorage.setItem(CO_KEY, JSON.stringify(all)); } catch (e) { /* this visit only */ }
     });
   }
   /* [{ id, name }] from the store, or null when this is the demo or nothing has been fetched yet */

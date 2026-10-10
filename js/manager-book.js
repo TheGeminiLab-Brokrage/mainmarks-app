@@ -523,12 +523,12 @@
        again only when a page came back full; a manager's until a page comes back empty, so that a
        smaller page size set on the store one day cannot cut his team's figures short either. */
     var whole = s.role !== 'sales';
-    var pages = function (path) {
+    var pages = function (path, toTheEnd) {
       var size = 1000, out = [];
       var next = function (from) {
         return get(path + '&limit=' + size + '&offset=' + from).then(function (rows) {
           out = out.concat(rows);
-          return rows.length && (whole || rows.length >= size) ? next(from + rows.length) : out;
+          return rows.length && (whole || toTheEnd || rows.length >= size) ? next(from + rows.length) : out;
         });
       };
       return next(0);
@@ -537,7 +537,10 @@
       MM.inventory.load(P.inventory),
       get('/rest/v1/mm_people?select=id,name,title,staff_code,role,team_id,active'),
       get('/rest/v1/mm_teams?select=id,name,manager_id,director_id'),
-      get('/rest/v1/mm_companies?select=id,name,active,pending,merged_into&order=name'),
+      /* build 137: the companies too, page by page. The final list is about two thousand names
+         (Muhanad, 2026-10-10), and one question would have handed back the first thousand in
+         silence: every company from the middle of the alphabet on would have had no page. */
+      pages('/rest/v1/mm_companies?select=id,name,active,pending,merged_into&order=name.asc,id.asc', true),
       pages('/rest/v1/mm_events?select=*&on_date=gte.' + since + '&order=on_date.asc,at_min.asc,id.asc'),
       s.role === 'sales' ? get('/rest/v1/rpc/mm_team_followups', { method: 'POST', body: {} }) : Promise.resolve([])
     ]).then(function (a) {

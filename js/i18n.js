@@ -1175,7 +1175,9 @@
     'This entry has since been removed or taken back. It is no longer counted.': 'هذا الإدخال حُذف أو سُحب بعد ذلك، ولم يعد محسوباً.',
     'This reservation was signed. Remove its contract first.': 'هذا الحجز تم توقيعه. احذف العقد أولاً.',
     'A reason is required. The removal and its reason stay in this history. To correct the entry, the sales agent or his manager records it again.': 'السبب مطلوب. يبقى الحذف وسببه في هذا السجل. لتصحيح الإدخال، يسجّله مندوب المبيعات أو مديره من جديد.',
-    'Removed. It is in the history with your reason.': 'تم الحذف، وهو في السجل مع السبب الذي كتبته.'
+    'Removed. It is in the history with your reason.': 'تم الحذف، وهو في السجل مع السبب الذي كتبته.',
+    /* ---- build 137: the companies list opens on its first six and scrolls inside itself. The Arabic is ours. ---- */
+    '{n} more · scroll the list': '{n} أخرى · مرّر القائمة'
   };
 
   /* ---- the sheet's words and config values --------------------------- */
