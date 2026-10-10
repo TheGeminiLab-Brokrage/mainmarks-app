@@ -419,6 +419,12 @@
       if (r.ended) { e.end = r.ended; if (r.ended_on && fromIso(r.ended_on)) e.endD = Math.max(0, agoOf(fromIso(r.ended_on))); }
       e.made = r.made_on;
       e.mine = r.created_by === me.id;
+      /* build 140, AN OFFER A SALES MANAGER SENT HIMSELF (Muhanad, 2026-10-10). It is saved in the manager's
+         own name and WAITS (`wait`): it counts on the company's page and in no team figure. He then hands
+         it to the sales agent it was for; from then the row carries that agent's name and still says who
+         sent it (`ho`: sent by someone else, on his behalf). A sales agent only ever sees the second. */
+      if (r.kind === 'offer' && r.created_by && r.created_by !== r.person_id) e.ho = true;
+      if (lead && r.kind === 'offer' && r.person_id === me.id) e.wait = true;
       /* build 136: who entered it and when, for the sheet an entry opens to. Only where someone leads:
          a sales agent's own page does not name who entered a row, and his list of names stays as it was. */
       if (lead) { e.by = place(r.created_by); var made = r.created_at ? cairo(r.created_at) : null; if (made) e.at = made; }
@@ -503,6 +509,19 @@
           if (e.of) events.forEach(function (x) { if (x.id === e.of) { delete x.end; delete x.endD; } });
           events.splice(events.indexOf(e), 1);
           return true;
+        });
+      },
+      /* HANDING AN OFFER HE SENT TO ONE OF HIS SALES AGENTS (build 140; the store's mm_hand_over). `to` is
+         the agent's place in `team`. A hand-over already made is changed with a reason. The store decides
+         and writes the line of the history; it refuses with a code the page has the words for. */
+      handOver: !lead || me.role !== 'sales_manager' ? undefined : function (id, to, reason) {
+        var e = events.filter(function (x) { return x.id === id; })[0];
+        if (!e || !team[to]) return Promise.reject(new Error('MM_NO_SUCH_ENTRY'));
+        return rpc('mm_hand_over', { p_offer: id, p_to: team[to].id, p_reason: reason || null }).then(function (saved) {
+          var n = row(saved);
+          if (!n) throw new Error('MM_FAILED');
+          events[events.indexOf(e)] = n;
+          return n;
         });
       },
       reset: function () { /* nothing is kept on the phone */ }

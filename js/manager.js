@@ -372,7 +372,7 @@
         c.evT = MY ? (byCT[c.id] || []) : c.ev;
         c.reqsT = MY ? c.evT.filter(function (e) { return e.k === 'offer'; }).sort(function (a, b) { return b.d - a.d || a.t - b.t; }) : c.reqs;
         c.step = stepAt(c, 0);
-        var by = {}; mine.forEach(function (e) { by[e.m] = (by[e.m] || 0) + 1; });
+        var by = {}; mine.forEach(function (e) { if (!e.wait) by[e.m] = (by[e.m] || 0) + 1; });
         c.who12 = Object.keys(by).sort(function (a, b) { return by[b] - by[a]; }).map(function (m) { return { m: +m, n: by[m] }; });
       });
     }
@@ -443,15 +443,28 @@
     var A = {};
     function compute() {
       var inPer = events.filter(inP);
-      A.list = inPer;
-      A.tot = tally(inPer);
+      /* build 140, THE TEAM'S FIGURES ARE THE SALES AGENTS' (Muhanad, 2026-10-10: "No, sales agents only").
+         An offer the manager sent himself WAITS in his own name until he hands it to the sales agent it
+         was for (e.wait, js/manager-book.js). While it waits it is in no team figure, no list of the
+         team's work and no comparison; the company it went to counts it all the same ("counted on that
+         company page"), so A.byC, A.asked, A.reached and the company's own page keep reading every row.
+         Once handed over it is that agent's row and is counted as any other. */
+      var crewAll = MY ? events : events.filter(function (e) { return !e.wait; });
+      var crewPer = MY ? inPer : inPer.filter(function (e) { return !e.wait; });
+      A.waiting = MY ? [] : events.filter(function (e) { return e.wait; }).sort(newest);
+      A.handed = MY ? [] : events.filter(function (e) { return e.ho && !e.wait && e.by === B.me; }).sort(newest);
+      A.waitPer = MY ? [] : inPer.filter(function (e) { return e.wait; });
+      A.list = crewPer;
+      A.tot = tally(crewPer);
       A.byC = {}; book.forEach(function (c) { A.byC[c.id] = tally(inPer.filter(function (e) { return e.c === c.id; })); });
       A.effective = book.filter(function (c) { return A.byC[c.id].meeting > 0; }).length;
       A.fresh = book.filter(function (c) { return c.first !== null && c.first <= period.from && c.first >= period.to; });
       A.people = TEAM.map(function (p, i) {
-        var mine = inPer.filter(function (e) { return e.m === i || e.m2 === i; });
-        return { id: i, name: p.name, title: p.title, code: p.code, off: !!p.off, n: tally(mine), companies: distinct(mine.filter(function (e) { return e.k === 'offer'; }), 'c').length, last: mine.slice().sort(newest)[0] || null };
-      }).filter(function (p) { return p.id < OWN || (p.id < MINE && has[p.id]); })
+        var mine = crewPer.filter(function (e) { return e.m === i || e.m2 === i; });
+        return { id: i, name: p.name, title: p.title, code: p.code, off: !!p.off, n: tally(mine), companies: distinct(mine.filter(function (e) { return e.k === 'offer'; }), 'c').length, last: mine.slice().sort(newest)[0] || null,
+          ho: mine.filter(function (e) { return e.ho && e.m === i; }).length };
+      /* build 140: the manager himself is never among his sales agents, whatever row carries his name */
+      }).filter(function (p) { return (p.id < OWN || (p.id < MINE && has[p.id])) && (MY || p.id !== B.me); })
         .sort(function (a, b) { return b.n.special - a.n.special || b.n.offers - a.n.offers || a.name.localeCompare(b.name); });
       /* the sales agents he leads today: who the day's dial and "nothing sent yet" are about */
       A.crew = A.people.filter(function (p) { return p.id < OWN; });
@@ -463,7 +476,7 @@
       A.reached = distinct(inPer, 'c').length;
       /* compared to what: a normal day by this hour (the working days of the 28 before), or the same length of time just before */
       var len = period.from - period.to + 1, upTo = period.to === 0 ? NOW : 24 * 60, days = 0, d;
-      var before = events.filter(function (e) { return e.d > period.from && e.d <= period.from + (A.single ? 28 : len); });
+      var before = crewAll.filter(function (e) { return e.d > period.from && e.d <= period.from + (A.single ? 28 : len); });
       for (d = period.from + 1; d <= period.from + 28; d++) if (workday(d)) days++;
       A.normal = A.single && period.from + 28 <= SPAN ? Math.round(before.filter(function (e) { return e.k === 'offer' && e.c !== null && e.t <= upTo; }).length / days) : null;
       A.prev = (!A.single && period.from + len <= SPAN) ? tally(before) : null;
@@ -554,7 +567,9 @@
       return weeksOf(events, function (ev) { var n = tally(ev); return { n: n.special, text: '' }; });
     }
     function kindOf(e) { return e.k === 'offer' ? (e.c === null ? 'broadcast' : 'special') : e.k; }
-    function people(e) { return isVisit(e) ? nm(TEAM[e.m].name) + (e.m2 !== undefined ? ' + ' + nm(TEAM[e.m2].name) : '') : e.m2 !== undefined ? t('{a} + {b} (split)', { a: nm(TEAM[e.m].name), b: nm(TEAM[e.m2].name) }) : nm(TEAM[e.m].name); }
+    /* build 140: an offer sent for a sales agent says so wherever it is listed */
+    function sentBy(e) { return MY ? t('sent by your manager') : e.by === B.me ? t('sent by you') : t('sent by {name}', { name: nm(TEAM[e.by] ? TEAM[e.by].name : '') }); }
+    function people(e) { return e.wait ? t('Sent by you · to hand over') : isVisit(e) ? nm(TEAM[e.m].name) + (e.m2 !== undefined ? ' + ' + nm(TEAM[e.m2].name) : '') : e.m2 !== undefined ? t('{a} + {b} (split)', { a: nm(TEAM[e.m].name), b: nm(TEAM[e.m2].name) }) : nm(TEAM[e.m].name); }
     function what(e) { return KIND[kindOf(e)] + (e.c !== null ? ' · ' + nm(book[e.c].name) : ''); }
     /* build 129: HOW MANY TIMES A BROADCAST WENT, and what that means in plain words (Muhanad: "if the
        user hovers on it he gets an explanation ... in very simple words"). A laptop shows it on hover,
@@ -589,7 +604,7 @@
       return out.join(' · ');
     }
     function unitText(e) { return nm(prod(e.p) + ' ' + e.u) + (e.area ? ' · ' + t('{n} m²', { n: e.area }) : '') + (e.v ? ' · ' + money(e.v) : ''); }
-    function detail(e) { return isVisit(e) ? followed(e).text : e.u ? unitText(e) : prod(e.p) + (e.ch ? ' · ' + CH[e.ch] : ''); }
+    function detail(e) { return (isVisit(e) ? followed(e).text : e.u ? unitText(e) : prod(e.p) + (e.ch ? ' · ' + CH[e.ch] : '')) + (e.ho && !e.wait ? ' · ' + sentBy(e) : ''); }
     /* build 136: on the manager's page an ENTRY in a feed opens to its own sheet (who entered it, and the
        way to remove it with a reason). An offer is not an entry: it was sent, and it stays as it is. */
     function feed(list, withName) {
@@ -645,6 +660,7 @@
       else sub = t('{a} special', { a: p.n.special }) + ' · ' + count(p.companies, 'company') + (p.n.value ? ' · ' + money(p.n.value) : '');
       /* an agent the admin has switched off keeps his rows with his last team, and the row says so */
       if (p.off) sub = t('Switched off') + ' · ' + sub;
+      if (!MY && p.ho) sub += ' · ' + t('{n} sent by you', { n: p.ho });
       return '<button class="row" type="button" data-m="' + p.id + '"><span class="nm">' + esc(p.name) + '</span><span class="val">' + p.n.offers + '<small>' + t('Offers') + '</small></span>' +
         '<span class="sub">' + sub + '</span><span class="mini"><i style="width:' + (p.n.special * unit).toFixed(1) + '%"></i><i style="width:' + (p.n.broadcast * unit).toFixed(1) + '%"></i><u></u></span></button>';
     }
@@ -1090,6 +1106,83 @@
       if (m === 'MM_NOT_SIGNED_IN') return t('You are signed out. Sign in again.');
       return t('This could not be removed. Try again.');
     }
+    /* ---- SENT BY YOU: an offer the manager sent for a sales agent (build 140) --------------------------
+       Muhanad, 2026-10-10: "the sales manger might send an offer in rare cases for example the sales in
+       the brokrage company was not able to get on hold of the sales so he reached ihis manger ... i think
+       we could have it in a seperate place with allowing the manger to route this offer to a specific
+       sales as he sent it on his behalf and of course this should be highlited in the audit history that
+       the admin, director belong to him, and cco can see". Agreed on a mock the same day: he sends "normal
+       way attavhing the company"; the offer waits here; he hands it to one of his own sales agents; "the
+       manger can change it but he need to mention a reson and ofcourse it shows in the history".
+       The card is on Home only while an offer is waiting (the names that need action). The place itself,
+       with what was already handed over and to whom, opens from the card and from Team. The rule is the
+       store's (mm_hand_over): this page only does not offer what the store would refuse. */
+    function sentRow(e) {
+      return '<button class="row" type="button" data-ho="' + esc(e.id) + '"><span class="nm">' + esc(book[e.c].name) + '</span>' +
+        (e.wait ? '<span class="hand">' + t('Hand over') + '</span>' : '<span class="to"><small>' + t('For') + '</small>' + nm(TEAM[e.m].name) + '</span>') +
+        '<span class="sub">' + (e.u ? nm(prod(e.p) + ' ' + e.u) : prod(e.p)) + (e.ch ? ' · ' + CH[e.ch] : '') + ' · <bdi>' + (e.d === 0 ? hhmm(e.t) : fmt(e.d)) + '</bdi></span></button>';
+    }
+    function cardSent() {
+      if (MY || !B.handOver || !A.waiting.length) return '';
+      var all = A.waiting.length + A.handed.length;
+      return '<section class="card" id="sentCard"><h2>' + t('Sent by you') + ' <em>' + t('{n} to hand over', { n: A.waiting.length }) + '</em></h2><div class="rows">' + A.waiting.slice(0, 3).map(sentRow).join('') + '</div>' +
+        (all > Math.min(3, A.waiting.length) ? '<button class="go" type="button" data-sent="1"><span>' + t('See all you sent') + '</span><b>' + all + '</b></button>' : '') + '</section>';
+    }
+    function cardSentLink() {
+      if (MY || !B.handOver || !(A.waiting.length + A.handed.length)) return '';
+      return '<section class="card"><button class="go first" type="button" data-sent="1"><span>' + t('Sent by you') + '</span><b>' + (A.waiting.length + A.handed.length) + '</b></button></section>';
+    }
+    function openSent() {
+      var part = function (title, list) { return list.length ? '<p class="sec">' + title + ' <em>' + list.length + '</em></p><div class="rows">' + list.map(sentRow).join('') + '</div>' : ''; };
+      showSheet('<div><h3>' + t('Sent by you') + '</h3><p class="role">' + t('Offers you sent for a sales agent, in the last 12 weeks') + '</p></div>' +
+        (A.waiting.length + A.handed.length ? part(t('Waiting'), A.waiting) + part(t('Handed over'), A.handed) : '<p class="note">' + t('Nothing sent by you in the last 12 weeks.') + '</p>') +
+        '<p class="note">' + t('These offers are never counted as yours. Each one counts for the sales agent you hand it to.') + '</p>');
+    }
+    var hand = { id: null, to: -1 };
+    function openHandOver(id) {
+      var e = events.filter(function (x) { return x.id === id; })[0], list = '', i;
+      if (!e || !B.handOver || !(e.wait || (e.ho && e.by === B.me))) return;
+      hand = { id: id, to: -1 };
+      var rows = [[t('Unit'), e.u ? nm(prod(e.p) + ' ' + e.u) + (e.area ? ' · ' + t('{n} m²', { n: e.area }) : '') : prod(e.p)], [t('Sent as'), CH[e.ch] || '']];
+      if (!e.wait) rows.push([t('Handed to'), nm(TEAM[e.m].name)]);
+      for (i = 0; i < OWN; i++) if (e.wait || i !== e.m) list += '<button type="button" data-hp="' + i + '" aria-pressed="false">' + esc(TEAM[i].name) + '</button>';
+      showSheet('<div><h3>' + (e.wait ? t('Whose offer was it?') : t('Change who it was for')) + '</h3><p class="role">' + nm(book[e.c].name) + ' · <bdi>' + fmt(e.d) + (e.d === 0 ? ' ' + hhmm(e.t) : '') + '</bdi></p></div>' +
+        '<div class="facts">' + rows.map(function (r) { return '<div><span>' + r[0] + '</span><b>' + r[1] + '</b></div>'; }).join('') + '</div>' +
+        '<div class="form">' + (list ? '<div class="choose" role="group" aria-label="' + esc(t('Your sales agents')) + '">' + list + '</div>' : '<p class="note">' + t('You have no sales agent to hand it to.') + '</p>') +
+        (e.wait ? '' : '<label class="fld">' + t('Why is it being changed') + '<input id="hoWhy" type="text" maxlength="200" autocomplete="off"></label>') +
+        '<p class="note bad" id="rErr" hidden></p>' +
+        '<button class="btn" type="button" id="hoGo" disabled>' + t('Hand over') + '</button>' +
+        '<p class="note">' + t('It becomes his special request, marked as sent by you. The admin, your director and the CCO see this in the History.') + '</p></div>');
+    }
+    function pickHand(i) {
+      if (!$('hoGo') || !TEAM[i]) return;
+      hand.to = i;
+      [].forEach.call(document.querySelectorAll('#sheet [data-hp]'), function (b) { b.setAttribute('aria-pressed', String(+b.dataset.hp === i)); });
+      $('hoGo').disabled = false; $('hoGo').textContent = t('Hand over to {name}', { name: TEAM[i].name });
+      if ($('rErr')) $('rErr').hidden = true;
+    }
+    function notHanded(x) {
+      var m = String((x && x.message) || '');
+      if (m === 'offline') return t('No connection. This was not saved. Try again when you are online.');
+      if (m === 'MM_NO_REASON') return t('Write why it is being changed.');
+      if (m === 'MM_NOT_YOUR_TEAM') return t('This sales agent is no longer in your team. Open the page again and choose another.');
+      if (m === 'MM_NO_SUCH_ENTRY') return t('This offer is no longer there. Open the page again.');
+      if (m === 'MM_NOT_SIGNED_IN') return t('You are signed out. Sign in again.');
+      return t('This could not be handed over. Try again.');
+    }
+    function doHandOver() {
+      var e = events.filter(function (x) { return x.id === hand.id; })[0], btn = $('hoGo');
+      var why = $('hoWhy') ? $('hoWhy').value.replace(/\s+/g, ' ').trim() : '';
+      var bad = function (msg) { var n = $('rErr'); if (n) { n.textContent = msg; n.hidden = false; } };
+      if (!e || !btn || btn.disabled || hand.to < 0) return;
+      if (!e.wait && why.length < 3) return bad(t('Write why it is being changed.'));
+      var name = TEAM[hand.to].name;
+      btn.disabled = true; btn.classList.add('busy');
+      B.handOver(hand.id, hand.to, why).then(function () {
+        load(); refresh(); compute(); closeSheet(); draw(true);
+        toast(t('Handed over to {name}', { name: name }));
+      }, function (x) { if ($('hoGo')) { $('hoGo').disabled = false; $('hoGo').classList.remove('busy'); bad(notHanded(x)); } });
+    }
     function openEntry(id) {
       var e = events.filter(function (x) { return x.id === id; })[0]; if (!e) return;
       if (!MY) return openTeamEntry(e);
@@ -1283,6 +1376,7 @@
       if (m === 'MM_NOT_YOUR_TEAM' || m === 'MM_NO_SUCH_PERSON') return t('This sales agent is no longer in your team. Open the page again and choose another.');
       if (m === 'MM_VISIT_ALREADY_RECORDED' && !MY && B.companies[c] !== undefined) return twice(k, recFor, c, d);
       if (m === 'MM_VISIT_ALREADY_RECORDED' && B.companies[c] !== undefined) return k === 'workshop' ? t('You already recorded a workshop at {name} on {date}.', { name: B.companies[c], date: fmt(d) }) : t('You already recorded an orientation at {name} on {date}.', { name: B.companies[c], date: fmt(d) });
+      if (m === 'MM_SALES_AGENT_ONLY') return t('An entry is always in a sales agent’s name. Choose the sales agent.');
       if (m === 'MM_BAD_DATE') return t('Choose a date in the last 12 weeks.');
       if (m === 'MM_NO_TEAM') return t('Your account is not in a team yet. Ask the admin to add you to one.');
       if (m === 'MM_NO_COMPANY') return t('This company is no longer on the list. Choose another.');
@@ -1314,8 +1408,8 @@
       my: function () { return head(t('My activity')) + cardSales() + tiles() + cardDeck() + cardEntered(); },
       /* SHORT ON PURPOSE: the gauge first, the tiles (six on a day since build 139, see tiles()), two short lists. Everything else is one tap away. */
       home: function () {
-        return A.single ? head(t('Your team')) + noTeam() + cardHeroDay() + tiles() + cardDuty() + cardTeamShort()
-                        : head(t('Your companies')) + noTeam() + cardHeroBook() + tiles() + cardMovement() + cardDeck() + cardTeamShort();
+        return A.single ? head(t('Your team')) + noTeam() + cardHeroDay() + cardSent() + tiles() + cardDuty() + cardTeamShort()
+                        : head(t('Your companies')) + noTeam() + cardHeroBook() + cardSent() + tiles() + cardMovement() + cardDeck() + cardTeamShort();
       },
       companies: function () {
         var fs = [['all', t('All'), book.length]].concat(ORDER.map(function (k) { return [k, STATE[k], count4[k]]; })).concat([['effective', t('Effective'), A.effective], ['nomeet', t('No meeting yet'), noMeetCount()], ['fresh', t('New'), A.fresh.length]]).concat(A.changed.length ? [['changed', t('Changed'), A.changed.length]] : []);
@@ -1325,7 +1419,7 @@
       },
       team: function () {
         var n = A.tot;
-        return head(t('Team')) + '<section class="card wide"><h2>' + t('The team together') + ' <em>' + periodName() + '</em></h2>' + kv([[num(n.offers), t('Offers sent')], [num(n.meeting), t('Meetings')], [num(n.reservation + n.contract), t('Deals')]]) + '</section>' + cardTeam() + cardDeals() + cardFeed();
+        return head(t('Team')) + '<section class="card wide"><h2>' + t('The team together') + ' <em>' + periodName() + '</em></h2>' + kv([[num(n.offers), t('Offers sent')], [num(n.meeting), t('Meetings')], [num(n.reservation + n.contract), t('Deals')]]) + '</section>' + cardTeam() + cardSentLink() + cardDeals() + cardFeed();
       },
       analysis: function () {
         var n = A.tot;
@@ -1466,7 +1560,7 @@
           '<p class="note">' + (MY ? t('These are counted by themselves when you send an offer. There is nothing to type. A broadcast is counted once, however many times you send it.') : t('{x} sales agents sent an offer.', { x: t('{a} of {b}', { a: A.sending, b: OWN }) })) + '</p>' + (list.length ? '<p class="sec">' + t('Newest first') + '</p>' + feed(list.slice(0, 12), !MY) + (list.length > 12 ? (MY ? '<p class="note">' + t('{n} more in these dates.', { n: list.length - 12 }) + '</p>' : more(list.length - 12)) : '') : '');
       } else if (k === 'asked') {
         body = list.length ? '<div class="rows">' + list.map(function (c) {
-          var who = distinct(A.list.filter(function (e) { return e.c === c.id && e.k === 'offer'; }), 'm').map(function (m) { return esc(TEAM[m].name); }).join(AR ? '، ' : ', ');
+          var who = distinct(A.list.filter(function (e) { return e.c === c.id && e.k === 'offer'; }), 'm').map(function (m) { return esc(TEAM[m].name); }).concat(A.waitPer.some(function (e) { return e.c === c.id; }) ? [t('Sent by you · to hand over')] : []).join(AR ? '، ' : ', ');
           return '<button class="row" type="button" data-c="' + c.id + '"><span class="nm">' + esc(c.name) + '</span><span class="val">' + A.byC[c.id].special + '<small>' + t('Requests') + '</small></span><span class="sub">' + who + '</span></button>';
         }).join('') + '</div>' : '<p class="note">' + t('No company asked in these dates.') + '</p>';
       } else if (k === 'orientation' || k === 'workshop') {
@@ -1492,7 +1586,12 @@
        are not typed twice; the same visit twice, and a second reservation on one unit, are refused. */
     var recKind = 'orientation', recFor = -1;
     /* who an entry can be for: the sales agents he leads, then himself */
-    function recWho() { var l = [], i; for (i = 0; i < OWN; i++) l.push(i); if (B.me !== undefined && l.indexOf(B.me) === -1) l.push(B.me); return l; }
+    /* build 140 (Muhanad, 2026-10-10): "the sales manger is not allowed to close deal by himself there should
+       be a sales agent in the deal", and a visit "must carru a sales agent as the orientation and workshops
+       are not what a manager should do alone". So the one an entry belongs to is one of his sales agents:
+       his own name is no longer in this list (the store refuses it too, mm_record). On a visit he can
+       still be the second name, "Also went". */
+    function recWho() { var l = [], i; for (i = 0; i < OWN; i++) l.push(i); return l; }
     function twice(k, m, c, d) {
       var o = { name: TEAM[m] ? TEAM[m].name : '', company: B.companies[c], date: fmt(d) };
       return k === 'workshop' ? t('A workshop is already recorded for {name} at {company} on {date}.', o) : t('An orientation is already recorded for {name} at {company} on {date}.', o);
@@ -1514,10 +1613,13 @@
         var person = '<label class="fld">' + (went ? t('Who went') : t('Sales agent')) + '<select id="rM">' + names + '</select></label>';
         /* a company that is switched off, or still waiting for the admin, takes no new entry */
         var company = companyField(-1, []);
-        var second = function (label) { return '<label class="fld">' + label + '<select id="rS"><option value="">' + t('No one') + '</option>' + (others ? '<optgroup label="' + esc(t('Your team')) + '">' + names + '</optgroup><optgroup label="' + esc(t('Other teams')) + '">' + others + '</optgroup>' : names) + '</select></label>'; };
+        var second = function (label, withMe) {
+          var mine = names + (withMe && B.me !== undefined && TEAM[B.me] ? o(B.me, t('{name} (you)', { name: TEAM[B.me].name })) : '');
+          return '<label class="fld">' + label + '<select id="rS"><option value="">' + t('No one') + '</option>' + (others ? '<optgroup label="' + esc(t('Your team')) + '">' + mine + '</optgroup><optgroup label="' + esc(t('Other teams')) + '">' + others + '</optgroup>' : mine) + '</select></label>';
+        };
         var unit = '<label class="fld">' + t('Unit code') + '<input id="rU" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false"></label><p class="chk wait" id="rChk">' + t('Type the unit code to see the unit.') + '</p>';
         var price = function (label) { return '<label class="fld">' + label + '<input id="rV" type="text" inputmode="numeric" autocomplete="off"></label>'; };
-        if (went) body = person + company + '<div class="range">' + date + second(t('Also went')) + '</div>';
+        if (went) body = person + company + '<div class="range">' + date + second(t('Also went'), true) + '</div>';
         else if (k === 'meeting') body = person + company + '<div class="range"><label class="fld">' + t('Unit type') + '<select id="rP">' + B.products.map(function (p, n) { return o(n, prod(p)); }).join('') + '</select></label>' + date + '</div>';
         else if (k === 'reservation') body = person + company + unit + '<div class="range">' + price(t('Reservation price, EGP')) + date + '</div>' + second(t('Split the deal with'));
         else body = '<label class="fld">' + t('Which reservation was signed') + '<select id="rR">' + A.open.map(function (e) { return o(e.id, e.u + ' · ' + book[e.c].name + ' · ' + TEAM[e.m].name + ' · ' + fmt(e.d)); }).join('') + '<option value="">' + t('A unit with no reservation recorded') + '</option></select></label>' +
@@ -1965,6 +2067,10 @@
       else if (e.target.closest('#rSave')) { if (MY) saveMyRecord(); else saveRecord(); }
       else if (e.target.closest('#out')) { MM.auth.signOut(); location.replace(MY ? 'login.html' : 'login.html?next=manager.html'); }
       else if (e.target.closest('#rmGo')) removeTeamEntry(e.target.closest('#rmGo').dataset.id);
+      else if (e.target.closest('#hoGo')) doHandOver();
+      else if (hit('data-hp')) pickHand(+hit('data-hp').dataset.hp);
+      else if (hit('data-ho')) openHandOver(hit('data-ho').dataset.ho);
+      else if (hit('data-sent')) openSent();
       else if (hit('data-pc')) pickChoose(+hit('data-pc').dataset.pc);
       else if (hit('data-rm')) removeEntry(hit('data-rm').dataset.rm);
       else if (hit('data-rec')) { myRec.company = +hit('data-rec').dataset.rec; openMyRecord(); }

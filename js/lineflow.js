@@ -1181,9 +1181,18 @@
         opts.appendChild(b);
         return b;
       }
+      /* build 140 (Muhanad, 2026-10-10): "the manger will not sent bodcast it is not part of his job". A
+         sales manager's offer is the rare one he sends for a sales agent the broker could not reach
+         ("the sales in the brokrage company was not able to get on hold of the sales so he reached ihis
+         manger"). It always names the company that asked, so it is counted on that company's page, and
+         he hands it to that sales agent on Team Pulse afterwards. So he is not offered the general
+         broadcast, and the store refuses one from him (mm_log_offer). */
+      var session = MM.auth.current && MM.auth.current();
+      var forAgent = !!(MM.auth.real && MM.auth.real() && session && session.role === 'sales_manager');
       opt('broker', 'Special request', 'A broker asked for it. Counted for their company.');
-      opt('broadcast', 'General broadcast', 'Groups, channels, status. No single company.');
+      if (!forAgent) opt('broadcast', 'General broadcast', 'Groups, channels, status. No single company.');
       card.appendChild(opts);
+      if (forAgent) card.appendChild(el('p', 'q-who-note', t('After sending, hand it to the sales agent on Team Pulse.')));
 
       /* the company: TYPED, with a dropdown of the brokerage list that
          narrows as you type (build 85; a <datalist> shows nothing on an
@@ -1481,7 +1490,8 @@
       /* not in the demo (a request on its lock screen): Watch it must always get the PDF */
       if (postOnly) setFormat('post', true);
       else if (last && last.format && !asked) setFormat(last.format, true);
-      if (last && !asked) choose(last.audience); else check();
+      if (forAgent) choose('broker');
+      else if (last && !asked) choose(last.audience); else check();
       document.body.appendChild(box);
       void box.offsetWidth;
       box.classList.add('in');

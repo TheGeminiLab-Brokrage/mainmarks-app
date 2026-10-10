@@ -109,7 +109,7 @@
     var from = older && hist.rows ? hist.rows.length : 0;
     hist.busy = true;
     return Promise.all([
-      MM.auth.call('/rest/v1/mm_audit?select=id,at,by_id,action,detail&action=in.(record,cancel,take_back,remove)&order=id.desc&limit=' + HPAGE + '&offset=' + from),
+      MM.auth.call('/rest/v1/mm_audit?select=id,at,by_id,action,detail&action=in.(record,cancel,take_back,remove,hand_over)&order=id.desc&limit=' + HPAGE + '&offset=' + from),
       older ? Promise.resolve(null) : getAll('/rest/v1/mm_events?select=id,kind,ended&kind=neq.offer&order=id.asc')
     ]).then(function (r) {
       if (r[0].status !== 200 || !Array.isArray(r[0].body)) throw new Error('store');
@@ -119,8 +119,8 @@
       hist.busy = false; hist.failed = false;
     }).catch(function () { hist.busy = false; hist.failed = true; });
   }
-  var KINDL = { orientation: t('Orientation'), workshop: t('Workshop'), meeting: t('Meeting'), reservation: t('Reservation'), contract: t('Contract'), cancel: t('Cancelled reservation') };
-  var ACT = { record: ['rec', t('Recorded')], cancel: ['', t('Cancelled')], take_back: ['tb', t('Taken back the same day')], remove: ['rm', t('Removed')] };
+  var KINDL = { offer: t('Special request'), orientation: t('Orientation'), workshop: t('Workshop'), meeting: t('Meeting'), reservation: t('Reservation'), contract: t('Contract'), cancel: t('Cancelled reservation') };
+  var ACT = { record: ['rec', t('Recorded')], cancel: ['', t('Cancelled')], take_back: ['tb', t('Taken back the same day')], remove: ['rm', t('Removed')], hand_over: ['ho', t('Handed over')] };
   var PRODL = { 'Commercial': t('Commercial'), 'Offices': t('Offices'), 'The Fourth': 'The Fourth', 'Clinics': t('Clinics'), 'Serviced apartments': t('Serviced apartments') };
   var WHYL = { 'Client withdrew': t('Client withdrew'), 'Payment not made': t('Payment not made'), 'Moved to another unit': t('Moved to another unit'), 'Other': t('Other') };
   var LOCALE = AR ? 'ar-EG-u-nu-latn' : 'en-GB';
@@ -129,19 +129,28 @@
   /* a moment the store gives, as the day and the time in Cairo; a day the store gives, as it is */
   function whenAt(stamp) { try { return new Intl.DateTimeFormat(LOCALE, { timeZone: 'Africa/Cairo', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(stamp)); } catch (e) { return ''; } }
   function dayText(iso) { var p = String(iso || '').split('-'); try { return p.length === 3 ? new Intl.DateTimeFormat(LOCALE, { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]))) : ''; } catch (e) { return String(iso || ''); } }
-  function histTitle(d) { return [KINDL[d.kind] || d.kind, d.unit_code, d.company_id ? companyName(d.company_id) : '', d.value ? money(d.value) : ''].filter(Boolean).join(' · '); }
+  function histTitle(d) { return [KINDL[d.kind] || d.kind, d.unit_code, d.company_id ? companyName(d.company_id) : '', d.value && d.kind !== 'offer' ? money(d.value) : ''].filter(Boolean).join(' · '); }
   function histIs(h, f) { return f === 'all' || (f === 'contract' ? !!h.detail && h.detail.kind === 'contract' : h.action === f); }
+  /* build 140, A HAND-OVER (Muhanad, 2026-10-10): an offer a sales manager sent himself and then handed to
+     the sales agent it was for, "highlited in the audit history". The line says who sent it and to whom
+     it went; on a change, from whom, and the reason the manager wrote. */
+  function handed(h) {
+    var d = h.detail || {}, sent = person(d.sent_by || h.by_id), to = person(d.person_id), from = person(d.from_person_id);
+    return [sent ? t('Sent by {name}', { name: nm(sent.name) }) : '',
+      to ? (from ? t('From {a} to {b}', { a: nm(from.name), b: nm(to.name) }) : t('Handed to {name}', { name: nm(to.name) })) : ''].filter(Boolean);
+  }
   function histLine(h) {
     var d = h.detail || {}, a = ACT[h.action] || ['', h.action], by = person(h.by_id), who = person(d.person_id), who2 = person(d.person2_id);
     var bits = [who ? nm(who.name) + (who2 ? ' + ' + nm(who2.name) : '') : '', by ? t('by {name}', { name: nm(by.name) }) : '', '<bdi>' + esc(whenAt(h.at)) + '</bdi>'].filter(Boolean);
+    if (h.action === 'hand_over') bits = handed(h).concat(['<bdi>' + esc(whenAt(h.at)) + '</bdi>']);
     return '<button class="hl" type="button" data-h="' + esc(h.id) + '"><span class="k ' + a[0] + '">' + a[1] + '</span><b>' + esc(histTitle(d)) + '</b><small>' + bits.join(' · ') + '</small>' +
-      (h.action === 'remove' && d.reason ? '<q>' + esc(d.reason) + '</q>' : (h.action === 'cancel' && d.why ? '<small>' + (WHYL[d.why] || esc(d.why)) + '</small>' : '')) + '</button>';
+      ((h.action === 'remove' || h.action === 'hand_over') && d.reason ? '<q>' + esc(d.reason) + '</q>' : (h.action === 'cancel' && d.why ? '<small>' + (WHYL[d.why] || esc(d.why)) + '</small>' : '')) + '</button>';
   }
   function screenHistory() {
-    var html = head(t('History'), t('Everything recorded, taken back, cancelled or removed, the newest first. Nobody can change a line.'));
+    var html = head(t('History'), t('Everything recorded, taken back, cancelled, removed or handed over, the newest first. Nobody can change a line.'));
     if (hist.rows === null) return html + '<p class="note center">' + (hist.failed ? t('The history could not be opened. Check the connection and open the page again.') : t('Opening the history…')) + '</p>';
     var shown = hist.rows.filter(function (h) { return histIs(h, hist.filter); });
-    html += '<div class="chips">' + [['all', t('All')], ['remove', t('Removed')], ['take_back', t('Taken back')], ['cancel', t('Cancelled')], ['contract', t('Contracts')]].map(function (c) {
+    html += '<div class="chips">' + [['all', t('All')], ['remove', t('Removed')], ['take_back', t('Taken back')], ['cancel', t('Cancelled')], ['hand_over', t('Handed over')], ['contract', t('Contracts')]].map(function (c) {
       /* a count is shown only when every line is on the page: a count of the first 200 would be a wrong number */
       return '<button class="chip" type="button" data-hf="' + c[0] + '" aria-pressed="' + (hist.filter === c[0]) + '">' + c[1] + (hist.more ? '' : ' ' + hist.rows.filter(function (h) { return histIs(h, c[0]); }).length) + '</button>';
     }).join('') + '</div>';
@@ -155,10 +164,17 @@
     var rows = [[t('Brokerage company'), nm(d.company_id ? companyName(d.company_id) : '')], [t('Date'), '<bdi>' + esc(dayText(d.on_date)) + '</bdi>']];
     if (d.unit_code) rows.push([t('Unit'), nm((d.product ? (PRODL[d.product] || d.product) + ' ' : '') + d.unit_code) + (d.area ? ' · ' + t('{n} m²', { n: Number(d.area) }) : '')]);
     else if (d.product) rows.push([t('Unit type'), PRODL[d.product] || esc(d.product)]);
-    if (d.value) rows.push([d.kind === 'contract' ? t('Contract price') : t('Reservation price'), money(d.value)]);
+    /* an offer carries the unit's list price, which is no deal: it is not shown as one (build 140) */
+    if (d.value && d.kind !== 'offer') rows.push([d.kind === 'contract' ? t('Contract price') : t('Reservation price'), money(d.value)]);
     if (who) rows.push([t('Sales agent'), nm(who.name) + (who2 ? ' + ' + nm(who2.name) : '')]);
     if (d.why) rows.push([t('Reason'), WHYL[d.why] || esc(d.why)]);
+    if (h.action === 'hand_over') {
+      var sent = person(d.sent_by || h.by_id), from = person(d.from_person_id);
+      if (sent) rows.push([t('Sent by'), nm(sent.name)]);
+      if (from) rows.push([t('Taken from'), nm(from.name)]);
+    }
     rows.push([a[1], (by ? nm(by.name) + ' · ' : '') + '<bdi>' + esc(whenAt(h.at)) + '</bdi>']);
+    if (h.action === 'hand_over' && d.reason) rows.push([t('Why it was changed'), esc(d.reason)]);
     if (h.action === 'remove') rows.push([t('Why it was removed'), esc(d.reason || '')]);
     if (h.action === 'record' || h.action === 'cancel') {
       if (!live) act = '<p class="note">' + t('This entry has since been removed or taken back. It is no longer counted.') + '</p>';
