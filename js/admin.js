@@ -254,10 +254,36 @@
         return '<button class="row" type="button" data-c="' + esc(c.id) + '"><span class="nm">' + nm(c.name) + '</span><span class="sub">' + (by ? t('Sent by {name}', { name: nm(by.name) }) : '') + '</span><span class="val code"><span class="adm-flag">' + t('Decide') + '</span></span></button>';
       }).join('') + '</div></section>' : '') +
       '<label class="fld adm-find"><input id="find" type="search" autocomplete="off" placeholder="' + esc(t('Find a company')) + '" value="' + esc(find) + '"></label>' +
-      (shown.length ? '<section class="card"><div class="rows">' + shown.map(function (c) {
-        return '<button class="row' + (c.active ? '' : ' gone') + '" type="button" data-c="' + esc(c.id) + '"><span class="nm">' + nm(c.name) + '</span><span class="val code">' + (c.active ? '' : '<span class="adm-flag off">' + t('Switched off') + '</span>') + '</span></button>';
-      }).join('') + '</div></section>' : '<p class="note center">' + (companies.length ? t('No company matches.') : t('No company is on the list yet. Add the first one with the plus.')) + '</p>');
+      /* build 138: the list opens on its first six and scrolls inside its card, as the manager's does
+         (js/manager.js, build 137), and is drawn a part at a time: about two thousand companies are
+         coming (Muhanad, 2026-10-10), and every letter typed in "Find a company" draws this page again. */
+      (shown.length ? '<section class="card"><div class="rows' + (shown.length > LIST_FIRST ? ' inbox" tabindex="0" role="region" aria-label="' + esc(t('Brokerage companies')) : '') + '" id="cbox">' + (listRows = shown).slice(0, LIST_PART).map(companyRow).join('') + '</div>' +
+          (shown.length > LIST_FIRST ? '<p class="inbox-hint">' + t('{n} more · scroll the list', { n: shown.length - LIST_FIRST }) + '</p>' : '') + '</section>'
+        : '<p class="note center">' + (companies.length ? t('No company matches.') : t('No company is on the list yet. Add the first one with the plus.')) + '</p>');
   }
+  var LIST_FIRST = 6, LIST_PART = 40, listRows = [];
+  function companyRow(c) {
+    return '<button class="row' + (c.active ? '' : ' gone') + '" type="button" data-c="' + esc(c.id) + '"><span class="nm">' + nm(c.name) + '</span><span class="val code">' + (c.active ? '' : '<span class="adm-flag off">' + t('Switched off') + '</span>') + '</span></button>';
+  }
+  /* the box ends exactly where the seventh row starts; more rows are drawn as she scrolls inside it */
+  function listFit() {
+    var box = $('cbox'), r = box && box.classList.contains('inbox') ? box.children[LIST_FIRST] : null;
+    if (!r) return;
+    box.style.maxHeight = '';
+    box.style.maxHeight = Math.round(r.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop) + 'px';
+  }
+  function listInit() {
+    var box = $('cbox');
+    if (!box || !box.classList.contains('inbox')) return;
+    listFit();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(listFit);
+    box.addEventListener('scroll', function () {
+      var from = box.children.length;
+      if (from >= listRows.length || box.scrollTop + box.clientHeight < box.scrollHeight - 240) return;
+      box.insertAdjacentHTML('beforeend', listRows.slice(from, from + LIST_PART).map(companyRow).join(''));
+    });
+  }
+  window.addEventListener('resize', listFit);
   function screenMe() {
     return head(t('Your account')) +
       '<section class="card"><div class="facts"><div><span>' + t('Name') + '</span><b>' + nm(session.name) + '</b></div><div><span>' + t('Email') + '</span><b><bdi>' + esc(session.email) + '</bdi></b></div>' +
@@ -279,6 +305,7 @@
     $('fab').innerHTML = svg('plus');
     $('fab').setAttribute('aria-label', tab === 'companies' ? t('Add a company') : t('Add a person'));
     if (keep) { var f = $('find'); f.focus(); f.setSelectionRange(f.value.length, f.value.length); }
+    if (tab === 'companies') listInit();
   }
 
   /* ---- sheets ---------------------------------------------------------- */

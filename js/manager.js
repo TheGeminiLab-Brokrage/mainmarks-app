@@ -344,8 +344,17 @@
     }
     function refresh() {
       count4 = { active: 0, quiet: 0, inactive: 0, never: 0 };
+      /* build 138, THE ROWS ARE SORTED BY COMPANY ONCE. Until now every company read through every row,
+         three times: nothing with 78 companies and 47 rows, ten million looks with the final list
+         (about 2,000 companies, Muhanad, 2026-10-10) and a team's 5,000 rows, which a weaker phone took
+         seconds over each time the page opened. Each company now gets its own rows, in the order they
+         came, so every figure below is made from the same rows in the same order as before. */
+      var byC = {}, byCT = {};
+      var sort = function (list, into) { list.forEach(function (e) { if (e.c !== null && e.c !== undefined) (into[e.c] || (into[e.c] = [])).push(e); }); };
+      sort(events, byC); if (MY) sort(all, byCT);
       book.forEach(function (c) {
-        var mine = events.filter(function (e) { return e.c === c.id && e.k === 'offer'; });
+        var ev = byC[c.id] || [];
+        var mine = ev.filter(function (e) { return e.k === 'offer'; });
         c.asked = mine.map(function (e) { return e.d; });
         c.w = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
         c.asked.forEach(function (d) { c.w[11 - Math.min(11, Math.floor(d / 7))]++; });
@@ -354,13 +363,13 @@
         c.first = mine.length ? Math.max.apply(null, c.asked) : null;
         c.state = stateAt(c, 0);
         count4[c.state]++;
-        c.noMeet = c.asked.filter(function (d) { return d < 30; }).length >= 6 && !events.some(function (e) { return e.c === c.id && e.k === 'meeting'; });
+        c.noMeet = c.asked.filter(function (d) { return d < 30; }).length >= 6 && !ev.some(function (e) { return e.k === 'meeting'; });
         c.req30 = c.asked.filter(function (d) { return d < 30; }).length;
-        c.ev = events.filter(function (e) { return e.c === c.id; });
+        c.ev = ev;
         c.reqs = mine.slice().sort(function (a, b) { return b.d - a.d || a.t - b.t; });          /* oldest first */
         /* what followed a visit is judged on the TEAM's rows on both pages, so a salesperson reads the
            same outcome for his orientation as his manager does */
-        c.evT = MY ? all.filter(function (e) { return e.c === c.id; }) : c.ev;
+        c.evT = MY ? (byCT[c.id] || []) : c.ev;
         c.reqsT = MY ? c.evT.filter(function (e) { return e.k === 'offer'; }).sort(function (a, b) { return b.d - a.d || a.t - b.t; }) : c.reqs;
         c.step = stepAt(c, 0);
         var by = {}; mine.forEach(function (e) { by[e.m] = (by[e.m] || 0) + 1; });
@@ -1110,6 +1119,55 @@
     var myRec = { kind: 'orientation', company: -1 };
     var SAVE = { orientation: t('Save orientation'), workshop: t('Save workshop'), meeting: t('Save meeting'), reservation: t('Save reservation'), contract: t('Save contract') };
     function recentCompanies() { var seen = {}, out = []; events.filter(function (e) { return e.k === 'offer' && e.c !== null; }).sort(newest).forEach(function (e) { if (!seen[e.c]) { seen[e.c] = 1; out.push(e.c); } }); return out.slice(0, 6); }
+    /* build 138, THE COMPANY IS FOUND BY TYPING, on the sales agent's form and on the manager's. It was a
+       drop-down of every company: 77 lines today, 2,001 with the final list (Muhanad, 2026-10-10), and a
+       long list under a thumb is where the wrong company gets picked. Now he types a few letters and
+       taps the name, as in "Who is this offer for?". Names that START with what he typed come first.
+       Nothing is chosen until a name is tapped, or the whole name is typed exactly: a near match is
+       never taken for him. The chosen company is kept in #rC, as the drop-down kept it, so the rest of
+       the form reads it as before. `recent` (a sales agent's own) is offered before he types. */
+    var PICK_MOST = 40;
+    function companyField(chosen, recent) {
+      var has = chosen >= 0 && B.companies[chosen] !== undefined;
+      return '<div class="fld pick"><label for="rCq">' + t('Brokerage company') + '</label>' +
+        '<input id="rCq" type="text" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" role="combobox" aria-controls="rCl" aria-expanded="false" placeholder="' + esc(t('Type a company name')) + '" value="' + (has ? esc(B.companies[chosen]) : '') + '">' +
+        '<input id="rC" type="hidden" value="' + (has ? chosen : '') + '" data-recent="' + (recent || []).join(',') + '" data-n="' + B.companies.filter(function (n, i) { return !B.pickable || B.pickable(i); }).length + '">' +
+        '<div class="pick-list" id="rCl" role="listbox" hidden></div></div>';
+    }
+    function pickList() {
+      var q = $('rCq'), box = $('rCl'), kept = $('rC');
+      if (!q || !box || !kept) return;
+      var want = q.value.trim().toLowerCase(), list, head = '';
+      var ok = function (i) { return B.companies[i] !== undefined && (!B.pickable || B.pickable(i)); };
+      if (!want) { list = (kept.dataset.recent || '').split(',').filter(Boolean).map(Number).filter(ok); head = list.length ? t('Your recent companies') : ''; }
+      else {
+        var starts = [], holds = [];
+        B.companies.forEach(function (n, i) { if (!ok(i)) return; var at = n.toLowerCase().indexOf(want); if (at === 0) starts.push(i); else if (at > 0) holds.push(i); });
+        list = starts.concat(holds);
+      }
+      box.innerHTML = (head ? '<p class="pick-h">' + head + '</p>' : '') +
+        list.slice(0, PICK_MOST).map(function (i) { return '<button class="pick-o" type="button" role="option" data-pc="' + i + '">' + esc(B.companies[i]) + '</button>'; }).join('') +
+        (want && !list.length ? '<p class="pick-none">' + t('No company matches.') + '</p>' : '') +
+        (list.length > PICK_MOST ? '<p class="pick-none">' + t('{n} more. Type more letters.', { n: list.length - PICK_MOST }) + '</p>' : '');
+      box.hidden = !box.innerHTML;
+      box.scrollTop = 0;
+      q.setAttribute('aria-expanded', String(!box.hidden));
+    }
+    function pickShut() { var box = $('rCl'); if (box) { box.hidden = true; box.innerHTML = ''; } if ($('rCq')) $('rCq').setAttribute('aria-expanded', 'false'); }
+    function pickChoose(i) {
+      if (!$('rC') || B.companies[i] === undefined) return;
+      $('rC').value = i; $('rCq').value = B.companies[i];
+      pickShut();
+      if ($('rErr')) $('rErr').hidden = true;
+    }
+    /* the whole name typed and nothing tapped: that company, when exactly one carries the name */
+    function pickExact() {
+      if (!$('rC') || $('rC').value !== '' || !$('rCq')) return;
+      var want = $('rCq').value.trim().toLowerCase(), found = [];
+      if (!want) return;
+      B.companies.forEach(function (n, i) { if (n.trim().toLowerCase() === want && (!B.pickable || B.pickable(i))) found.push(i); });
+      if (found.length === 1) pickChoose(found[0]);
+    }
     function openMyRecord() {
       var k = myRec.kind, went = k === 'orientation' || k === 'workshop', recent = recentCompanies(), mates = [];
       /* a company that is switched off, or still waiting for the admin, takes no new entry */
@@ -1118,10 +1176,7 @@
       var others = [];
       TEAM.forEach(function (p, i) { if (i !== ME && (B.mates === undefined || i < B.mates)) (B.own !== undefined && i >= B.own ? others : mates).push('<option value="' + i + '">' + esc(p.name) + '</option>'); });
       if (others.length) mates = ['<optgroup label="' + esc(t('Your team')) + '">' + mates.join('') + '</optgroup><optgroup label="' + esc(t('Other teams')) + '">' + others.join('') + '</optgroup>'];
-      var one = function (i, pick) { return '<option value="' + i + '"' + (pick && i === myRec.company ? ' selected' : '') + '>' + esc(B.companies[i]) + '</option>'; };
-      var company = '<label class="fld">' + t('Brokerage company') + '<select id="rC"><option value="">' + t('Choose a company') + '</option>' +
-        (recent.length ? '<optgroup label="' + esc(t('Your recent companies')) + '">' + recent.map(function (i) { return one(i, true); }).join('') + '</optgroup>' : '') +
-        '<optgroup label="' + esc(t('All companies')) + '">' + B.companies.map(function (n, i) { return B.pickable && !B.pickable(i) && i !== myRec.company ? '' : one(i, recent.indexOf(i) === -1); }).join('') + '</optgroup></select></label>';
+      var company = companyField(myRec.company, recent);
       var date = '<label class="fld">' + t('Date') + '<input type="date" id="rD" min="' + iso(SPAN) + '" max="' + iso(0) + '" value="' + iso(0) + '"></label>';
       var mate = function (label) { return '<label class="fld">' + label + '<select id="rS"><option value="">' + t('No one') + '</option>' + mates.join('') + '</select></label>'; };
       var unit = '<label class="fld">' + t('Unit code') + '<input id="rU" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false"></label><p class="chk wait" id="rChk">' + t('Type the unit code to see the unit.') + '</p>';
@@ -1164,7 +1219,7 @@
         /* the contract keeps the reservation's company, unit and names: a split deal stays split */
         r.c = rs.c; r.u = rs.u; r.p = rs.p; r.of = rs.id; r.m = rs.m; if (rs.m2 !== undefined) r.m2 = rs.m2;
       } else {
-        if ($('rC').value === '') return bad(t('Choose the brokerage company.'));
+        pickExact(); if ($('rC').value === '') return bad(t('Choose the brokerage company.'));
         r.c = +$('rC').value;
       }
       if (k === 'meeting') r.p = B.products[+$('rP').value];
@@ -1442,7 +1497,7 @@
         if (B.mine !== undefined && B.mates !== undefined) for (i = B.mine; i < B.mates; i++) others += o(i, TEAM[i].name);
         var person = '<label class="fld">' + (went ? t('Who went') : t('Sales agent')) + '<select id="rM">' + names + '</select></label>';
         /* a company that is switched off, or still waiting for the admin, takes no new entry */
-        var company = '<label class="fld">' + t('Brokerage company') + '<select id="rC"><option value="">' + t('Choose a company') + '</option>' + B.companies.map(function (n, c) { return B.pickable && !B.pickable(c) ? '' : o(c, n); }).join('') + '</select></label>';
+        var company = companyField(-1, []);
         var second = function (label) { return '<label class="fld">' + label + '<select id="rS"><option value="">' + t('No one') + '</option>' + (others ? '<optgroup label="' + esc(t('Your team')) + '">' + names + '</optgroup><optgroup label="' + esc(t('Other teams')) + '">' + others + '</optgroup>' : names) + '</select></label>'; };
         var unit = '<label class="fld">' + t('Unit code') + '<input id="rU" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false"></label><p class="chk wait" id="rChk">' + t('Type the unit code to see the unit.') + '</p>';
         var price = function (label) { return '<label class="fld">' + label + '<input id="rV" type="text" inputmode="numeric" autocomplete="off"></label>'; };
@@ -1475,7 +1530,7 @@
         /* the contract keeps the reservation's company, unit and names: a split deal stays split */
         if (rs) { r.c = rs.c; r.u = rs.u; r.p = rs.p; r.of = rs.id; r.m = rs.m; if (rs.m2 !== undefined) r.m2 = rs.m2; }
         else {
-          if ($('rC').value === '') return bad(t('Choose the brokerage company.'));
+          pickExact(); if ($('rC').value === '') return bad(t('Choose the brokerage company.'));
           r.c = +$('rC').value; r.m = +$('rM').value;
         }
         if (k === 'meeting') r.p = B.products[+$('rP').value];
@@ -1894,6 +1949,7 @@
       else if (e.target.closest('#rSave')) { if (MY) saveMyRecord(); else saveRecord(); }
       else if (e.target.closest('#out')) { MM.auth.signOut(); location.replace(MY ? 'login.html' : 'login.html?next=manager.html'); }
       else if (e.target.closest('#rmGo')) removeTeamEntry(e.target.closest('#rmGo').dataset.id);
+      else if (hit('data-pc')) pickChoose(+hit('data-pc').dataset.pc);
       else if (hit('data-rm')) removeEntry(hit('data-rm').dataset.rm);
       else if (hit('data-rec')) { myRec.company = +hit('data-rec').dataset.rec; openMyRecord(); }
       else if (hit('data-e')) openEntry(hit('data-e').dataset.e);
@@ -1925,6 +1981,13 @@
     });
     $('scr').addEventListener('input', function (e) { if (e.target.id === 'q') { look.query = e.target.value; $('clist').innerHTML = companyList(); listInit(); } });
     window.addEventListener('resize', listFit);
+    /* build 138, the company found by typing: a letter un-chooses and lists the names; the list goes when
+       he moves to another field of the form */
+    $('sheet').addEventListener('input', function (e) { if (e.target.id === 'rCq') { $('rC').value = ''; pickList(); } });
+    $('sheet').addEventListener('focusin', function (e) {
+      if (e.target.id === 'rCq') { if ($('rC').value === '') pickList(); }
+      else if (!(e.target.closest && e.target.closest('#rCl'))) pickShut();
+    });
 
     var asked = (location.hash || '').slice(1);
     if (SCREENS[asked] && (MY ? asked === 'my' || asked === 'profile' : asked !== 'my')) look.tab = asked;

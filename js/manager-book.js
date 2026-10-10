@@ -377,13 +377,17 @@
     /* A moment the store gives (with its time zone) as the day and minute IN CAIRO, which is how every
        row's own day and minute are kept. Nothing when the browser cannot say: the page then leaves the
        time out, never shows a wrong one. */
+    /* build 138: the clock that reads Cairo time is made ONCE. It was made afresh for every row (since
+       build 136 every row of a manager's asks for the moment it was entered), and making it is the slow
+       part: 20,000 rows spent over a second on it on a laptop, several on a phone. */
+    var cairoClock = null;
     function cairo(stamp) {
       try {
         var at = new Date(stamp);
         if (isNaN(at)) return null;
         var p = {};
-        new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Cairo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
-          .formatToParts(at).forEach(function (x) { p[x.type] = x.value; });
+        cairoClock = cairoClock || new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Cairo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+        cairoClock.formatToParts(at).forEach(function (x) { p[x.type] = x.value; });
         var h = Number(p.hour) % 24, m = Number(p.minute);
         if (!p.year || isNaN(h) || isNaN(m)) return null;
         return { day: p.year + '-' + p.month + '-' + p.day, min: h * 60 + m };
