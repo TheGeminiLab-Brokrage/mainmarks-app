@@ -246,7 +246,10 @@
        moved onto a listed company is not a company and is not listed */
     var waiting = companies.filter(function (c) { return c.pending; });
     var real = companies.filter(function (c) { return !c.pending && !c.merged_into; });
-    var shown = real.filter(function (c) { return matches(c.name); });
+    /* build 139: found as the Record form finds a company (MM.nameFind, js/auth.js): the names that
+       begin with what she typed first; letters inside a word only from the third letter */
+    var found = MM.nameFind(real, find, function (c) { return c.name; });
+    var shown = found ? found.map(function (x) { return x.item; }) : real;
     var on = real.filter(function (c) { return c.active; }).length;
     return head(t('Brokerage companies'), t('{n} companies, {off} switched off', { n: '<b>' + real.length + '</b>', off: '<b>' + (real.length - on) + '</b>' })) +
       (waiting.length ? '<section class="card"><h2>' + t('Waiting for your approval') + ' <em>' + waiting.length + '</em></h2><p class="note">' + t('Sales agents sent offers to these names, which are not on the list. Open each one and decide.') + '</p><div class="rows">' + waiting.map(function (c) {

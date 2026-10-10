@@ -477,3 +477,6 @@ html.is-locked .tab, html.is-locked .fab { opacity: 0; visibility: hidden; trans
 .pick-o:hover, .pick-o:focus-visible { background: rgba(247, 149, 30, .16); }
 .pick-h, .pick-none { margin: 0; padding: 6px 10px; }
 .pick-none { font-size: 12.5px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--mut); }
+
+/* build 139: the letters typed stand out in each name offered, as in "Who is this offer for?" */
+.pick-o b { font-weight: 700; color: var(--acc); }

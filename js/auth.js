@@ -545,6 +545,37 @@
     root.addEventListener('pageshow', function () { quiet(flushOffers); });
   }
 
+  /* build 139, ONE RULE FOR FINDING A COMPANY BY TYPING, on the Record form (the sales agent's and the
+     manager's), the manager's Companies search and the admin's "Find a company". Muhanad, 2026-10-10, on
+     live 138: he typed "Na", was offered a name that begins with it, "which is fine", and under it a
+     name that only has the two letters inside its second word, which "does not make sense to show".
+     Two letters found inside a word are noise, and with about 2,000 names they would be most of the
+     list. So: a name that BEGINS with what was typed comes first, then a name with a WORD that begins
+     with it (the second word of a two-word name). A name that only holds the letters inside a word is
+     offered from the THIRD letter on, or when no name begins with them, so the list never says "No
+     company matches." about a name it holds. `at` is where the letters stand in the name, for showing
+     them. (No company is named here: this file is published, and the company list is not.) */
+  function nameHit(name, want) {
+    var low = String(name).toLowerCase(), at = low.indexOf(want), inside = -1, c;
+    while (at !== -1) {
+      if (at === 0) return { rank: 0, at: 0 };
+      c = low.charCodeAt(at - 1);
+      if (!((c >= 0x30 && c <= 0x39) || (c >= 0x61 && c <= 0x7a) || (c >= 0x621 && c <= 0x64a))) return { rank: 1, at: at };
+      if (inside === -1) inside = at;
+      at = low.indexOf(want, at + 1);
+    }
+    return inside === -1 ? null : { rank: 2, at: inside };
+  }
+  /* the rule over a list, best first: [{ item, at }]. `get(item)` gives the name; nothing typed: null */
+  function nameFind(list, typed, get) {
+    var want = String(typed || '').trim().toLowerCase(), tiers = [[], [], []], begins;
+    if (!want) return null;
+    list.forEach(function (x) { var h = nameHit(get ? get(x) : x, want); if (h) tiers[h.rank].push({ item: x, at: h.at }); });
+    begins = tiers[0].concat(tiers[1]);
+    return want.length >= 3 || !begins.length ? begins.concat(tiers[2]) : begins;
+  }
+  MM.nameFind = nameFind;
+
   MM.auth = {
     real: real,
     token: token,

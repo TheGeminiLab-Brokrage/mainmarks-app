@@ -667,7 +667,12 @@
     }
     function tiles() {
       var n = A.tot, beside = t('{x} beside them', { x: count(n.broadcast, 'broadcast') }), list;
-      if (A.single && !MY) list = [['offers', t('Special requests'), n.special, beside], ['asked', t('Companies asked'), A.asked.length, ''], ['meeting', t('Meetings'), n.meeting, ''],
+      /* build 139, A DAY HAS SIX TILES (Muhanad, 2026-10-10, "Yes, add them", on a picture): Orientations and
+         Workshops joined the four. An orientation or a workshop recorded today had no place on Today's
+         Home, so the manager who had just entered one could not open it, and could not remove it ("I was
+         not able to do it"): it showed only under Team, or after the dates were set to a week. */
+      if (A.single && !MY) list = [['offers', t('Special requests'), n.special, beside], ['asked', t('Companies asked'), A.asked.length, ''],
+        ['orientation', t('Orientations'), n.orientation, ''], ['workshop', t('Workshops'), n.workshop, ''], ['meeting', t('Meetings'), n.meeting, ''],
         ['deals', t('Reservations and contracts'), n.reservation + n.contract, [n.cancel ? count(n.cancel, 'cancellation') : '', n.value ? t('{v} contracted', { v: money(n.value) }) : ''].filter(Boolean).join(' · ')]];
       /* a week or more: the six tiles follow the work (Muhanad, 2026-10-06): an orientation gets a company
          asking, a workshop gets an asking company to a meeting, then reservations and contracts */
@@ -795,9 +800,12 @@
     }
     function companyMatches(f, q) {
       var m = metric(f);
-      q = String(q || '').trim().toLowerCase();
+      /* build 139: the search finds a company as the Record form does (MM.nameFind, js/auth.js): two
+         letters bring the names that begin with them, not every name that holds them somewhere */
+      var found = MM.nameFind(book, q, function (c) { return c.name; }), keep = null;
+      if (found) { keep = {}; found.forEach(function (x) { keep[x.item.id] = 1; }); }
       return book.filter(function (c) {
-        if (q && c.name.toLowerCase().indexOf(q) === -1) return false;
+        if (keep && !keep[c.id]) return false;
         return f === 'all' || c.state === f || (f === 'effective' && A.byC[c.id].meeting > 0) || (f === 'nomeet' && c.noMeet) || (f === 'fresh' && A.fresh.indexOf(c) !== -1) || (f === 'changed' && A.changed.indexOf(c) !== -1);
       }).sort(function (a, b) { return m.get(b) - m.get(a) || b.total - a.total || a.name.localeCompare(b.name); });
     }
@@ -1137,16 +1145,24 @@
     function pickList() {
       var q = $('rCq'), box = $('rCl'), kept = $('rC');
       if (!q || !box || !kept) return;
-      var want = q.value.trim().toLowerCase(), list, head = '';
+      var want = q.value.trim().toLowerCase(), list, head = '', all = [];
       var ok = function (i) { return B.companies[i] !== undefined && (!B.pickable || B.pickable(i)); };
-      if (!want) { list = (kept.dataset.recent || '').split(',').filter(Boolean).map(Number).filter(ok); head = list.length ? t('Your recent companies') : ''; }
+      /* the typed letters stand out in the name, as in "Who is this offer for?", so a name offered for
+         letters inside it shows why (build 139) */
+      var label = function (x) {
+        var n = B.companies[x.item];
+        if (x.at === undefined || n.toLowerCase().length !== n.length) return esc(n);
+        return esc(n.slice(0, x.at)) + '<b>' + esc(n.slice(x.at, x.at + want.length)) + '</b>' + esc(n.slice(x.at + want.length));
+      };
+      if (!want) { list = (kept.dataset.recent || '').split(',').filter(Boolean).map(Number).filter(ok).map(function (i) { return { item: i }; }); head = list.length ? t('Your recent companies') : ''; }
       else {
-        var starts = [], holds = [];
-        B.companies.forEach(function (n, i) { if (!ok(i)) return; var at = n.toLowerCase().indexOf(want); if (at === 0) starts.push(i); else if (at > 0) holds.push(i); });
-        list = starts.concat(holds);
+        /* build 139: names that begin with it, then names with a word that begins with it; letters
+           inside a word only from the third letter (MM.nameFind, js/auth.js) */
+        B.companies.forEach(function (n, i) { if (ok(i)) all.push(i); });
+        list = MM.nameFind(all, want, function (i) { return B.companies[i]; });
       }
       box.innerHTML = (head ? '<p class="pick-h">' + head + '</p>' : '') +
-        list.slice(0, PICK_MOST).map(function (i) { return '<button class="pick-o" type="button" role="option" data-pc="' + i + '">' + esc(B.companies[i]) + '</button>'; }).join('') +
+        list.slice(0, PICK_MOST).map(function (x) { return '<button class="pick-o" type="button" role="option" data-pc="' + x.item + '">' + label(x) + '</button>'; }).join('') +
         (want && !list.length ? '<p class="pick-none">' + t('No company matches.') + '</p>' : '') +
         (list.length > PICK_MOST ? '<p class="pick-none">' + t('{n} more. Type more letters.', { n: list.length - PICK_MOST }) + '</p>' : '');
       box.hidden = !box.innerHTML;
@@ -1296,7 +1312,7 @@
     var SCREENS = {
       /* a salesperson's one page of figures: sales, the six tiles, his companies, what he entered */
       my: function () { return head(t('My activity')) + cardSales() + tiles() + cardDeck() + cardEntered(); },
-      /* SHORT ON PURPOSE: the gauge first, four tiles, two short lists. Everything else is one tap away. */
+      /* SHORT ON PURPOSE: the gauge first, the tiles (six on a day since build 139, see tiles()), two short lists. Everything else is one tap away. */
       home: function () {
         return A.single ? head(t('Your team')) + noTeam() + cardHeroDay() + tiles() + cardDuty() + cardTeamShort()
                         : head(t('Your companies')) + noTeam() + cardHeroBook() + tiles() + cardMovement() + cardDeck() + cardTeamShort();
