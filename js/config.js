@@ -14,7 +14,7 @@ const CONFIG = {
   /* Bumped on every deploy, and matched by the ?v= on every script tag in
      the HTML. That pair is what stops a returning phone running yesterday's
      JavaScript. See README, "Deploying". */
-  build: 141,
+  build: 142,
 
   /* Where the activity log is sent. Empty = kept on the device only, which
      is where it is today. Filling this in is the whole change when the
@@ -25,6 +25,12 @@ const CONFIG = {
      offers" sent as a general broadcast to all the brokerage companies. My activity shows today's
      count against it, one line under his sales. Remove the number and the line goes. */
   salesDay: { broadcasts: 3 },
+
+  /* THE SALES AGENT'S WEEK ("The week" card on Team Pulse). Muhanad, 2026-10-11: 10 orientations a
+     week, one number for every sales agent; every visit counts. The week is Saturday to Thursday, so
+     the week's broadcasts are salesDay.broadcasts times six. Remove the number and the card and its
+     line on Home go. */
+  salesWeek: { orientations: 10 },
 
   /* STORE:START */
   /* THE REAL STORE (build 122). The database where people sign in as themselves.

@@ -722,7 +722,103 @@
           for (i = 0; i < goal; i++) dots += '<i' + (i < n ? ' class="on"' : '') + '></i>';
           return '<button class="row duty-row' + (n ? '' : ' none') + '" type="button" data-m="' + p.id + '" aria-label="' + esc(p.name + ': ' + count(n, 'broadcast')) + '"><span class="who"><span class="nm">' + esc(p.name) + '</span>' +
             (p.n.offers ? '' : '<span class="idle">' + t('No offers yet') + '</span>') + '</span><span class="dots" aria-hidden="true">' + dots + '</span><span class="val">' + n + '</span></button>';
-        }).join('') + '</div>' : noTeam(true)) + '</section>';
+        }).join('') + '</div>' : noTeam(true)) + weekLine() + '</section>';
+    }
+    /* THE WEEK (Muhanad, 2026-10-11; mocked first: Main Marks Handoff\The week card mock (2026-10-11),
+       https://claude.ai/artifact/SDANcZfnSxj88Xg5zHDrY7). A manager had to set custom dates and count rows
+       to know where each sales agent stood in the week. This card does the counting: one line for each
+       sales agent, the week's broadcasts as dots and the week's orientations as squares, one number each.
+       HIS ANSWERS ("yes to all five", and "C with the line"):
+         - the week runs Saturday to Thursday, Friday is the day off;
+         - the orientation target is one number for every agent (CONFIG.salesWeek.orientations);
+         - every visit counts toward it, and the colour of its square says which DOOR it knocked on:
+           the company as it stood when the agent walked in. New door = it had never sent the team a
+           request; gone quiet = it had, but not in the 14 days before; already asking = it asked in
+           those 14 days (the same line followed() draws for "was already asking");
+         - a green ring = a request followed within 7 business days (his rule, followed());
+         - the card lives on the TEAM tab, and Home carries one line at the foot of the day's
+           Broadcasts card that opens it. Home stays short.
+       The week shown is the week of the LAST day of the dates chosen, so "Today" is this week so far
+       and a day of last week brings last week back. With no target in the settings there is no card:
+       a target is never made up here. */
+    var WEEK_DAYS = 6;
+    var DAY = AR ? ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    var DOOR = { fresh: t('New door'), quiet: STATE.quiet, asking: t('Already asking') }, DOORS = ['fresh', 'quiet', 'asking'];
+    function weekGoals() {
+      var c = typeof CONFIG !== 'undefined' ? CONFIG : {}, b = Number((c.salesDay || {}).broadcasts) || 0, o = Number((c.salesWeek || {}).orientations) || 0;
+      return b && b <= 6 && o && o <= 20 ? { day: b, week: b * WEEK_DAYS, visits: o } : null;
+    }
+    function doorOf(v) {
+      var was = book[v.c].reqsT.filter(function (e) { return e.d > v.d; });
+      return !was.length ? 'fresh' : was[was.length - 1].d - v.d < 14 ? 'asking' : 'quiet';
+    }
+    function week() {
+      var G = weekGoals(); if (!G || MY || !A.crew.length) return null;
+      var sat = period.to, days = [], i;
+      while (B.dateOf(sat).getDay() !== 6) sat++;
+      for (i = 0; i < WEEK_DAYS; i++) days.push(sat - i);                       /* Saturday first; a day still to come is below zero */
+      var inW = function (e) { return !e.wait && e.d <= sat && e.d > sat - WEEK_DAYS; };
+      var rows = events.filter(inW), seen = {}, team = { bc: 0, visits: 0, fresh: 0, quiet: 0, asking: 0, led: 0 };
+      var people = A.crew.map(function (p) {
+        var bc = days.map(function (d) { return rows.filter(function (e) { return e.m === p.id && e.k === 'offer' && e.c === null && e.d === d; }).length; });
+        var visits = rows.filter(function (e) { return e.k === 'orientation' && (e.m === p.id || e.m2 === p.id); }).sort(newest).map(function (e) { return { e: e, door: doorOf(e), f: followed(e) }; });
+        var o = { id: p.id, name: p.name, bc: bc, sent: bc.reduce(function (a, n) { return a + n; }, 0), visits: visits, fresh: 0, quiet: 0, asking: 0, led: 0 };
+        visits.forEach(function (x) {
+          o[x.door]++; if (x.f.ok) o.led++;
+          /* a visit two of them made is one visit of the team */
+          if (!seen[x.e.id]) { seen[x.e.id] = 1; team.visits++; team[x.door]++; if (x.f.ok) team.led++; }
+        });
+        team.bc += o.sent;
+        return o;
+      }).sort(function (a, b) { return a.sent - b.sent || a.visits.length - b.visits.length || a.name.localeCompare(b.name); });
+      return { goals: G, days: days, gone: days.filter(function (d) { return d >= 0; }).length, range: fmt(sat) + ' – ' + fmt(sat - WEEK_DAYS + 1), people: people, team: team, goal: G.week * people.length };
+    }
+    function weekDots(n, goal, later) { var s = '', r; for (r = goal; r >= 1; r--) s += '<i' + (later ? ' class="later"' : n >= r ? ' class="on"' : '') + '></i>'; return s; }
+    function weekPips(p, G) {
+      var v = p.visits.slice().sort(function (a, b) { return DOORS.indexOf(a.door) - DOORS.indexOf(b.door) || (b.f.ok ? 1 : 0) - (a.f.ok ? 1 : 0); });
+      var slots = Math.max(G.visits, v.length), s = '', i;
+      for (i = 0; i < slots; i++) s += '<i' + (v[i] ? ' class="' + v[i].door + (v[i].f.ok ? ' led' : '') + '"' : '') + '></i>';
+      return '<span class="wk-pp" aria-hidden="true" style="grid-template-columns:repeat(' + Math.min(6, Math.ceil(slots / 2)) + ',7px)">' + s + '</span>';
+    }
+    function cardWeek() {
+      var W = week(); if (!W) return '';
+      var G = W.goals, T = W.team, done = W.gone === WEEK_DAYS;
+      var tip = t('The week runs Saturday to Thursday. Round dots are broadcasts: a column for each day, a dot for each of the {b} the day asks for. Squares are orientations, against {o} a week.', { b: G.day, o: G.visits });
+      /* one of a thing takes its singular ("1 orientation"); each wording is its own line so the Arabic check finds it */
+      var sent = { a: '<b>' + T.bc + '</b>', b: W.goal }, seen = { c: '<b>' + T.visits + '</b>', d: '<b>' + T.asking + '</b>' };
+      var line = (done ? t('{a} of {b} broadcasts.', sent) : T.bc === 1 ? t('{a} broadcast so far.', sent) : t('{a} broadcasts so far.', sent)) + ' ' +
+        (T.visits === 1 ? t('{c} orientation, {d} at companies already asking.', seen) : t('{c} orientations, {d} at companies already asking.', seen));
+      var key = function (k, label, text) { return '<button class="why" type="button" aria-expanded="false"><i class="' + k + '"></i><span>' + label + '</span></button><span class="why-tip" role="note">' + esc(text) + '</span>'; };
+      return '<section class="card wk-card" id="wk"><h2>' + t('The week') + ' <em><button class="why" type="button" aria-expanded="false">' + W.range + ' · ' + t('day {a} of {b}', { a: W.gone, b: WEEK_DAYS }) + '</button><span class="why-tip" role="note">' + esc(tip) + '</span></em></h2>' +
+        '<p class="note">' + line + '</p>' +
+        '<div class="wk-head" aria-hidden="true"><span></span><span>' + t('Broadcasts') + ' · ' + G.week + '</span><span>' + t('Orientations') + ' · ' + G.visits + '</span></div>' +
+        '<div class="rows">' + W.people.map(function (p) {
+          return '<button class="row wk-row" type="button" data-wk="' + p.id + '" aria-label="' + esc(p.name + ': ' + count(p.sent, 'broadcast') + (AR ? '، ' : ', ') + count(p.visits.length, 'orientation')) + '"><span class="nm">' + esc(p.name) + '</span>' +
+            '<span class="wk-m"><span class="wk-bc" aria-hidden="true" style="grid-template-rows:repeat(' + G.day + ',5px)">' + p.bc.map(function (n, i) { return weekDots(n, G.day, W.days[i] < 0); }).join('') + '</span><b' + (p.sent ? '' : ' class="zero"') + '>' + p.sent + '</b></span>' +
+            '<span class="wk-m">' + weekPips(p, G) + '<b' + (p.visits.length ? '' : ' class="zero"') + '>' + p.visits.length + '</b></span></button>';
+        }).join('') + '</div>' +
+        '<div class="wk-keys">' + key('fresh', DOOR.fresh, t('New door: the company had never sent your team a request before this visit.')) + key('quiet', DOOR.quiet, t('Gone quiet: the company had asked before, but not in the 14 days before this visit.')) +
+          key('asking', DOOR.asking, t('Already asking: the company sent your team a request in the 14 days before this visit.')) + key('led', t('A request followed'), t('A request followed: the company sent a request within 7 business days of the visit.')) + '</div></section>';
+    }
+    /* the one line on Home: the team's broadcasts in the week against the week's target, and the way to the card */
+    function weekLine() {
+      var W = week(); if (!W) return '';
+      return '<button class="go wk-go" type="button" data-tab="team"><span>' + t('The week') + '</span><b>' + t('{a} of {b}', { a: W.team.bc, b: W.goal }) + '</b></button>';
+    }
+    /* a name on the card opens that sales agent's week: the broadcasts day by day, then every visit, its door and what followed */
+    function openWeek(id) {
+      var W = week(), p = W && W.people.filter(function (x) { return x.id === id; })[0]; if (!p) return;
+      var G = W.goals;
+      showSheet('<div><h3>' + esc(p.name) + '</h3><p class="role">' + t('The week') + ' · ' + W.range + '</p></div>' +
+        '<p class="sec">' + t('Broadcasts') + ' · ' + t('{a} of {b}', { a: p.sent, b: G.week }) + '</p>' +
+        '<div class="wk-days">' + p.bc.map(function (n, i) { var later = W.days[i] < 0; return '<div><span class="wk-col" aria-hidden="true">' + weekDots(n, G.day, later) + '</span><b' + (later ? ' class="later"' : n ? '' : ' class="zero"') + '>' + (later ? '·' : n) + '</b><small>' + DAY[B.dateOf(W.days[i]).getDay()] + '</small></div>'; }).join('') + '</div>' +
+        '<p class="sec">' + t('Orientations') + ' · ' + t('{a} of {b}', { a: p.visits.length, b: G.visits }) + (p.led ? ' · ' + t('{n} led to a request', { n: p.led }) : '') + '</p>' +
+        kv(DOORS.map(function (k) { return [p[k], '<i class="wk-pip ' + k + '"></i>' + DOOR[k]]; })) +
+        (p.visits.length ? '<div class="rows">' + p.visits.map(function (x) {
+          var e = x.e;
+          return '<button class="row wk-vis" type="button" data-c="' + e.c + '"><i class="wk-pip ' + x.door + (x.f.ok ? ' led' : '') + '"></i><span class="nm">' + esc(book[e.c].name) + '</span><span class="val d">' + DAY[B.dateOf(e.d).getDay()] + '<small>' + hhmm(e.t) + '</small></span>' +
+            '<span class="sub">' + (x.door === 'asking' ? DOOR.asking : DOOR[x.door] + ' · ' + (x.f.ok ? '<b class="ok">' + x.f.text + '</b>' : x.f.text)) + '</span></button>';
+        }).join('') + '</div>' : '<p class="note">' + t('No orientation this week.') + '</p>'));
     }
     function cardIdle() {
       var idle = A.crew.filter(function (p) { return !p.n.offers; });
@@ -757,11 +853,20 @@
     }
     /* key: 'deck' (the ranked lists) or 'mv' (Movement); the strip, its chips and its dots are key, keyTabs, keyDots */
     function deckMark(key, i) {
+      /* Movement: leaving one of its three lists closes the line that was open there (Muhanad, 2026-10-11) */
+      if (key === 'mv' && look.mv !== i) mvShut();
       look[key] = i;
       [].forEach.call($(key + 'Tabs').children, function (b, n) { b.setAttribute('aria-pressed', String(n === i)); });
       [].forEach.call($(key + 'Dots').children, function (b, n) { b.className = n === i ? 'on' : ''; });
       /* Movement's lists differ a lot in length: the strip is as tall as the one on screen, not the tallest */
-      if ((key === 'mv' || MY) && $(key).children[i]) $(key).style.height = $(key).children[i].offsetHeight + 'px';
+      /* 2026-10-11: and the lists that are NOT on screen are cut to that height too. They stood behind it at
+         their full length, so the card scrolled down into nothing ("I can scroll on the card and there is
+         nothing there"). */
+      if ((key === 'mv' || MY) && $(key).children[i]) {
+        var strip = $(key), on = strip.children[i], h;
+        on.style.maxHeight = ''; h = on.offsetHeight; strip.style.height = h + 'px';
+        [].forEach.call(strip.children, function (s) { if (s !== on) s.style.maxHeight = h + 'px'; });
+      }
     }
     function deckTo(key, i, smooth) {
       var k = $(key);
@@ -774,6 +879,47 @@
       if (!k || !k.children.length) return;
       deckTo(key, look[key], false);
       k.addEventListener('scroll', function () { clearTimeout(timer); timer = setTimeout(function () { if ($(key) === k) deckMark(key, deckAt(k)); }, 90); });
+      /* the strip is cut to the height of the list on screen (css: .deck), so it is measured again when the
+         letters arrive, as the company list is */
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if ($(key) === k) deckMark(key, look[key]); });
+    }
+    /* a turned phone or a resized window: the strip takes the height of its list again */
+    function deckFit() { ['deck', 'mv'].forEach(function (key) { if ($(key) && $(key).children.length) deckMark(key, look[key]); }); }
+    /* ---- THREE THINGS HE MET ON THE MOVEMENT CARD (Muhanad, 2026-10-11) ------------------------------
+       "when a user opens another tab the old one should be closed": ONE LINE IS OPEN AT A TIME (Started
+       asking, Came back, ...). Opening one closes the other, and so does moving to another of the three
+       lists. The line he tapped stays where his finger is: the one that closed above it would otherwise
+       pull it up and off the screen. And only the Movement card is drawn again, not the page: the dial
+       must not sweep again because a line was opened. */
+    function mvShut() {
+      var k = $('mv'); look.grp = {};
+      if (!k) return;
+      [].forEach.call(k.querySelectorAll('.mv-list'), function (n) { n.parentNode.removeChild(n); });
+      [].forEach.call(k.querySelectorAll('.mv-grp[aria-expanded="true"]'), function (b) { b.setAttribute('aria-expanded', 'false'); });
+    }
+    function drawMovement(g, top) {
+      var old = $('mv') && $('mv').closest('section'), box, card, b;
+      if (!old) { draw(true); return; }
+      box = document.createElement('div'); box.innerHTML = cardMovement(); card = box.firstChild;
+      card.style.setProperty('--i', old.style.getPropertyValue('--i'));
+      $('scr').className = 'scr';                                  /* a card put in afterwards must not rise again */
+      old.parentNode.replaceChild(card, old);
+      deckInit('mv');
+      b = g && document.querySelector('#mv [data-g="' + g + '"]');
+      if (b) window.scrollBy(0, b.getBoundingClientRect().top - top);
+    }
+    function openGroup(b) {
+      var g = b.dataset.g, was = !!look.grp[g], top = b.getBoundingClientRect().top;
+      look.grp = {}; look.grp[g] = !was;
+      drawMovement(g, top);
+    }
+    /* A ROW OF CHIPS THAT SLIDES KEEPS THE CHOSEN ONE IN SIGHT. He chose a chip far along the Companies row
+       and the page came back "starting with All": the row had been drawn again from its start. */
+    function chipSeen(row) {
+      var on = row.querySelector('[aria-pressed="true"]'), a, b;
+      if (!on || row.scrollWidth <= row.clientWidth + 1) return;
+      a = on.getBoundingClientRect(); b = row.getBoundingClientRect();
+      if (a.left < b.left + 12 || a.right > b.right - 12) row.scrollLeft += a.left - b.left - (b.width - a.width) / 2;
     }
     function cardTeamShort() {
       var top = A.people.filter(function (p) { return !A.single || p.n.offers; }).slice(0, 3);
@@ -1460,7 +1606,7 @@
       },
       team: function () {
         var n = A.tot;
-        return head(t('Team')) + '<section class="card wide"><h2>' + t('The team together') + ' <em>' + periodName() + '</em></h2>' + kv([[num(n.offers), t('Offers sent')], [num(n.meeting), t('Meetings')], [num(n.reservation + n.contract), t('Deals')]]) + '</section>' + cardTeam() + cardSentLink() + cardDeals() + cardFeed();
+        return head(t('Team')) + '<section class="card wide"><h2>' + t('The team together') + ' <em>' + periodName() + '</em></h2>' + kv([[num(n.offers), t('Offers sent')], [num(n.meeting), t('Meetings')], [num(n.reservation + n.contract), t('Deals')]]) + '</section>' + cardWeek() + cardTeam() + cardSentLink() + cardDeals() + cardFeed();
       },
       analysis: function () {
         var n = A.tot;
@@ -1499,8 +1645,11 @@
     function draw(keep) {
       /* build 132: under the pulse the page is built still, and rises when the dial lifts (pulse.enter) */
       var scr = $('scr'), y = window.scrollY, hush = !keep && pulse.building;
+      /* a page drawn again in place keeps each sliding row of chips where he left it */
+      var slid = keep ? [].map.call(scr.querySelectorAll('.chips.slide'), function (r) { return r.scrollLeft; }) : [];
       scr.className = 'scr' + (keep || hush ? '' : ' in');
       scr.innerHTML = SCREENS[look.tab]();
+      [].forEach.call(scr.querySelectorAll('.chips.slide'), function (r, i) { if (slid[i]) r.scrollLeft = slid[i]; chipSeen(r); });
       [].forEach.call(scr.children, function (el, i) { el.style.setProperty('--i', i); });
       window.scrollTo(0, keep ? y : 0);
       if (hush) pulse.enter = function () { scr.classList.add('in'); countUp(scr); };
@@ -2123,18 +2272,25 @@
       else if (d) download(d.dataset.dl, d.dataset.as || 'pdf', d);
       else if (hit('data-d')) deckTo(hit('data-d').dataset.dk || 'deck', +hit('data-d').dataset.d, true);
       else if (hit('data-step')) openStep(+hit('data-step').dataset.step);
-      else if (hit('data-all')) { look.all[hit('data-all').dataset.all] = true; draw(true); }
-      else if (hit('data-g')) { look.grp[hit('data-g').dataset.g] = !look.grp[hit('data-g').dataset.g]; draw(true); }
+      else if (hit('data-all')) { look.all[hit('data-all').dataset.all] = true; drawMovement(); }
+      else if (hit('data-g')) openGroup(hit('data-g'));
       else if (hit('data-w')) barPick(hit('data-w'));
       else if (k && MY) { if ($('rC') && $('rC').value !== '') myRec.company = +$('rC').value; myRec.kind = k.dataset.k; openMyRecord(); }
       else if (k) { recKind = k.dataset.k; openRecord(); }
+      else if (hit('data-wk')) openWeek(+hit('data-wk').dataset.wk);
       else if (c) openCompany(+c.dataset.c);
       else if (m) openPerson(+m.dataset.m);
       else if (g && MY) openMyList(g.dataset.go);
       else if (g) { look.filter = g.dataset.go; look.query = ''; look.tab = 'companies'; menuOpen = false; closeSheet(); draw(); }
       else if (hit('data-tab')) { look.tab = hit('data-tab').dataset.tab; menuOpen = false; draw(); }
       else if (hit('data-s')) openTile(hit('data-s').dataset.s);
-      else if (f) { look.filter = f.dataset.f; draw(true); }
+      /* a chip of the Companies list: the chip and the list change, nothing else is drawn again, so the row
+         of chips stays where he slid it and the chip he tapped stays under his finger (Muhanad, 2026-10-11) */
+      else if (f) {
+        look.filter = f.dataset.f;
+        [].forEach.call(f.parentNode.children, function (b) { b.setAttribute('aria-pressed', String(b === f)); });
+        if ($('clist')) { $('clist').innerHTML = companyList(); listInit(); } else draw(true);
+      }
       else if (r) setPeriod(r.dataset.r);
     });
     $('scr').addEventListener('change', function (e) {
@@ -2146,6 +2302,7 @@
     });
     $('scr').addEventListener('input', function (e) { if (e.target.id === 'q') { look.query = e.target.value; $('clist').innerHTML = companyList(); listInit(); } });
     window.addEventListener('resize', listFit);
+    window.addEventListener('resize', deckFit);
     /* build 138, the company found by typing: a letter un-chooses and lists the names; the list goes when
        he moves to another field of the form */
     $('sheet').addEventListener('input', function (e) { if (e.target.id === 'rCq') { $('rC').value = ''; pickList(); } });

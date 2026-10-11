@@ -494,3 +494,75 @@ html.is-locked .tab, html.is-locked .fab { opacity: 0; visibility: hidden; trans
 .choose button[aria-pressed="true"] { background: rgba(247, 149, 30, .16); }
 .choose button[aria-pressed="true"]::before { border-color: var(--acc); background: radial-gradient(circle, var(--acc) 0 45%, transparent 50%); }
 .choose button:focus-visible { outline: 2px solid var(--acc); outline-offset: -2px; }
+
+/* ---- THE WEEK (Muhanad, 2026-10-11; mocked first) ------------------------------------------------
+   One line for each sales agent on the Team tab: the name, the week's broadcasts as round dots (a
+   column for each working day, a dot for each one the day asks for), the week's orientations as
+   squares against the week's target, and one number each. A square's colour is the door the visit
+   knocked on; a green ring is a request that followed. Home carries one line that opens it. */
+.wk-card { --bcw: 78px; --orw: 105px; }
+.wk-card h2 { position: relative; }
+.wk-card h2 .why { cursor: help; }
+.wk-card h2 .why-tip { text-align: start; }
+.wk-head, .row.wk-row { display: grid; grid-template-columns: minmax(0, 1fr) var(--bcw) var(--orw); column-gap: 10px; align-items: center; }
+.wk-head { font-size: 8.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; color: var(--faint); margin-bottom: -6px; }
+.row.wk-row { row-gap: 0; padding: 11px 0; }
+/* a long name takes a second line: a name is never cut on this card */
+.wk-row .nm { white-space: normal; overflow-wrap: anywhere; }
+/* the little arrow never drops to a line of its own: it is tied to the last word of the name */
+.row.wk-row:not(.flat) .nm::after { content: "\00a0›"; }
+[dir="rtl"] .row.wk-row:not(.flat) .nm::after { content: "\00a0‹"; }
+.wk-m { display: grid; grid-template-columns: minmax(0, 1fr) 24px; gap: 8px; align-items: center; }
+.wk-m b { font-weight: 800; font-size: 18px; text-align: end; }
+.wk-m b.zero, .wk-days b.zero { color: var(--bad); }
+.wk-bc { display: grid; grid-auto-flow: column; grid-auto-columns: 5px; gap: 3px; }
+.wk-bc i, .wk-col i { border-radius: 50%; background: var(--never); }
+.wk-bc i.on, .wk-col i.on { background: var(--acc); }
+/* a day still to come: hollow */
+.wk-bc i.later, .wk-col i.later { background: none; box-shadow: inset 0 0 0 1px var(--never); }
+.wk-pp { display: grid; grid-auto-rows: 7px; gap: 6px 5px; padding: 3px; justify-content: start; }
+.wk-pp i, .wk-pip, .wk-keys i { border-radius: 2px; background: var(--never); }
+.wk-pp i.asking, .wk-pip.asking, .wk-keys i.asking { background: #85796e; }
+.wk-pp i.quiet, .wk-pip.quiet, .wk-keys i.quiet { background: var(--warn); }
+.wk-pp i.fresh, .wk-pip.fresh, .wk-keys i.fresh { background: var(--ink); }
+.wk-pp i.led, .wk-pip.led, .wk-keys i.led { outline: 1.5px solid var(--good); outline-offset: 1.5px; }
+.wk-pip, .wk-keys i { display: inline-block; flex: none; width: 8px; height: 8px; }
+.wk-keys i.led { width: 6px; height: 6px; margin: 0 1px; }
+/* the four words under the card: each one opens its sentence under them */
+.wk-keys { display: flex; flex-wrap: wrap; gap: 8px 14px; border-top: 1px solid var(--edge); padding-top: 12px; font-size: 11.5px; color: var(--mut); }
+.wk-keys .why { display: inline-flex; align-items: center; gap: 7px; border-bottom: 0; }
+.wk-keys .why span { border-bottom: 1px dotted var(--mut); }
+.wk-keys .why-tip { position: static; order: 1; flex-basis: 100%; box-shadow: none; }
+/* the line on Home, at the foot of the day's Broadcasts card */
+.go.wk-go b { font-size: 15px; }
+/* a sales agent's week, opened */
+.wk-days { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; }
+.wk-days > div { display: grid; justify-items: center; gap: 6px; }
+.wk-col { display: grid; gap: 4px; }
+.wk-col i { width: 9px; height: 9px; }
+.wk-days b { font-size: 16px; font-weight: 800; line-height: 1; }
+.wk-days b.later { color: var(--faint); }
+.wk-days small { font-size: 9.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--mut); }
+.kv span .wk-pip { margin-inline-end: 6px; }
+.row.wk-vis { grid-template-columns: 12px minmax(0, 1fr) auto; }
+.wk-vis .wk-pip { grid-column: 1; grid-row: 1; }
+.wk-vis .nm, .wk-vis .sub { grid-column: 2; }
+.wk-vis .val { grid-column: 3; grid-row: 1 / span 2; }
+.wk-vis .sub .ok { color: var(--good); font-weight: 600; }
+/* Arabic figures are set wider: the number keeps its own room beside the dots */
+html[lang="ar"] .wk-card { --bcw: 84px; --orw: 111px; }
+html[lang="ar"] .wk-m { grid-template-columns: minmax(0, 1fr) 30px; }
+
+/* ---- MOVEMENT AND THE CHIPS, three things he met (Muhanad, 2026-10-11) ----------------------------
+   THE CARD SCROLLED DOWN INTO NOTHING. A strip that slides sideways also scrolled down, to the height
+   of its tallest list, while the page showed a shorter one: "I can scroll on the card and there is
+   nothing there". The strip is cut to the list on screen (js sets its height) and never scrolls down. */
+.deck { overflow-y: hidden; }
+/* A COMPANY'S ROW STANDS APART FROM THE LINES. Under an opened line (Started asking, Came back, ...)
+   the companies were drawn like the lines themselves: "it is hard to see the difference". Each company
+   is now a lighter block of its own, and the line that is open keeps its plain look above them. */
+.mv-list { gap: 6px; padding: 0 0 12px; padding-inline-start: 0; border-inline-start: 0; margin-bottom: 0; }
+.mv-list .row, .mv-list .row:first-child { border-top: 0; border-radius: 14px; padding: 11px 12px; background: rgba(255, 244, 230, .055); }
+.mv-list .row:hover, .mv-list .row:focus-visible { background: rgba(255, 244, 230, .085); }
+.mv-list .mv-more { padding: 6px 12px 0; }
+.deck.mv .dslide, .deck.fit .dslide { overflow: hidden; }

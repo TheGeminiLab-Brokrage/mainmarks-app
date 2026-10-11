@@ -1233,7 +1233,25 @@
     'Save the payment plan': 'احفظ خطة السداد',
     'This contract was recorded with no payment plan. Once saved, the plan is in the history and is not changed here.': 'سُجّل هذا العقد بدون خطة سداد. بعد الحفظ تظهر الخطة في السجل ولا تُغيَّر من هنا.',
     'Saved. The plan is in the history.': 'تم الحفظ. الخطة في السجل.',
-    'This contract already has its payment plan. Open the page again.': 'لهذا العقد خطة سداد بالفعل. افتح الصفحة مرة أخرى.'
+    'This contract already has its payment plan. Open the page again.': 'لهذا العقد خطة سداد بالفعل. افتح الصفحة مرة أخرى.',
+    /* ---- "The week" card on Team Pulse (Muhanad, 2026-10-11). The Arabic is ours. A sentence with a
+       count is written "the thing: the number", so no noun has to agree with it. ---- */
+    'The week': 'الأسبوع',
+    'day {a} of {b}': 'اليوم {a} من {b}',
+    'The week runs Saturday to Thursday. Round dots are broadcasts: a column for each day, a dot for each of the {b} the day asks for. Squares are orientations, against {o} a week.': 'الأسبوع من السبت إلى الخميس. النقاط المستديرة هي النشر العام: عمود لكل يوم، ونقطة لكل منشور من الـ{b} المطلوبة في اليوم. المربعات هي الجلسات التعريفية، والهدف {o} في الأسبوع.',
+    '{a} of {b} broadcasts.': 'النشر العام: {a} من {b}.',
+    '{a} broadcasts so far.': 'النشر العام حتى الآن: {a}.',
+    '{a} broadcast so far.': 'النشر العام حتى الآن: {a}.',
+    '{c} orientations, {d} at companies already asking.': 'الجلسات التعريفية: {c}، منها {d} لدى شركات تطلب بالفعل.',
+    '{c} orientation, {d} at companies already asking.': 'الجلسات التعريفية: {c}، منها {d} لدى شركات تطلب بالفعل.',
+    'New door': 'باب جديد',
+    'Already asking': 'تطلب بالفعل',
+    'A request followed': 'تبعها طلب',
+    'New door: the company had never sent your team a request before this visit.': 'باب جديد: لم ترسل الشركة أي طلب لفريقك قبل هذه الزيارة.',
+    'Gone quiet: the company had asked before, but not in the 14 days before this visit.': 'هدأت: كانت الشركة تطلب من قبل، لكنها لم تطلب في الـ14 يوماً السابقة لهذه الزيارة.',
+    'Already asking: the company sent your team a request in the 14 days before this visit.': 'تطلب بالفعل: أرسلت الشركة طلباً لفريقك في الـ14 يوماً السابقة لهذه الزيارة.',
+    'A request followed: the company sent a request within 7 business days of the visit.': 'تبعها طلب: أرسلت الشركة طلباً خلال 7 أيام عمل من الزيارة.',
+    'No orientation this week.': 'لا جلسات تعريفية هذا الأسبوع.'
   };
 
   /* ---- the sheet's words and config values --------------------------- */
