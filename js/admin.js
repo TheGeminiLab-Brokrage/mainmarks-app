@@ -55,7 +55,12 @@
     MM_NO_REASON: 'Write why it is being removed.',
     MM_NO_SUCH_ENTRY: 'This entry is no longer there. Open the page again.',
     MM_RESERVATION_NOT_OPEN: 'This reservation has been signed or cancelled since. Open the page again.',
-    MM_UNIT_RESERVED: 'The unit has been reserved again since, so this cancellation can no longer be removed.'
+    MM_UNIT_RESERVED: 'The unit has been reserved again since, so this cancellation can no longer be removed.',
+    /* build 141: adding the plan to a contract */
+    MM_NO_PLAN: 'Pick the payment plan the customer signed.',
+    MM_BAD_PLAN: 'Type the down payment, from 0 to 100, and the years, up to 30.',
+    MM_PLAN_ALREADY_SET: 'This contract already has its payment plan. Open the page again.',
+    MM_ADMIN_ONLY: 'This account is not an admin account.'
   };
   function why(r) {
     var code = r && r.body && r.body.message;
@@ -93,7 +98,7 @@
      The lines come 200 at a time, the newest first. Which entries still stand is read whole, page by
      page: the store hands over one page of rows per question and says nothing when it stops. */
   var HPAGE = 200;
-  var hist = { rows: null, standing: {}, more: false, filter: 'all', busy: false, failed: false };
+  var hist = { rows: null, standing: {}, more: false, filter: 'all', busy: false, failed: false, plans: false };
   function getAll(path) {
     var out = [];
     var next = function (from) {
@@ -109,8 +114,14 @@
     var from = older && hist.rows ? hist.rows.length : 0;
     hist.busy = true;
     return Promise.all([
-      MM.auth.call('/rest/v1/mm_audit?select=id,at,by_id,action,detail&action=in.(record,cancel,take_back,remove,hand_over)&order=id.desc&limit=' + HPAGE + '&offset=' + from),
-      older ? Promise.resolve(null) : getAll('/rest/v1/mm_events?select=id,kind,ended&kind=neq.offer&order=id.asc')
+      MM.auth.call('/rest/v1/mm_audit?select=id,at,by_id,action,detail&action=in.(record,cancel,take_back,remove,hand_over,set_plan)&order=id.desc&limit=' + HPAGE + '&offset=' + from),
+      /* build 141: with each standing entry, the plan a contract was signed on and its unit type. A
+         store that has not had the build 141 file pasted yet has no such column and refuses the
+         question: it is then asked the way it was before, and no contract is offered a plan to add. */
+      older ? Promise.resolve(null) : getAll('/rest/v1/mm_events?select=id,kind,ended,product,plan,plan_down,plan_years&kind=neq.offer&order=id.asc').then(function (rows) { hist.plans = true; return rows; }, function () {
+        hist.plans = false;
+        return getAll('/rest/v1/mm_events?select=id,kind,ended&kind=neq.offer&order=id.asc');
+      })
     ]).then(function (r) {
       if (r[0].status !== 200 || !Array.isArray(r[0].body)) throw new Error('store');
       hist.rows = (older && hist.rows ? hist.rows : []).concat(r[0].body);
@@ -120,7 +131,7 @@
     }).catch(function () { hist.busy = false; hist.failed = true; });
   }
   var KINDL = { offer: t('Special request'), orientation: t('Orientation'), workshop: t('Workshop'), meeting: t('Meeting'), reservation: t('Reservation'), contract: t('Contract'), cancel: t('Cancelled reservation') };
-  var ACT = { record: ['rec', t('Recorded')], cancel: ['', t('Cancelled')], take_back: ['tb', t('Taken back the same day')], remove: ['rm', t('Removed')], hand_over: ['ho', t('Handed over')] };
+  var ACT = { record: ['rec', t('Recorded')], cancel: ['', t('Cancelled')], take_back: ['tb', t('Taken back the same day')], remove: ['rm', t('Removed')], hand_over: ['ho', t('Handed over')], set_plan: ['rec', t('Plan added')] };
   var PRODL = { 'Commercial': t('Commercial'), 'Offices': t('Offices'), 'The Fourth': 'The Fourth', 'Clinics': t('Clinics'), 'Serviced apartments': t('Serviced apartments') };
   var WHYL = { 'Client withdrew': t('Client withdrew'), 'Payment not made': t('Payment not made'), 'Moved to another unit': t('Moved to another unit'), 'Other': t('Other') };
   var LOCALE = AR ? 'ar-EG-u-nu-latn' : 'en-GB';
@@ -144,7 +155,7 @@
     var bits = [who ? nm(who.name) + (who2 ? ' + ' + nm(who2.name) : '') : '', by ? t('by {name}', { name: nm(by.name) }) : '', '<bdi>' + esc(whenAt(h.at)) + '</bdi>'].filter(Boolean);
     if (h.action === 'hand_over') bits = handed(h).concat(['<bdi>' + esc(whenAt(h.at)) + '</bdi>']);
     return '<button class="hl" type="button" data-h="' + esc(h.id) + '"><span class="k ' + a[0] + '">' + a[1] + '</span><b>' + esc(histTitle(d)) + '</b><small>' + bits.join(' · ') + '</small>' +
-      ((h.action === 'remove' || h.action === 'hand_over') && d.reason ? '<q>' + esc(d.reason) + '</q>' : (h.action === 'cancel' && d.why ? '<small>' + (WHYL[d.why] || esc(d.why)) + '</small>' : '')) + '</button>';
+      ((h.action === 'remove' || h.action === 'hand_over') && d.reason ? '<q>' + esc(d.reason) + '</q>' : (h.action === 'cancel' && d.why ? '<small>' + (WHYL[d.why] || esc(d.why)) + '</small>' : (h.action === 'set_plan' && d.plan ? '<small>' + nm(MM.contractPlan.text(d.plan, d.plan_down, d.plan_years)) + '</small>' : ''))) + '</button>';
   }
   function screenHistory() {
     var html = head(t('History'), t('Everything recorded, taken back, cancelled, removed or handed over, the newest first. Nobody can change a line.'));
@@ -166,6 +177,10 @@
     else if (d.product) rows.push([t('Unit type'), PRODL[d.product] || esc(d.product)]);
     /* an offer carries the unit's list price, which is no deal: it is not shown as one (build 140) */
     if (d.value && d.kind !== 'offer') rows.push([d.kind === 'contract' ? t('Contract price') : t('Reservation price'), money(d.value)]);
+    /* build 141: the plan a contract was signed on. A line keeps the contract as it was when the line
+       was written; a plan the admin added since is read from the contract as it stands today. */
+    var plan = d.plan ? d : (live && live.plan ? live : null);
+    if (d.kind === 'contract') rows.push([t('Payment plan'), plan ? nm(MM.contractPlan.text(plan.plan, plan.plan_down, plan.plan_years)) : t('Not recorded')]);
     if (who) rows.push([t('Sales agent'), nm(who.name) + (who2 ? ' + ' + nm(who2.name) : '')]);
     if (d.why) rows.push([t('Reason'), WHYL[d.why] || esc(d.why)]);
     if (h.action === 'hand_over') {
@@ -179,12 +194,37 @@
     if (h.action === 'record' || h.action === 'cancel') {
       if (!live) act = '<p class="note">' + t('This entry has since been removed or taken back. It is no longer counted.') + '</p>';
       else if (live.kind === 'reservation' && live.ended) act = '<p class="note">' + (live.ended === 'contract' ? t('This reservation was signed. Remove its contract first.') : t('This reservation was cancelled. Remove the cancellation first.')) + '</p>';
-      else act = '<label class="fld">' + t('Why is it being removed') + '<input id="hWhy" type="text" maxlength="200" autocomplete="off"></label><p class="note bad" id="aErr" hidden></p>' +
-        '<button class="btn" type="button" id="hGo" data-id="' + esc(d.id) + '">' + t('Remove this entry') + '</button>' +
+      else act = addPlan(live) + '<label class="fld">' + t('Why is it being removed') + '<input id="hWhy" type="text" maxlength="200" autocomplete="off"></label><p class="note bad" id="aErr" hidden></p>' +
+        '<button class="btn' + (addPlan(live) ? ' ghost' : '') + '" type="button" id="hGo" data-id="' + esc(d.id) + '">' + t('Remove this entry') + '</button>' +
         '<p class="note">' + t('A reason is required. The removal and its reason stay in this history. To correct the entry, the sales agent or his manager records it again.') + '</p>';
     }
     showSheet('<div><h3>' + (KINDL[d.kind] || esc(d.kind || '')) + '</h3><p class="role">' + a[1] + (d.company_id ? ' · ' + nm(companyName(d.company_id)) : '') + '</p></div>' +
       '<div class="facts">' + rows.map(function (r) { return '<div><span>' + r[0] + '</span><b>' + r[1] + '</b></div>'; }).join('') + '</div><div class="form">' + act + '</div>');
+  }
+  /* build 141, A CONTRACT RECORDED BEFORE THE PLAN WAS ASKED FOR (Muhanad, 2026-10-11: such a contract
+     stays as it is, shown with no plan, and the admin can add the plan). The line of a contract that
+     still stands and has no plan opens with the plan line of the Record form (MM.contractPlan,
+     js/auth.js) and its own button, above the way to remove it. The store asks "is this the admin?"
+     itself, saves the plan and writes the line of the history in one step (mm_set_plan). A plan that
+     is saved is not changed here: a wrong one is corrected like anything else on a contract, removed
+     with a reason and recorded again. */
+  function addPlan(live) {
+    if (!hist.plans || !live || live.kind !== 'contract' || live.plan) return '';
+    return MM.contractPlan.field(live.product || undefined, '') + '<p class="note bad" id="pErr" hidden></p>' +
+      '<button class="btn" type="button" id="hPlan" data-id="' + esc(live.id) + '" data-product="' + esc(live.product || '') + '">' + t('Save the payment plan') + '</button>' +
+      '<p class="note">' + t('This contract was recorded with no payment plan. Once saved, the plan is in the history and is not changed here.') + '</p>';
+  }
+  function savePlan(btn) {
+    var no = function (msg) { var n = $('pErr'); if (n) { n.textContent = msg; n.hidden = false; } };
+    var pl = MM.contractPlan.read($('rPl').value, btn.dataset.product || undefined, $('rPd').value, $('rPy').value);
+    if (pl.missing) return no(pl.missing === 'plan' ? t('Pick the payment plan the customer signed.') : t('Type the down payment, from 0 to 100, and the years, up to 30.'));
+    btn.disabled = true; $('pErr').hidden = true;
+    rpc('mm_set_plan', { p_contract: btn.dataset.id, p_plan: pl.id, p_plan_down: pl.down, p_plan_years: pl.years }).then(function (r) {
+      btn.disabled = false;
+      if (r.status >= 300) return no(why(r));
+      closeSheet();
+      loadHistory().then(function () { draw(); toast(t('Saved. The plan is in the history.')); });
+    }, function () { btn.disabled = false; no(t('No connection. Try again when you are online.')); });
   }
   function removeEntry(btn) {
     var why = ($('hWhy') ? $('hWhy').value : '').replace(/\s+/g, ' ').trim();
@@ -535,6 +575,7 @@
     else if (tb) { tab = tb.dataset.t; find = ''; if (tab === 'history') hist.failed = false; draw(); window.scrollTo(0, 0); }
     else if (hit('data-hf')) { hist.filter = hit('data-hf').dataset.hf; draw(); }
     else if (e.target.closest('#hGo')) removeEntry(e.target.closest('#hGo'));
+    else if (e.target.closest('#hPlan')) savePlan(e.target.closest('#hPlan'));
     else if (e.target.closest('#hMore')) { e.target.closest('#hMore').disabled = true; loadHistory(true).then(draw); }
     else if (hit('data-h')) openHistory(hit('data-h').dataset.h);
     else if (p) openPerson(p.dataset.p);
@@ -547,6 +588,9 @@
     else if (e.target.closest('#out')) { MM.auth.signOut(); location.replace('login.html'); }
   });
   document.addEventListener('input', function (e) { if (e.target.id === 'find') { find = e.target.value; draw(); } });
+  /* build 141: "Another plan" shows the two numbers it asks for */
+  document.addEventListener('change', function (e) { if (e.target.id === 'rPl' && $('rPlO')) { $('rPlO').hidden = e.target.value !== 'other'; if ($('pErr')) $('pErr').hidden = true; } });
+  document.addEventListener('input', function (e) { if ((e.target.id === 'rPd' || e.target.id === 'rPy') && $('pErr')) $('pErr').hidden = true; });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeSheet(); });
 
   /* for the check script: the email rule, without a browser tap */

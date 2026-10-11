@@ -25,6 +25,9 @@
           contract entered from a reservation, the reservation it closes
      made on an entry recorded on this phone: the day it was entered
      end  on a reservation: 'contract' | 'cancel' (never deleted, only marked)
+     pl   on a contract (build 141): the payment plan it was signed on, by its id in the project's
+          list, or 'other' for a special deal; pd = the down payment in per cent, py = the years.
+          None of the three on a contract recorded before the plan was asked for.
    When the real store exists it hands js/manager.js this same object and
    nothing on the page changes.
 
@@ -181,6 +184,17 @@
       if (!ended) { delete e.end; delete e.endD; }
     });
 
+    /* build 141: a contract carries the plan it was signed on. The demo's contracts take one of the
+       plans their unit can be sold on, chosen by the unit's code and not from the seed, so not one
+       earlier figure moves and a contract keeps its plan from one day to the next. */
+    if (MM.contractPlan) events.forEach(function (e) {
+      if (e.k !== 'contract') return;
+      var list = MM.contractPlan.list(e.p), h = 0, i, code = String(e.u || ''), pl;
+      for (i = 0; i < code.length; i++) h += code.charCodeAt(i);
+      pl = list[h % (list.length || 1)];
+      if (pl) { e.pl = pl.id; e.pd = pl.down; e.py = pl.years; }
+    });
+
     /* ---- what was recorded on this phone, kept across visits -------- */
     var book;
     function iso(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
@@ -204,6 +218,7 @@
       var m2 = codeAt(r.m2);
       if (r.made) e.made = r.made;                                       /* the day it was entered, which is not always its date */
       if (r.k === 'reservation' || r.k === 'contract') { e.u = r.u; e.area = r.area || null; e.v = r.v; }
+      if (r.k === 'contract' && r.pl) { e.pl = r.pl; e.pd = r.pd; e.py = r.py; }   /* build 141: the plan it was signed on */
       if (r.k !== 'meeting' && m2 !== -1 && m2 !== m) e.m2 = m2;       /* a deal split with, or a visit made with */
       /* build 121: a contract entered FROM a reservation closes it; the reservation is kept, marked */
       if (r.k === 'contract' && r.of) {
@@ -267,11 +282,12 @@
       available: function (code) { return !!free[String(code || '').trim().toUpperCase()]; },
       productOf: productOf,
       recorded: function () { return stored.length; },
-      /* r: { k, c: company index, m: salesperson index, m2, date: Date, p, u, v } */
+      /* r: { k, c: company index, m: salesperson index, m2, date: Date, p, u, v; on a contract pl, pd, py } */
       add: function (r) {
         var u = r.u ? book.unit(r.u) : null, d = agoOf(r.date);
         return keep({ k: r.k, c: companies[r.c], m: team[r.m].code, m2: r.m2 == null ? null : team[r.m2].code, date: iso(r.date), t: d === 0 ? now : 12 * 60,
-          p: u ? productOf(u) : r.p, u: r.u || null, area: u ? u.area : null, v: r.v || 0, of: r.of || null, made: iso(today) });
+          p: u ? productOf(u) : r.p, u: r.u || null, area: u ? u.area : null, v: r.v || 0, of: r.of || null, made: iso(today),
+          pl: r.k === 'contract' ? r.pl || null : null, pd: r.k === 'contract' && r.pl ? r.pd : null, py: r.k === 'contract' && r.pl ? r.py : null });
       },
       remove: remove, removable: removable, removeWhy: removeWhy,
       cancel: function (id, date, why) { return keep({ k: 'cancel', of: id, date: iso(date), t: agoOf(date) === 0 ? now : 12 * 60, why: why }); },
@@ -417,6 +433,8 @@
       if (r.why) e.why = r.why;
       if (r.of_id) e.of = r.of_id;
       if (r.ended) { e.end = r.ended; if (r.ended_on && fromIso(r.ended_on)) e.endD = Math.max(0, agoOf(fromIso(r.ended_on))); }
+      /* build 141: the plan a contract was signed on. A contract recorded before that has none. */
+      if (r.kind === 'contract' && r.plan) { e.pl = r.plan; e.pd = Number(r.plan_down); e.py = Number(r.plan_years); }
       e.made = r.made_on;
       e.mine = r.created_by === me.id;
       /* build 140, AN OFFER A SALES MANAGER SENT HIMSELF (Muhanad, 2026-10-10). It is saved in the manager's
@@ -461,7 +479,7 @@
       recorded: function () { return 0; },
       add: function (r) {
         var u = r.u ? byCode[String(r.u).toUpperCase()] : null;
-        return rpc('mm_record', {
+        var body = {
           p_kind: r.k, p_company: ids[r.c] || null, p_date: iso(r.date),
           p_product: u ? productOf(u) : (r.p || null), p_unit: r.u || null, p_area: u ? u.area : null, p_value: r.v || null,
           p_with: r.m2 === undefined || r.m2 === null || !team[r.m2] ? null : team[r.m2].id,
@@ -469,7 +487,12 @@
              keeps that reservation's names, whoever they are. A sales agent's entry is always his own. */
           p_of: r.of || null, p_for: lead && !r.of && team[r.m] && team[r.m].id !== me.id ? team[r.m].id : null,
           p_client_ref: 'r-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12)
-        }).then(function (saved) {
+        };
+        /* build 141: a contract carries the plan it was signed on, and the store refuses one without
+           (MM_NO_PLAN). The three values go with a contract only: the store finds its function by the
+           names it is sent, and every other kind is sent exactly what it was sent before. */
+        if (r.k === 'contract') { body.p_plan = r.pl || null; body.p_plan_down = r.pl ? r.pd : null; body.p_plan_years = r.pl ? r.py : null; }
+        return rpc('mm_record', body).then(function (saved) {
           var e = row(saved);
           if (!e) throw new Error('MM_FAILED');
           events.push(e);

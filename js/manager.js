@@ -1063,6 +1063,7 @@
       var rows = [[t('Brokerage company'), nm(book[e.c].name)], [t('Date'), fmt(e.d) + ' ' + B.dateOf(e.d).getFullYear()]], at, act;
       if (e.u) rows.push([t('Unit'), nm(prod(e.p) + ' ' + e.u) + (e.area ? ' · ' + t('{n} m²', { n: e.area }) : '')]); else if (e.p) rows.push([t('Unit type'), prod(e.p)]);
       if (e.v) rows.push([e.k === 'contract' ? t('Contract price') : t('Reservation price'), t('EGP {n}', { n: Math.round(e.v).toLocaleString('en-US') })]);
+      if (e.k === 'contract') rows.push(planRow(e));                     /* build 141: the plan it was signed on */
       rows.push([isVisit(e) ? t('Who went') : t('Sales agent'), nm(TEAM[e.m].name)]);
       if (e.m2 !== undefined) rows.push([isVisit(e) ? t('Also went') : t('Split with'), nm(TEAM[e.m2].name)]);
       if (isVisit(e)) rows.push([t('What followed'), followed(e).text]);
@@ -1189,6 +1190,7 @@
       var rows = [[t('Brokerage company'), nm(book[e.c].name)], [t('Date'), fmt(e.d) + ' ' + B.dateOf(e.d).getFullYear()]];
       if (e.u) rows.push([t('Unit'), nm(prod(e.p) + ' ' + e.u) + (e.area ? ' · ' + t('{n} m²', { n: e.area }) : '')]); else if (e.p) rows.push([t('Unit type'), prod(e.p)]);
       if (e.v) rows.push([e.k === 'contract' ? t('Contract price') : t('Reservation price'), t('EGP {n}', { n: Math.round(e.v).toLocaleString('en-US') })]);
+      if (e.k === 'contract') rows.push(planRow(e));                     /* build 141: the plan it was signed on */
       if (other(e)) rows.push([isVisit(e) ? t('Also went') : t('Split with'), nm(other(e))]);
       if (isVisit(e)) rows.push([t('What followed'), followed(e).text]);
       if (e.k === 'reservation') rows.push([t('Today'), fateOf(e)]);
@@ -1295,7 +1297,7 @@
       else if (k === 'meeting') body = company + '<div class="range"><label class="fld">' + t('Unit type') + '<select id="rP">' + B.products.map(function (p, i) { return '<option value="' + i + '">' + esc(prod(p)) + '</option>'; }).join('') + '</select></label>' + date + '</div>';
       else if (k === 'reservation') body = company + unit + '<div class="range">' + price(t('Reservation price, EGP')) + date + '</div>' + mate(t('Split the deal with'));
       else body = '<label class="fld">' + t('Which reservation was signed') + '<select id="rR">' + A.open.map(function (e) { return '<option value="' + esc(e.id) + '">' + esc(e.u + ' · ' + book[e.c].name + ' · ' + fmt(e.d)) + '</option>'; }).join('') + '<option value="">' + t('A unit with no reservation recorded') + '</option></select></label>' +
-        '<div class="form" id="rFree"' + (A.open.length ? ' hidden' : '') + '>' + company + unit + mate(t('Split the deal with')) + '</div><div class="range">' + price(t('Contract price, EGP')) + date + '</div>';
+        '<div class="form" id="rFree"' + (A.open.length ? ' hidden' : '') + '>' + company + unit + mate(t('Split the deal with')) + '</div>' + MM.contractPlan.field(A.open.length ? A.open[0].p : undefined, '') + '<div class="range">' + price(t('Contract price, EGP')) + date + '</div>';
       showSheet('<div><h3>' + t('Record') + '</h3><p class="role">' + t('Entered under your name: {name}', { name: nm(WHO.name) }) + '</p></div><div class="form">' +
         '<div class="chips">' + ['orientation', 'workshop', 'meeting', 'reservation', 'contract'].map(function (x) { return '<button class="chip" type="button" data-k="' + x + '" aria-pressed="' + (k === x) + '">' + KIND[x] + '</button>'; }).join('') + '</div>' + body +
         '<p class="note bad" id="rErr" hidden></p><button class="btn" type="button" id="rSave">' + SAVE[k] + '</button></div>');
@@ -1306,9 +1308,43 @@
       var rs = A.open.filter(function (e) { return e.id === $('rR').value; })[0], v = $('rV');
       $('rFree').hidden = !!rs;
       if (rs) { v.value = grouped(rs.v); v.dataset.auto = '1'; } else if (v.dataset.auto) v.value = '';
+      planList();
     }
+    /* ---- THE PAYMENT PLAN OF A CONTRACT (build 141; Muhanad, 2026-10-11) --------------------------------
+       A contract kept the unit, the price and the names, and not how the customer is paying. Agreed with
+       him on a mock the same day, his four answers: the plan must be picked before a contract is saved;
+       an offer's plans stay in the list after the offer ends; a special deal ("Another plan") asks for
+       its down payment and its years; a contract recorded before this stays as it is, with no plan, and
+       the admin can add it. The list, its words and the reading of the two numbers are one piece of code
+       for this form, the manager's and the admin's (MM.contractPlan, js/auth.js). The rule itself is the
+       store's (mm_record: MM_NO_PLAN): this form only does not send what the store would refuse.
+       The plans offered follow the UNIT: the reservation's, or the one whose code is typed. A plan that
+       does not apply to that unit leaves the list, and leaves the choice if it was the one chosen. */
+    function planProduct() {
+      var rs = $('rR') && $('rR').value ? A.open.filter(function (e) { return e.id === $('rR').value; })[0] : null, u;
+      if (rs) return rs.p;
+      u = $('rU') ? B.unit($('rU').value.trim().toUpperCase()) : null;
+      return u ? B.productOf(u) : undefined;
+    }
+    function planList() {
+      var s = $('rPl'), was;
+      if (!s) return;
+      was = s.value;
+      s.innerHTML = MM.contractPlan.options(planProduct(), was);
+      if (s.value !== was) s.value = '';
+      $('rPlO').hidden = s.value !== 'other';
+    }
+    /* the plan as the form holds it, onto the entry `r`; or the sentence that says what is missing */
+    function planOnto(r) {
+      var pl = MM.contractPlan.read($('rPl').value, r.p, $('rPd').value, $('rPy').value);
+      if (pl.missing) return pl.missing === 'plan' ? t('Pick the payment plan the customer signed.') : t('Type the down payment, from 0 to 100, and the years, up to 30.');
+      r.pl = pl.id; r.pd = pl.down; r.py = pl.years;
+      return '';
+    }
+    function planRow(e) { return [t('Payment plan'), e.pl ? nm(MM.contractPlan.text(e.pl, e.pd, e.py)) : t('Not recorded')]; }
     function checkUnit() {
       var box = $('rChk'), code = $('rU').value.trim().toUpperCase(), u = B.unit(code), v = $('rV'), listed, free;
+      planList();
       if (!code) { box.className = 'chk wait'; box.textContent = t('Type the unit code to see the unit.'); return; }
       if (!u) { box.className = 'chk bad'; box.textContent = t('No unit has this code. Check it and type it again.'); return; }
       listed = u.listPrice || u.finalPrice; free = B.available(code);
@@ -1318,7 +1354,7 @@
     }
     function saveMyRecord() {
       var k = myRec.kind, bad = function (msg) { var n = $('rErr'); n.textContent = msg; n.hidden = false; };
-      var date = B.fromIso($('rD').value), rs = null, r, u, code, v, e, d;
+      var date = B.fromIso($('rD').value), rs = null, r, u, code, v, e, d, need;
       if (!date || agoOf($('rD').value) !== B.agoOf(date)) return bad(t('Choose a date in the last 12 weeks.'));
       d = B.agoOf(date);
       r = { k: k, m: ME, date: date };
@@ -1347,6 +1383,8 @@
         if (!(v > 0)) return bad(t('Enter the price in EGP.'));
         r.v = v;
       }
+      /* build 141: no contract without the plan it was signed on */
+      need = k === 'contract' ? planOnto(r) : ''; if (need) return bad(need);
       if (!rs && $('rS') && $('rS').value !== '') r.m2 = +$('rS').value;
       if ((k === 'orientation' || k === 'workshop') && events.some(function (x) { return x.k === k && x.c === r.c && x.d === d; }))
         return bad(k === 'orientation' ? t('You already recorded an orientation at {name} on {date}.', { name: B.companies[r.c], date: fmt(d) }) : t('You already recorded a workshop at {name} on {date}.', { name: B.companies[r.c], date: fmt(d) }));
@@ -1377,6 +1415,9 @@
       if (m === 'MM_VISIT_ALREADY_RECORDED' && !MY && B.companies[c] !== undefined) return twice(k, recFor, c, d);
       if (m === 'MM_VISIT_ALREADY_RECORDED' && B.companies[c] !== undefined) return k === 'workshop' ? t('You already recorded a workshop at {name} on {date}.', { name: B.companies[c], date: fmt(d) }) : t('You already recorded an orientation at {name} on {date}.', { name: B.companies[c], date: fmt(d) });
       if (m === 'MM_SALES_AGENT_ONLY') return t('An entry is always in a sales agent’s name. Choose the sales agent.');
+      /* build 141: the store's own refusal of a contract with no plan, or with numbers that cannot be */
+      if (m === 'MM_NO_PLAN') return t('Pick the payment plan the customer signed.');
+      if (m === 'MM_BAD_PLAN') return t('Type the down payment, from 0 to 100, and the years, up to 30.');
       if (m === 'MM_BAD_DATE') return t('Choose a date in the last 12 weeks.');
       if (m === 'MM_NO_TEAM') return t('Your account is not in a team yet. Ask the admin to add you to one.');
       if (m === 'MM_NO_COMPANY') return t('This company is no longer on the list. Choose another.');
@@ -1623,7 +1664,7 @@
         else if (k === 'meeting') body = person + company + '<div class="range"><label class="fld">' + t('Unit type') + '<select id="rP">' + B.products.map(function (p, n) { return o(n, prod(p)); }).join('') + '</select></label>' + date + '</div>';
         else if (k === 'reservation') body = person + company + unit + '<div class="range">' + price(t('Reservation price, EGP')) + date + '</div>' + second(t('Split the deal with'));
         else body = '<label class="fld">' + t('Which reservation was signed') + '<select id="rR">' + A.open.map(function (e) { return o(e.id, e.u + ' · ' + book[e.c].name + ' · ' + TEAM[e.m].name + ' · ' + fmt(e.d)); }).join('') + '<option value="">' + t('A unit with no reservation recorded') + '</option></select></label>' +
-          '<div class="form" id="rFree"' + (A.open.length ? ' hidden' : '') + '>' + person + company + unit + second(t('Split the deal with')) + '</div><div class="range">' + price(t('Contract price, EGP')) + date + '</div>';
+          '<div class="form" id="rFree"' + (A.open.length ? ' hidden' : '') + '>' + person + company + unit + second(t('Split the deal with')) + '</div>' + MM.contractPlan.field(A.open.length ? A.open[0].p : undefined, '') + '<div class="range">' + price(t('Contract price, EGP')) + date + '</div>';
         body += err + '<button class="btn" type="button" id="rSave">' + SAVE[k] + '</button>';
       }
       showSheet('<div><h3>' + t('Record for your team') + '</h3><p class="role">' + t('For any sales agent under you') + '</p></div><div class="form">' +
@@ -1632,7 +1673,7 @@
     }
     function saveRecord() {
       var k = recKind, went = k === 'orientation' || k === 'workshop', bad = function (msg) { var n = $('rErr'); n.textContent = msg; n.hidden = false; };
-      var date = B.fromIso($('rD').value), rs = null, r = null, u, v, d, code = '', out;
+      var date = B.fromIso($('rD').value), rs = null, r = null, u, v, d, code = '', out, need;
       if (!date || agoOf($('rD').value) !== B.agoOf(date)) return bad(t('Choose a date in the last 12 weeks.'));
       d = B.agoOf(date);
       if (k === 'cancel' || (k === 'contract' && $('rR').value)) {
@@ -1667,6 +1708,8 @@
           if (!(v > 0)) return bad(t('Enter the price in EGP.'));
           r.v = v;
         }
+        /* build 141: no contract without the plan it was signed on */
+        need = k === 'contract' ? planOnto(r) : ''; if (need) return bad(need);
         if (!rs && $('rS') && $('rS').value !== '' && +$('rS').value !== r.m) r.m2 = +$('rS').value;
         if (went && events.some(function (x) { return x.k === k && x.c === r.c && x.d === d && x.m === r.m; })) return bad(twice(k, r.m, r.c, d));
         recFor = r.m;
@@ -2048,7 +2091,7 @@
       if (e.target.id === 'rU') checkUnit();
       else if (e.target.id === 'rV') delete e.target.dataset.auto;
     });
-    $('sheet').addEventListener('change', function (e) { if ($('rErr')) $('rErr').hidden = true; if (e.target.id === 'rR' && $('rFree')) fromReservation(); });
+    $('sheet').addEventListener('change', function (e) { if ($('rErr')) $('rErr').hidden = true; if (e.target.id === 'rR' && $('rFree')) fromReservation(); if (e.target.id === 'rPl' && $('rPlO')) $('rPlO').hidden = e.target.value !== 'other'; });
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') closeSheet();
       /* build 136: an entry in a feed is a row that opens; the keyboard opens it too */

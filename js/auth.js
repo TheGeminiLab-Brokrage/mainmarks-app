@@ -576,6 +576,103 @@
   }
   MM.nameFind = nameFind;
 
+  /* build 141, THE PAYMENT PLAN A CONTRACT WAS SIGNED ON (Muhanad, 2026-10-11). One reading of the
+     project's plans for the three places that need it: the sales agent's Record form, the manager's
+     (js/manager.js) and the admin's History (js/admin.js). His four answers on the mock:
+       - the plan must be picked before a contract is saved
+       - an offer's plans STAY in this list after the offer ends (`until` is not read here): a contract
+         can be signed later on a reservation made during the offer
+       - a special deal is "Another plan", and asks for its down payment and its years
+       - a contract recorded before this has no plan; the admin can add it
+     A plan is never listed for a unit type it names in `notFor` (as js/plans.js: the offer does not
+     apply to commercial units). What the store keeps is the plan's id and two numbers, so that the
+     record still says what was signed when this list changes: the down payment in per cent of the
+     price, and the years. Spot cash is 100 and 0. */
+  var PLAN_TYPE = { 'Commercial': 'Commercial', 'Clinics': 'Clinic', 'Offices': 'Admin', 'The Fourth': 'Admin' };
+  var PLAN_GROUPS = [['offer', 'Offer plans'], ['original', 'Standard plans']];
+  function escH(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function projectPlans() {
+    var list = (typeof CONFIG !== 'undefined' && CONFIG.projects) || [], i;
+    for (i = 0; i < list.length; i++) if (list[i].id === 'moray') return list[i].plans || [];
+    return [];
+  }
+  function planNumbers(pl) { return pl.cash ? { down: 100, years: 0 } : { down: Math.round(pl.down * 10000) / 100, years: pl.years }; }
+  function planFits(down, years) { return down >= 0 && down <= 100 && years >= 0 && years <= 30 && (years > 0 || down === 100); }
+  /* the plans a contract on this unit type can be signed on: [{ id, group, label, down, years }].
+     `product` is the book's word for the unit ('Clinics', 'Commercial'); not known yet: every plan. */
+  function contractPlans(product) {
+    var type = PLAN_TYPE[product], out = [];
+    projectPlans().forEach(function (pl) {
+      var n = planNumbers(pl);
+      if (!pl.id || pl.id === 'other' || !/^[a-z0-9][a-z0-9-]{0,39}$/.test(pl.id) || !planFits(n.down, n.years)) return;
+      if (type && pl.notFor && pl.notFor.indexOf(type) !== -1) return;
+      out.push({ id: pl.id, group: pl.group || '', label: pl.label, down: n.down, years: n.years });
+    });
+    return out;
+  }
+  function planLabel(label) { return MM.tx && MM.tx.plan ? MM.tx.plan(label) : label; }
+  /* the choices of the plan line, for the unit type in hand; `chosen` stays chosen when still offered */
+  function planOptions(product, chosen) {
+    var t = MM.t, list = contractPlans(product), used = {}, html = '<option value="">' + escH(t('Pick the plan')) + '</option>';
+    var opt = function (pl) { used[pl.id] = 1; return '<option value="' + escH(pl.id) + '"' + (pl.id === chosen ? ' selected' : '') + '>' + escH(planLabel(pl.label)) + '</option>'; };
+    PLAN_GROUPS.forEach(function (g) {
+      var mine = list.filter(function (pl) { return pl.group === g[0]; });
+      if (mine.length) html += '<optgroup label="' + escH(t(g[1])) + '">' + mine.map(opt).join('') + '</optgroup>';
+    });
+    html += list.filter(function (pl) { return !used[pl.id]; }).map(opt).join('');
+    return html + '<optgroup label="' + escH(t('A special deal')) + '"><option value="other"' + (chosen === 'other' ? ' selected' : '') + '>' + escH(t('Another plan')) + '</option></optgroup>';
+  }
+  /* the plan line of a form: the list, and the two numbers "Another plan" asks for */
+  function planField(product, chosen) {
+    var t = MM.t;
+    return '<label class="fld">' + t('Payment plan') + '<select id="rPl">' + planOptions(product, chosen) + '</select></label>' +
+      '<div class="range" id="rPlO"' + (chosen === 'other' ? '' : ' hidden') + '><label class="fld">' + t('Down payment, %') + '<input id="rPd" type="text" inputmode="decimal" autocomplete="off"></label>' +
+      '<label class="fld">' + t('Years') + '<input id="rPy" type="text" inputmode="decimal" autocomplete="off"></label></div>';
+  }
+  /* A number typed by hand, in either script: "12.5", "20%", and the same in Arabic digits with the
+     Arabic decimal mark. Anything else (a sign, a second mark, a letter, a comma) is not a number here:
+     null, never a guess. An Arabic decimal mark that is simply dropped makes a number ten times too
+     large, so each character is read by its own code. */
+  function typedNumber(s) {
+    var x = String(s == null ? '' : s).trim(), out = '', i, c;
+    for (i = 0; i < x.length; i++) {
+      c = x.charCodeAt(i);
+      if (c >= 0x660 && c <= 0x669) out += String(c - 0x660);
+      else if (c >= 0x6F0 && c <= 0x6F9) out += String(c - 0x6F0);
+      else if (c === 0x66B) out += '.';
+      else if (c === 0x66A) out += '%';
+      else out += x.charAt(i);
+    }
+    out = out.replace(/\s*%$/, '');
+    return /^\d{1,3}(\.\d{1,2})?$/.test(out) ? Number(out) : null;
+  }
+  /* what the plan line holds: { id, down, years }, or { missing: 'plan' | 'numbers' }. A listed plan's
+     numbers are the project's own; a special deal's are the two typed, and must be a plan that can be. */
+  function planRead(id, product, downTyped, yearsTyped) {
+    var list, i, d, y;
+    if (!id) return { missing: 'plan' };
+    if (id === 'other') {
+      d = typedNumber(downTyped); y = typedNumber(yearsTyped);
+      return d === null || y === null || !planFits(d, y) ? { missing: 'numbers' } : { id: 'other', down: d, years: y };
+    }
+    list = contractPlans(product);
+    for (i = 0; i < list.length; i++) if (list[i].id === id) return { id: id, down: list[i].down, years: list[i].years };
+    return { missing: 'plan' };
+  }
+  /* a saved plan in words: the project's own label while its id is on the list; a special deal, or a
+     plan that has since left the list, by its two numbers */
+  function planText(id, down, years) {
+    var list = projectPlans(), t = MM.t, ar = MM.isArabic, iso = MM.iso || String, i, d = Number(down), y = Number(years), nums;
+    if (!id) return '';
+    for (i = 0; i < list.length; i++) if (list[i].id === id) return planLabel(list[i].label);
+    if (!(d >= 0) || !(y >= 0)) return id === 'other' ? t('Another plan') : String(id);
+    if (y === 0) nums = t('Cash');
+    else if (!ar) nums = d + '% down · ' + y + (y === 1 ? ' year' : ' years');
+    else nums = (d === 0 ? 'بدون مقدم' : 'مقدم ' + iso(d + '%')) + ' · ' + (y === 1 ? 'سنة واحدة' : y === 2 ? 'سنتان' : iso(y) + (y >= 3 && y <= 10 ? ' سنوات' : ' سنة'));
+    return id === 'other' ? t('Another plan') + ' · ' + nums : nums;
+  }
+  MM.contractPlan = { list: contractPlans, options: planOptions, field: planField, read: planRead, text: planText, number: typedNumber };
+
   MM.auth = {
     real: real,
     token: token,

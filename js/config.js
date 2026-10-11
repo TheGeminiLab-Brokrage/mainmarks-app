@@ -14,7 +14,7 @@ const CONFIG = {
   /* Bumped on every deploy, and matched by the ?v= on every script tag in
      the HTML. That pair is what stops a returning phone running yesterday's
      JavaScript. See README, "Deploying". */
-  build: 140,
+  build: 141,
 
   /* Where the activity log is sent. Empty = kept on the device only, which
      is where it is today. Filling this in is the whole change when the
@@ -1022,7 +1022,12 @@ const CONFIG = {
          `discount` is the plan's own; the price it applies to is the
          sheet's live price. `until` ends the offer by itself: after that
          date the plan is not offered at all. `notFor` = unit types the
-         plan does not apply to ("does NOT apply to commercial units"). */
+         plan does not apply to ("does NOT apply to commercial units").
+         build 141: A PLAN STAYS IN THIS LIST AFTER ITS `until` HAS PASSED. The offer pages stop
+         showing it by themselves; the contract form (MM.contractPlan, js/auth.js) still lists it,
+         because a contract can be signed later on a reservation made during the offer (Muhanad,
+         2026-10-11). And an `id` is never given to a different plan later: contracts are saved
+         under it. */
       plans: [
         { id: 'o0-8',  group: 'offer', label: '0% down · 8 years',                down: 0,    years: 8,  every: 3, until: '2026-10-15', notFor: ['Commercial'] },
         { id: 'o20-8', group: 'offer', label: '20% down · 8 years · 10% off',     down: 0.20, years: 8,  every: 3, discount: 0.10, until: '2026-10-15', notFor: ['Commercial'] },

@@ -1217,7 +1217,23 @@
     'Write why it is being changed.': 'اكتب سبب التغيير.',
     'Handed over to {name}': 'تم التسليم إلى {name}',
     'This offer is no longer there. Open the page again.': 'هذا العرض لم يعد موجوداً. افتح الصفحة مرة أخرى.',
-    'This could not be handed over. Try again.': 'تعذَّر التسليم. حاول مرة أخرى.'
+    'This could not be handed over. Try again.': 'تعذَّر التسليم. حاول مرة أخرى.',
+    /* build 141: the payment plan a contract was signed on (the Record forms, an opened contract, the admin's History) */
+    'Pick the plan': 'اختر الخطة',
+    'Offer plans': 'خطط العرض',
+    'A special deal': 'صفقة خاصة',
+    'Another plan': 'خطة أخرى',
+    'Down payment, %': 'المقدم، %',
+    'Years': 'عدد السنوات',
+    'Cash': 'كاش',
+    'Not recorded': 'غير مسجّلة',
+    'Pick the payment plan the customer signed.': 'اختر خطة السداد التي وقّع عليها العميل.',
+    'Type the down payment, from 0 to 100, and the years, up to 30.': 'اكتب نسبة المقدم، من 0 إلى 100، وعدد السنوات، حتى 30.',
+    'Plan added': 'أُضيفت الخطة',
+    'Save the payment plan': 'احفظ خطة السداد',
+    'This contract was recorded with no payment plan. Once saved, the plan is in the history and is not changed here.': 'سُجّل هذا العقد بدون خطة سداد. بعد الحفظ تظهر الخطة في السجل ولا تُغيَّر من هنا.',
+    'Saved. The plan is in the history.': 'تم الحفظ. الخطة في السجل.',
+    'This contract already has its payment plan. Open the page again.': 'لهذا العقد خطة سداد بالفعل. افتح الصفحة مرة أخرى.'
   };
 
   /* ---- the sheet's words and config values --------------------------- */
