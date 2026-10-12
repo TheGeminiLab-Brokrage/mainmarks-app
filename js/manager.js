@@ -70,7 +70,9 @@
      It stands before the sign-in check on purpose: that check asks the store whether he is still
      switched on, and it must find `after` here to wait behind. */
   var pulse = (function () {
-    var el = MY ? document.getElementById('pulseIn') : null;
+    /* build 143: Team Pulse has the drawing too, for the way in from the sales app (manager.html, which
+       hides it for every other way in; hidden, it is no more than a function call here) */
+    var el = document.getElementById('pulseIn');
     var MIN = 1380, CAP = 1200;
     /* a person who asked for less motion has no pulse (the stylesheet removes the dial as well). Asked of
        the setting itself, not of the dial: on Profile the dial is hidden and the pulse must still be
@@ -210,7 +212,7 @@
     return api;
   }());
   /* the price file needs no hold here: the pulse does not wait for it, its reading does (calm) */
-  if (MY) MM.entry = { hold: function () { return function () {}; }, calm: pulse.calm, after: pulse.after };
+  MM.entry = { hold: function () { return function () {}; }, calm: pulse.calm, after: pulse.after };
 
   var session = MM.auth.require(MY ? 'my.html' : 'manager.html');
   if (!session) return;
@@ -516,28 +518,42 @@
        says its week in words when the pointer, the keyboard or a finger reaches it.
        weeks: [{ n, info }], oldest first. */
     var barInfo = [];
-    function bars(weeks, cls) {
+    /* `glass`: the name under which the caller kept what each week holds (GB), for a chart whose columns open
+       to a pane of glass (openGlass); without it a column only says its week in the line below */
+    function bars(weeks, cls, glass) {
       var max = Math.max.apply(null, weeks.map(function (w) { return w.n; })) || 1, pick = 11, i;
       for (i = 11; i >= 0; i--) if (weeks[i].n) { pick = i; break; }
       barInfo = weeks.map(function (w) { return w.info; });
-      return '<div class="chart"><div class="big ' + (cls || '') + '">' + weeks.map(function (w, k) {
+      return '<div class="chart"' + (glass ? ' data-gb="' + glass + '"' : '') + '><div class="big ' + (cls || '') + '">' + weeks.map(function (w, k) {
         return '<button type="button" class="col' + (k === pick ? ' on' : '') + '" data-w="' + k + '" style="--d:' + k + '" aria-label="' + esc(w.info) + '">' + (w.mark ? '<em>' + esc(w.mark) + '</em>' : '') + '<b>' + (w.n || '') + '</b><i class="' + (w.n ? '' : 'z') + '" style="--h:' + (w.n ? Math.max(.1, w.n / max).toFixed(3) : '.05') + '"></i></button>';
-      }).join('') + '</div><div class="wk">' + [0, 3, 6, 9].map(function (k) { return '<span>' + fmt((11 - k) * 7 + 6) + '</span>'; }).join('') + '</div>' +
+      }).join('') + '</div><div class="wk">' + [0, 3, 6, 9].map(function (k) { return '<span>' + fmt(weekFirst(k)) + '</span>'; }).join('') + '</div>' +
         '<p class="barinfo" id="barinfo" aria-live="polite">' + esc(weeks[pick].info) + '</p></div>';
     }
     function barPick(col) {
-      var box = col.closest('.chart'), info = barInfo[+col.dataset.w];
-      if (!box || info === undefined) return;
+      /* build 143: the words are the column's own (its label), so several charts can stand in one sheet */
+      var box = col.closest('.chart'), info = col.getAttribute('aria-label');
+      if (!box || info === null) return;
       [].forEach.call(box.querySelectorAll('.col'), function (c) { c.classList.toggle('on', c === col); });
       box.querySelector('.barinfo').textContent = info;
     }
-    function weekRange(i) { return fmt((11 - i) * 7 + 6) + ' – ' + fmt((11 - i) * 7); }
-    /* 12 weeks of one list of events, each described by `describe(events of that week) -> { n, text }` */
+    /* build 143, A WEEK BEGINS ON SATURDAY, IN EVERY CHART AND EVERY REPORT (Muhanad, 2026-10-12, on a pane
+       whose days ran Tuesday to Monday: "make the days start from the begining of the week not the last day in
+       the weeks"; then, asked about the other charts: "yes make it in the company chart as well"). The twelve
+       weeks used to be seven days counted back from today, again and again. They are the weeks of the calendar
+       now, Saturday to Friday, as "The week" card begins its week: the newest column is this week as far as it
+       has gone (its last day is below zero until Friday comes), and what is older than the twelfth Saturday is
+       not drawn, where it used to be added to the first column. */
+    var SAT = null;
+    function satAgo() { if (SAT === null) { SAT = 0; while (B.dateOf(SAT).getDay() !== 6) SAT++; } return SAT; }
+    function weekFirst(k) { return satAgo() + 7 * (11 - k); }
+    function weekRange(i) { return fmt(weekFirst(i)) + ' – ' + fmt(weekFirst(i) - 6); }
+    /* 12 weeks of one list of events, each described by `describe(events of that week) -> { n, text }`;
+       `ev` is what the week holds, for the pane a column opens */
     function weeksOf(list, describe) {
-      var w = [], i;
+      var w = [], i, sat = satAgo();
       for (i = 0; i < 12; i++) w.push([]);
-      list.forEach(function (e) { w[11 - Math.min(11, Math.floor(e.d / 7))].push(e); });
-      return w.map(function (ev, k) { var d = describe(ev); return { n: d.n, mark: d.mark || '', from: (11 - k) * 7 + 6, to: (11 - k) * 7, info: weekRange(k) + ': ' + d.text }; });
+      list.forEach(function (e) { var back = Math.max(0, Math.ceil((e.d - sat) / 7)); if (back < 12) w[11 - back].push(e); });
+      return w.map(function (ev, k) { var d = describe(ev); return { n: d.n, mark: d.mark || '', ev: ev, from: weekFirst(k), to: weekFirst(k) - 6, info: weekRange(k) + ': ' + d.text }; });
     }
     function extras(n) {
       var out = [];
@@ -562,6 +578,106 @@
         var n = tally(ev), comps = distinct(ev.filter(function (e) { return e.k === 'offer'; }), 'c').length;
         return { n: n.offers, text: (n.offers ? [count(n.special, 'request'), count(n.broadcast, 'broadcast'), count(comps, 'company')] : [t('nothing sent')]).concat(extras(n)).join(' · ') };
       });
+    }
+    /* build 143, A SALES AGENT'S TWELVE WEEKS, ONE KIND OF WORK AT A TIME (Muhanad, 2026-10-12: "having this
+       graph seperate stating with bodcasts then a swipe will move it to specail request another swipe move it
+       to orentations another swipe workshops another swipe meetings another swipe reservations another swipe
+       done deals"). One chart for each, in his order; a swipe or a tap on its name moves on. */
+    var PD = [['broadcast', t('Broadcasts'), 'broadcast'], ['special', t('Special requests'), 'special'], ['orientation', t('Orientations'), 'orientation'], ['workshop', t('Workshops'), 'workshop'],
+      ['meeting', t('Meetings'), 'meeting'], ['reservation', t('Reservations'), 'reservation'], ['contract', t('Contracts'), 'contract']];
+    /* GB: what each column of a chart holds, by the chart's name, kept for the pane of glass a tap on a column
+       opens (openGlass): { label, head, who, w: [the events of each week], kinds } */
+    var GB = {}, glassFrom = null;
+    function personDeck(id) {
+      var all = events.filter(function (e) { return e.m === id || e.m2 === id; });
+      return '<div class="chips slide" id="pdTabs">' + PD.map(function (k, i) { return '<button class="chip" type="button" data-pd="' + i + '" aria-pressed="' + (i === 0) + '">' + k[1] + '</button>'; }).join('') + '</div>' +
+        '<div class="deck" id="pd">' + PD.map(function (k, i) {
+          var W = weeksOf(all.filter(function (e) { return kindOf(e) === k[0]; }), function (ev) { return { n: ev.length, text: count(ev.length, k[2]) }; });
+          GB['p' + i] = { label: k[1], head: k[1], who: nm(TEAM[id].name), w: W.map(function (x) { return x.ev; }) };
+          return '<div class="dslide">' + bars(W, 'ink', 'p' + i) + '</div>';
+        }).join('') + '</div><div class="dots" id="pdDots" aria-hidden="true">' + PD.map(function (k, i) { return '<i class="' + (i ? '' : 'on') + '"></i>'; }).join('') + '</div>';
+    }
+    /* build 143, A COLUMN OF A SALES AGENT'S CHART OPENS TO WHAT IT HOLDS (Muhanad, 2026-10-12: "if he click on
+       any of the candles a glassy with the same feel of the app pop up having the app background blur a little
+       bit and show him the details of what he clicked on"). A pane of glass over the sheet, the app blurred
+       behind it: the kind of work, whose it is, the week, and each entry of that week, newest first, as the
+       feed draws them (an entry still opens to its own sheet). A week that holds nothing opens nothing: the
+       line under the chart already says so. The two elements are made here, on the first tap, so neither
+       page's markup changes. */
+    function openGlass(col) {
+      var box = col.closest('.chart'), G = box && GB[box.getAttribute('data-gb')], w = +col.dataset.w;
+      var list = G && G.w[w], g = $('glass'), v, range = weekRange(w);
+      if (!list || !list.length) return;
+      if (!g) {
+        v = document.createElement('div'); v.className = 'gveil'; v.id = 'gveil';
+        g = document.createElement('div'); g.className = 'glass'; g.id = 'glass'; g.setAttribute('role', 'dialog'); g.setAttribute('aria-modal', 'true');
+        document.body.appendChild(v); document.body.appendChild(g);
+        v.addEventListener('click', closeGlass);
+        void g.offsetWidth;                                               /* so the first one rises like the rest */
+      }
+      glassFrom = col;
+      g.setAttribute('aria-label', G.label + ' · ' + range);
+      g.innerHTML = '<button class="x" id="closeGlass" type="button" aria-label="' + esc(t('Close')) + '">✕</button>' +
+        '<div><h3>' + G.head + ' <b>' + list.length + '</b></h3><p class="role">' + (G.who ? G.who + ' · ' : '') + '<bdi>' + range + '</bdi></p></div>' + glassDays(list, weekFirst(w), G.kinds);
+      g.scrollTop = 0;
+      g.classList.add('on'); $('gveil').classList.add('on');
+      $('closeGlass').addEventListener('click', closeGlass);
+      $('closeGlass').focus({ preventScroll: true });
+    }
+    /* THE PANE, DAY BY DAY (Muhanad, 2026-10-12, on the first pane, one row after another: "it is hard to see
+       the dates and know how many was sent each day ... have them in a way that is easier of the eye"). First
+       the week at a glance: its seven days, each with its number, a day with nothing dimmed. Then one block
+       for each day that holds something: the day and its number once, and under it the hour of each entry
+       and who it was for. The kind is the pane's heading, so a row does not repeat it. `from` is the week's
+       first day, its Saturday, as days ago; a day still to come (below zero) shows a dot, not a nought. */
+    function glassDays(list, from, kinds) {
+      var by = {}, d, strip = '', out = '', to = from - 6;
+      list.forEach(function (e) { (by[e.d] = by[e.d] || []).push(e); });
+      for (d = from; d >= to; d--) {
+        strip += '<div><small>' + DAY[B.dateOf(d).getDay()] + '</small><b' + (by[d] ? '' : ' class="none"') + '>' + (by[d] ? by[d].length : d < 0 ? '·' : 0) + '</b><span>' + B.dateOf(d).getDate() + '</span></div>';
+      }
+      /* his next word (2026-10-12): "organize the days better and maybe do the trick that we do in the excel
+         sheet tables one day is darker in color the other lighters". So the days run in the order of the row
+         above them, the first day of the week first and each day's entries from its morning on, and each day
+         is a block of its own, one a shade darker, the next a shade lighter (css: .gl-days). */
+      for (d = from; d >= to; d--) {
+        if (!by[d]) continue;
+        out += '<div class="gl-day"><p><span>' + DAY[B.dateOf(d).getDay()] + ' · ' + fmt(d) + '</span><b>' + by[d].length + '</b></p><div class="feed">' + by[d].slice().sort(function (a, b) { return a.t - b.t; }).map(function (e) {
+          var how = sentHow(e), tap = !MY && e.k !== 'offer';
+          return '<div' + (tap ? ' class="tap" role="button" tabindex="0" data-e="' + esc(e.id) + '"' : '') + '><time>' + hhmm(e.t) + '</time><span>' + (kinds ? KIND[kindOf(e)] + sentTimes(e) + '<small>' + (MY ? '' : people(e) + ' · ') + detail(e) + '</small>'
+            : e.c !== null ? nm(book[e.c].name) + sentTimes(e) + '<small>' + detail(e) + '</small>' : detail(e) + sentTimes(e)) +
+            (how ? '<small class="how">' + how + '</small>' : '') + '</span></div>';
+        }).join('') + '</div></div>';
+      }
+      return '<div class="gl-week" aria-hidden="true">' + strip + '</div><div class="gl-days">' + out + '</div>';
+    }
+    /* answers whether a pane was open, so Escape closes the pane first and the sheet only after */
+    function closeGlass() {
+      var g = $('glass');
+      if (!g || !g.classList.contains('on')) return false;
+      g.classList.remove('on'); $('gveil').classList.remove('on');
+      if (glassFrom && document.contains(glassFrom)) glassFrom.focus({ preventScroll: true });
+      glassFrom = null;
+      return true;
+    }
+    function pdMark(i) {
+      var tabs = $('pdTabs'), dots = $('pdDots'), on;
+      if (!tabs || !dots) return;
+      [].forEach.call(tabs.children, function (b, n) { b.setAttribute('aria-pressed', String(n === i)); });
+      [].forEach.call(dots.children, function (b, n) { b.className = n === i ? 'on' : ''; });
+      /* the name of the chart on screen is brought into view in its own row; the sheet itself does not move */
+      on = tabs.children[i];
+      if (on) tabs.scrollTo({ left: on.offsetLeft - tabs.firstElementChild.offsetLeft - (tabs.clientWidth - on.offsetWidth) / 2, behavior: 'smooth' });
+    }
+    function pdTo(i) {
+      var k = $('pd');
+      if (!k || !k.children[i]) return;
+      k.scrollTo({ left: k.children[i].offsetLeft - k.firstElementChild.offsetLeft, behavior: 'smooth' });
+      pdMark(i);
+    }
+    function pdInit() {
+      var k = $('pd'), timer;
+      if (k) k.addEventListener('scroll', function () { clearTimeout(timer); timer = setTimeout(function () { if ($('pd') === k) pdMark(deckAt(k)); }, 80); });
     }
     function teamWeeks() {
       return weeksOf(events, function (ev) { var n = tally(ev); return { n: n.special, text: '' }; });
@@ -858,6 +974,15 @@
       look[key] = i;
       [].forEach.call($(key + 'Tabs').children, function (b, n) { b.setAttribute('aria-pressed', String(n === i)); });
       [].forEach.call($(key + 'Dots').children, function (b, n) { b.className = n === i ? 'on' : ''; });
+      /* build 143: THE CHOSEN NAME SHOWS WHOLE (Muhanad, 2026-10-12, with a picture of "Inactive" chosen and cut
+         off at the card's edge: "when selected the whole work should show"). The row of names moves only as
+         far as it takes to bring the chosen one inside the card, and not at all when it is already there. */
+      var tabs = $(key + 'Tabs'), chip = tabs.children[i], a, c;
+      if (chip && tabs.scrollBy) {
+        a = tabs.getBoundingClientRect(); c = chip.getBoundingClientRect();
+        if (c.right > a.right - 16) tabs.scrollBy({ left: c.right - a.right + 16, behavior: 'smooth' });
+        else if (c.left < a.left + 16) tabs.scrollBy({ left: c.left - a.left - 16, behavior: 'smooth' });
+      }
       /* Movement's lists differ a lot in length: the strip is as tall as the one on screen, not the tallest */
       /* 2026-10-11: and the lists that are NOT on screen are cut to that height too. They stood behind it at
          their full length, so the card scrolled down into nothing ("I can scroll on the card and there is
@@ -1147,6 +1272,41 @@
        signed, the path from request to contract), the manager's six tiles on his own rows, his
        companies as the same swipe deck, and what he entered. An offer is never entered: it is counted
        when it is sent. */
+    /* build 143, THE TEAM'S SALES OPEN THE TEAM TAB (Muhanad, 2026-10-12: "in the team tap no need for the above
+       overview saying the team toghther ( offer sent, meetings,deals ) as this info is already in the home page
+       we can instead han an animation that shows the total team sales").
+       The first drawing (the figure counting up over a line of shares) he refused: "no it should be an animation
+       like the team pulse animation". Of three looks on a mock he took the first, in green (2026-10-12): the
+       Team Pulse half-dial (start.html, my.html) fills with each sales agent's share, the largest first, the
+       orange heartbeat draws through it once and gives way to the figure; the first three are named under it.
+       The drawing is CSS (css/manager.css, "build 143"); at rest, and for a person who asked for less motion,
+       it is the finished dial with its figure.
+       A DEAL SPLIT BETWEEN TWO SALES AGENTS IS HALF TO EACH HERE (his "yes", 2026-10-12, asked because the
+       names added up to more than the team's figure: a sales agent's own sheet counts a split contract in
+       full, as it always has). So the shares on this card add up to the figure in the dial. */
+    function cardTeamSales() {
+      var n = A.tot, path = 'M 20 116 A 100 100 0 0 1 220 116', half = Math.PI * 100, off = 0, tone = [1, .8, .62, .46, .34, .24], share = {};
+      A.list.forEach(function (e) {
+        if (e.k !== 'contract') return;
+        if (e.m2 === undefined) share[e.m] = (share[e.m] || 0) + e.v;
+        else { share[e.m] = (share[e.m] || 0) + e.v / 2; share[e.m2] = (share[e.m2] || 0) + e.v / 2; }
+      });
+      var who = A.people.map(function (p) { return { name: p.name, v: share[p.id] || 0 }; }).filter(function (p) { return p.v > 0; }).sort(function (a, b) { return b.v - a.v; });
+      var sum = who.reduce(function (a, p) { return a + p.v; }, 0) || 1;
+      var arcs = who.map(function (p, i) {
+        var len = half * p.v / sum;
+        var a = '<path class="ts-arc" style="--k:' + i + '" d="' + path + '" stroke-opacity="' + (tone[i] || .2) + '" stroke-dasharray="' + Math.max(0, len - 4).toFixed(1) + ' ' + (half * 2).toFixed(1) + '" stroke-dashoffset="' + (-off).toFixed(1) + '"/>';
+        off += len;
+        return a;
+      }).join('');
+      return '<section class="card wide ts"><h2>' + t('Team sales') + ' <em>' + periodName() + '</em></h2>' +
+        '<svg class="gauge ts-dial" viewBox="0 0 240 128" role="img" aria-label="' + esc(t('Team sales') + ' ' + money(n.value) + who.map(function (p) { return ', ' + p.name + ' ' + money(p.v); }).join('')) + '">' +
+        '<path class="track" d="' + path + '"/>' + arcs +
+        '<path class="ts-beat" pathLength="100" d="M 62 100 h 34 l 9 -26 l 13 44 l 11 -32 l 7 14 h 42"/>' +
+        '<g class="ts-fig"><text x="120" y="98" text-anchor="middle" font-size="42" font-weight="800"><tspan data-n="' + mil(n.value) + '" data-dec="1" data-wait="1900">' + mil(n.value) + '</tspan>' + (AR ? '' : 'M') + '</text>' +
+        '<text x="120" y="118" text-anchor="middle" font-size="11" opacity=".6">' + (AR ? t('million EGP') : 'EGP') + (n.contract ? ' · ' + count(n.contract, 'contract') : '') + '</text></g></svg>' +
+        (who.length ? '<div class="ts-who">' + who.slice(0, 3).map(function (p, i) { return '<span><i style="--o:' + tone[i] + '"></i>' + esc(p.name.split(' ')[0]) + ' <b>' + money(p.v) + '</b></span>'; }).join('') + '</div>' : '') + '</section>';
+    }
     function cardSales() {
       var n = A.tot, held = A.open.reduce(function (a, e) { return a + e.v; }, 0), max = Math.max(n.special, 1);
       var bar = function (cls, label, v) { return '<div class="' + cls + '"><span>' + label + '</span><i style="--w:' + (v / max).toFixed(3) + '"></i><b>' + v + '</b></div>'; };
@@ -1606,7 +1766,7 @@
       },
       team: function () {
         var n = A.tot;
-        return head(t('Team')) + '<section class="card wide"><h2>' + t('The team together') + ' <em>' + periodName() + '</em></h2>' + kv([[num(n.offers), t('Offers sent')], [num(n.meeting), t('Meetings')], [num(n.reservation + n.contract), t('Deals')]]) + '</section>' + cardWeek() + cardTeam() + cardSentLink() + cardDeals() + cardFeed();
+        return head(t('Team')) + cardTeamSales() + cardWeek() + cardTeam() + cardSentLink() + cardDeals() + cardFeed();
       },
       analysis: function () {
         var n = A.tot;
@@ -1663,10 +1823,12 @@
       if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
       [].forEach.call(root.querySelectorAll('[data-n]'), function (el) {
         /* data-dec: a figure with decimals (EGP 76.7M) counts up with them */
-        var to = +el.dataset.n, dec = +el.dataset.dec || 0, t0 = null;
+        var to = +el.dataset.n, dec = +el.dataset.dec || 0, wait = +el.dataset.wait || 0, t0 = null;
         function step(now) { if (!t0) t0 = now; var k = Math.min(1, (now - t0) / 750), v = to * (1 - Math.pow(1 - k, 3)); el.textContent = dec ? v.toFixed(dec) : Math.round(v); if (k < 1) requestAnimationFrame(step); }
         /* the timer is the floor: a background tab runs no animation frames, and must not be left on 0 */
-        el.textContent = '0'; requestAnimationFrame(step); setTimeout(function () { el.textContent = el.dataset.n; }, 900);
+        function go() { requestAnimationFrame(step); setTimeout(function () { el.textContent = el.dataset.n; }, 900); }
+        /* build 143, data-wait: a figure that is shown only after its drawing (Team sales) counts up then */
+        el.textContent = '0'; if (wait) setTimeout(go, wait); else go();
       });
     }
     var opener = null;
@@ -1679,6 +1841,7 @@
       $('closeSheet').addEventListener('click', closeSheet);
     }
     function closeSheet() {
+      closeGlass();
       if (!$('sheet').classList.contains('on')) return;
       $('sheet').classList.remove('on'); $('veil').classList.remove('on');
       document.documentElement.classList.remove('is-locked');
@@ -1701,8 +1864,13 @@
       var mine = events.filter(function (e) { return e.c === id && inP(e); }), n = A.byC[id];
       var who = distinct(mine, 'm').map(function (m) { return { m: m, n: mine.filter(function (e) { return e.m === m && e.k === 'offer'; }).length }; }).filter(function (x) { return x.n; }).sort(function (a, b) { return b.n - a.n; });
       var prods = {}; mine.forEach(function (e) { if (e.k === 'offer') prods[e.p] = (prods[e.p] || 0) + 1; });
+      /* build 143: a column of the company's chart opens to that week with the company, as a sales agent's does
+         (Muhanad, 2026-10-12: "make it in the company chart as well"): every entry of the week, each named by
+         its kind and, for a manager, by who it was */
+      var CW = companyWeeks(id);
+      GB.c = { label: c.name, head: nm(c.name), who: '', kinds: true, w: CW.map(function (x) { return x.ev; }) };
       showSheet('<div><h3>' + esc(c.name) + '</h3><p class="role">' + pill(c.state, true) + ' · ' + ago(c) + (c.first !== null ? ' · ' + t('first asked {date}', { date: fmt(c.first) }) : '') + '</p></div>' +
-        '<p class="sec">' + (MY ? t('Requests to you · 12 weeks') : t('Requests to your team · 12 weeks')) + '</p>' + bars(companyWeeks(id)) +
+        '<p class="sec">' + (MY ? t('Requests to you · 12 weeks') : t('Requests to your team · 12 weeks')) + '</p>' + bars(CW, '', 'c') +
         (c.ev.some(isVisit) ? '<p class="note">' + t('{o} orientation · {w} workshop, in the week it took place.', { o: '<b>' + KIND.orientation.charAt(0) + '</b>', w: '<b>' + KIND.workshop.charAt(0) + '</b>' }) + '</p>' : '') +
         '<p class="sec">' + rangeText() + '</p>' + kv([[n.special, t('Requests')], [n.meeting, t('Meetings')], [n.reservation + n.contract, t('Deals')]]) +
         (n.cancel ? '<p class="note"><b>' + t('{x} cancelled', { x: count(n.cancel, 'reservation') }) + '</b> ' + t('in these dates.') + '</p>' : '') +
@@ -1729,10 +1897,11 @@
         kv([[p.companies, t('Companies')], [p.n.meeting, t('Meetings')], [p.n.reservation + p.n.contract, t('Deals')]]) +
         (p.n.cancel ? '<p class="note"><b>' + t('{x} cancelled', { x: count(p.n.cancel, 'reservation') }) + '</b> ' + t('in these dates.') + '</p>' : '') +
         (p.n.offers ? '<p class="note">' + t('Sent as {a} and {b}', { a: count(post, 'post'), b: count(pdf, 'pdf') }) + (p.last ? ' · ' + t('last activity {time}', { time: when(p.last) }) : '') + '</p>' : '<p class="note">' + t('No activity in these dates.') + '</p>') +
-        '<p class="sec">' + t('Offers each week · 12 weeks') + '</p>' + bars(personWeeks(id), 'ink') +
+        '<p class="sec">' + t('Each week · 12 weeks') + ' <em>' + t('swipe, or tap a name') + '</em></p>' + personDeck(id) +
         (comps.length ? '<p class="sec">' + t('Companies in these dates') + '</p><div class="who">' + comps.slice(0, 6).map(function (x) { return '<div><span>' + esc(x.c.name) + ' <small>' + (x.m ? '· ' + count(x.m, 'meeting') : '') + '</small></span><b>' + x.n + '</b></div>'; }).join('') + (comps.length > 6 ? '<div><small>' + t('{n} more in the download.', { n: comps.length - 6 }) + '</small></div>' : '') + '</div>' : '') +
         (mine.length ? '<p class="sec">' + t('Latest activity') + '</p>' + feed(mine.slice().sort(newest).slice(0, 6), false) : '') +
         dlBtn('person:' + id, t('Download {name}’s activity', { name: esc(p.name.split(' ')[0]) })));
+      pdInit();
     }
     var TILE = { orientation: t('Orientations'), workshop: t('Workshops'), offers: t('Offers sent'), asked: t('Companies that asked'), deals: t('Reservations and contracts'), meeting: t('Meetings'), reservation: t('Reservations'), contract: t('Contracts') };
     function tileList(k) {
@@ -2242,7 +2411,7 @@
     });
     $('sheet').addEventListener('change', function (e) { if ($('rErr')) $('rErr').hidden = true; if (e.target.id === 'rR' && $('rFree')) fromReservation(); if (e.target.id === 'rPl' && $('rPlO')) $('rPlO').hidden = e.target.value !== 'other'; });
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') closeSheet();
+      if (e.key === 'Escape') { if (!closeGlass()) closeSheet(); }
       /* build 136: an entry in a feed is a row that opens; the keyboard opens it too */
       else if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[role="button"][data-e]')) { e.preventDefault(); openEntry(e.target.dataset.e); }
     });
@@ -2266,7 +2435,7 @@
       else if (hit('data-pc')) pickChoose(+hit('data-pc').dataset.pc);
       else if (hit('data-rm')) removeEntry(hit('data-rm').dataset.rm);
       else if (hit('data-rec')) { myRec.company = +hit('data-rec').dataset.rec; openMyRecord(); }
-      else if (hit('data-e')) openEntry(hit('data-e').dataset.e);
+      else if (hit('data-e')) { closeGlass(); openEntry(hit('data-e').dataset.e); }
       else if (e.target.closest('#wipe')) { B.reset(); location.reload(); }
       else if (l) { if (l.dataset.lang !== MM.lang) MM.setLang(l.dataset.lang); }
       else if (d) download(d.dataset.dl, d.dataset.as || 'pdf', d);
@@ -2274,7 +2443,8 @@
       else if (hit('data-step')) openStep(+hit('data-step').dataset.step);
       else if (hit('data-all')) { look.all[hit('data-all').dataset.all] = true; drawMovement(); }
       else if (hit('data-g')) openGroup(hit('data-g'));
-      else if (hit('data-w')) barPick(hit('data-w'));
+      else if (hit('data-pd')) pdTo(+hit('data-pd').dataset.pd);
+      else if (hit('data-w')) { barPick(hit('data-w')); openGlass(hit('data-w')); }
       else if (k && MY) { if ($('rC') && $('rC').value !== '') myRec.company = +$('rC').value; myRec.kind = k.dataset.k; openMyRecord(); }
       else if (k) { recKind = k.dataset.k; openRecord(); }
       else if (hit('data-wk')) openWeek(+hit('data-wk').dataset.wk);

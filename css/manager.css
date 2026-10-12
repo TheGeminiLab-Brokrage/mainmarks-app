@@ -566,3 +566,68 @@ html[lang="ar"] .wk-m { grid-template-columns: minmax(0, 1fr) 30px; }
 .mv-list .row:hover, .mv-list .row:focus-visible { background: rgba(255, 244, 230, .085); }
 .mv-list .mv-more { padding: 6px 12px 0; }
 .deck.mv .dslide, .deck.fit .dslide { overflow: hidden; }
+
+/* ---- build 143: the team's sales on the Team tab; a sales agent's weeks, one kind of work at a time ---- */
+/* Team sales is the Team Pulse drawing (css/styles.css, "Team Pulse: the half-dial, a heartbeat through it"),
+   in green, his choice on the mock: the dial fills with each sales agent's share, the heartbeat draws through
+   once and gives way to the figure. Without the animations it is the finished dial: no heartbeat, the figure shown. */
+.ts-dial { direction: ltr; overflow: visible; }
+.gauge .ts-arc { stroke: var(--good); animation: ts-sweep .85s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(var(--k) * 120ms + 120ms); }
+.gauge .ts-beat { stroke: var(--acc); stroke-width: 3; stroke-linejoin: round; stroke-dasharray: 100; stroke-dashoffset: 0; opacity: 0; filter: drop-shadow(0 0 6px rgba(247,149,30,.7)); animation: ts-beat 1.9s cubic-bezier(.45, 0, .2, 1) .35s both; }
+.ts-fig { transform-box: fill-box; transform-origin: center; animation: ts-fig .5s ease-out 1.9s both; }
+@keyframes ts-sweep { from { stroke-dasharray: 0 629; } }
+@keyframes ts-beat { 0% { stroke-dashoffset: 100; opacity: 1; } 45%, 75% { stroke-dashoffset: 0; opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+@keyframes ts-fig { from { opacity: 0; transform: translateY(6px); } }
+.ts-who { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; font-size: 12px; color: var(--mut); }
+.ts-who span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; } .ts-who b { color: var(--ink); font-weight: 700; }
+.ts-who i { width: 8px; height: 8px; border-radius: 50%; background: var(--good); opacity: var(--o, 1); }
+/* A column of a sales agent's chart opens to what it holds: a pane of glass over the sheet, the app blurred a
+   little behind it (js/manager.js, openGlass). Where a browser cannot blur what lies behind, it is the app's
+   own card on a darker veil. */
+.gveil { position: fixed; inset: 0; z-index: 10; background: rgba(0,0,0,.72); opacity: 0; pointer-events: none; transition: opacity .25s; }
+.gveil.on { opacity: 1; pointer-events: auto; }
+.glass { position: fixed; z-index: 11; left: 50%; top: 50%; width: min(calc(var(--col) - 48px), calc(100% - 32px)); max-height: min(70dvh, 560px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; display: grid; gap: 14px; align-content: start; padding: 18px; border-radius: 24px; color: var(--ink); background: var(--card); border: 1px solid var(--edge); box-shadow: 0 24px 70px rgba(0,0,0,.55), 0 0 60px rgba(247,149,30,.14); transform: translate(-50%, -46%) scale(.96); opacity: 0; visibility: hidden; transition: transform .3s cubic-bezier(.2,.8,.2,1), opacity .2s, visibility 0s .3s; }
+.glass::-webkit-scrollbar { display: none; }
+.glass.on { transform: translate(-50%, -50%); opacity: 1; visibility: visible; transition: transform .3s cubic-bezier(.2,.8,.2,1), opacity .2s; }
+.glass > * { min-width: 0; }
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .gveil { background: rgba(12,9,7,.3); -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); }
+  .glass { background: linear-gradient(160deg, rgba(255,214,170,.14), rgba(255,214,170,.04)), rgba(23,17,12,.5); border-color: rgba(255,214,170,.24); box-shadow: 0 24px 70px rgba(0,0,0,.55), 0 0 60px rgba(247,149,30,.14), inset 0 1px 0 rgba(255,255,255,.16); -webkit-backdrop-filter: blur(22px) saturate(1.3); backdrop-filter: blur(22px) saturate(1.3); }
+}
+.glass h3 { margin: 0; font-size: 20px; font-weight: 700; padding-inline-end: 44px; overflow-wrap: anywhere; display: flex; align-items: baseline; gap: 10px; }
+.glass h3 b { font-size: 14px; font-weight: 700; color: var(--mut); }
+.glass .role { margin: 4px 0 0; font-size: 12px; line-height: 1.5; color: var(--mut); }
+.glass .x { all: unset; cursor: pointer; position: absolute; top: 14px; inset-inline-end: 14px; width: 36px; height: 36px; border-radius: 50%; border: 1px solid rgba(255,214,170,.24); display: grid; place-items: center; font-size: 16px; }
+.glass .x:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+/* the pane day by day: the week's seven days with their numbers, then a block for each day that holds something */
+.gl-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; padding: 10px 6px; border-radius: 16px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,214,170,.14); }
+.gl-week div { display: grid; justify-items: center; gap: 3px; }
+.gl-week small { font-size: 9.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--mut); }
+.gl-week b { font-size: 19px; font-weight: 800; line-height: 1.1; } .gl-week b.none { color: var(--faint); font-weight: 500; }
+.gl-week span { font-size: 10px; color: var(--faint); }
+/* one day darker, the next lighter, as the rows of a table are */
+.gl-days { display: grid; gap: 6px; }
+.gl-day { display: grid; gap: 10px; padding: 12px 14px; border-radius: 16px; background: rgba(255,244,230,.045); }
+.gl-day:nth-child(even) { background: rgba(255,244,230,.1); }
+.gl-day > p { margin: 0; display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 10.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--ink); }
+.gl-day > p b { min-width: 24px; padding: 2px 8px; border-radius: 999px; background: rgba(255,244,230,.12); font-size: 12.5px; letter-spacing: 0; text-align: center; }
+/* EVERY LIST OF ROWS: ONE ROW A SHADE LIGHTER, THE NEXT A SHADE DARKER (Muhanad, 2026-10-12, on a company's
+   "Latest with your team" and "How it moved": "any part in the app like this should have color grading the
+   one we did one light one a bit darkwe to make it easier to read"). The shades of the pane's days, on the
+   rows of a feed, a story, a list of names, a list of facts and every list of rows; the hairlines between
+   rows go, the shade does their work. Inside a day of the pane the day is the block, so its rows are plain.
+   The two shades are close on purpose: his word on the first ones, "a bit lighter it should be a slight
+   diffrence not that much". */
+.feed, .story, .who { gap: 3px; }
+.feed > div, .story > div, .who > div, .facts > div, .rows > .row { padding: 8px 10px; border-top: 0; border-radius: 10px; background: rgba(255,244,230,.025); }
+.rows > .row { padding-block: 10px; }
+.feed > div:nth-child(even), .story > div:nth-child(even), .who > div:nth-child(even), .facts > div:nth-child(even), .rows > .row:nth-child(even) { background: rgba(255,244,230,.055); }
+/* on a laptop a wide card sets its rows two abreast: the shade goes by the line, not by the row's number */
+@media (min-width: 900px) {
+  .wide .rows > .row:nth-child(even) { background: rgba(255,244,230,.025); }
+  .wide .rows > .row:nth-child(4n+3), .wide .rows > .row:nth-child(4n+4) { background: rgba(255,244,230,.055); }
+}
+.gl-day .feed { gap: 10px; }
+.gl-day .feed > div, .gl-day .feed > div:nth-child(even) { padding: 0; border-radius: 0; background: none; }
+.sec em { font-style: normal; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--faint); margin-inline-start: 6px; }
+#pd .dslide { gap: 0; } #pdDots { margin-top: 10px; }
