@@ -631,3 +631,19 @@ html[lang="ar"] .wk-m { grid-template-columns: minmax(0, 1fr) 30px; }
 .gl-day .feed > div, .gl-day .feed > div:nth-child(even) { padding: 0; border-radius: 0; background: none; }
 .sec em { font-style: normal; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--faint); margin-inline-start: 6px; }
 #pd .dslide { gap: 0; } #pdDots { margin-top: 10px; }
+
+/* ---- build 144 (Muhanad, 2026-10-15) ----------------------------------------------------------------
+   THE DAY'S DIAL, WHO DID EFFECTIVE WORK: met a client (the green of "active"), visited a company (the
+   same green, half), requests only (slate), no effective work yet (the empty colour). */
+.s-client { background: var(--good); } .c-client { stroke: var(--good); }
+.gauge .c-client.arc { filter: drop-shadow(0 0 6px rgba(47,191,143,.5)); }
+.s-visit { background: rgba(47,191,143,.5); } .c-visit { stroke: rgba(47,191,143,.5); }
+.s-desk { background: var(--neut); } .c-desk { stroke: var(--neut); }
+/* EVERY CHART DRAWS THE DATES CHOSEN: a name under each column, and a day still to come is an empty outline */
+.wk.per { gap: 3px; text-align: center; }
+.col.later { cursor: default; }
+.col.later i, .col.later i.z { background: transparent; border: 1px dashed rgba(255,214,170,.2); border-bottom: 0; opacity: 1; }
+.strip i.later { background: transparent; box-shadow: inset 0 0 0 1px rgba(255,214,170,.16); }
+/* a reservation and a contract are counted apart: four figures stand in one row */
+.kv.k4 { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.kv.k4 div { padding: 9px 8px; } .kv.k4 b { font-size: 18px; }
