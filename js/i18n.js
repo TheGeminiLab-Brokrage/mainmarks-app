@@ -1277,7 +1277,47 @@
     'Each day': 'كل يوم',
     'Each week': 'كل أسبوع',
     '{v} signed': 'تم توقيع {v}',
-    '{v} signed · a split deal counts half': 'تم توقيع {v} · الصفقة المناصفة تُحسب بالنصف'
+    '{v} signed · a split deal counts half': 'تم توقيع {v} · الصفقة المناصفة تُحسب بالنصف',
+    /* build 145: the Special requests sheet's download. The Arabic is ours. */
+    '{a} special requests from {b} companies in these dates.': 'الطلبات الخاصة {a} من {b} شركة في هذه التواريخ.',
+    /* build 145: the dial's explanations, his words in English; the Arabic is ours */
+    'Met a client: he had a meeting, a reservation or a contract today. He was in front of a buyer.': 'قابل عميلاً: كان لديه اجتماع أو حجز أو عقد اليوم. كان أمام مشترٍ.',
+    'Met a client: he had a meeting, a reservation or a contract that day. He was in front of a buyer.': 'قابل عميلاً: كان لديه اجتماع أو حجز أو عقد في ذلك اليوم. كان أمام مشترٍ.',
+    'Visited a company: he went to a brokerage for an orientation or a workshop, but met no client.': 'زار شركة: ذهب إلى شركة وساطة لجلسة تعريفية أو ورشة عمل، لكنه لم يقابل عميلاً.',
+    'Requests only: he answered brokers\' requests, but made no visit and met no client.': 'طلبات فقط: ردّ على طلبات الوسطاء، لكنه لم يقم بزيارة ولم يقابل عميلاً.',
+    'No effective work yet: none of the above. He sent only broadcasts, or nothing.': 'لا عمل فعّال بعد: لا شيء مما سبق. أرسل نشراً عاماً فقط، أو لم يرسل شيئاً.',
+    /* build 145: the meeting behind a reservation (the Record form's question, the row's line, the tile). The Arabic is ours. */
+    'Online': 'عبر الإنترنت',
+    '{n} without a meeting': '{n} دون اجتماع',
+    'The client reserved directly': 'حجز العميل مباشرةً',
+    'The broker handled it': 'تولّاه الوسيط',
+    'Yes, we met': 'نعم، اجتمعنا',
+    'No meeting': 'لا اجتماع',
+    'Meeting date': 'تاريخ الاجتماع',
+    'Why': 'السبب',
+    'Note': 'ملاحظة',
+    'The note stays with the entry. “Other” needs a note.': 'تبقى الملاحظة مع السجل. «سبب آخر» يحتاج إلى ملاحظة.',
+    'In person': 'حضورياً',
+    'No meeting with {name} is recorded. Was there one?': 'لا يوجد اجتماع مسجّل مع {name}. هل كان هناك اجتماع؟',
+    'A contract usually follows a meeting.': 'يأتي العقد عادةً بعد اجتماع.',
+    'A reservation usually follows a meeting.': 'يأتي الحجز عادةً بعد اجتماع.',
+    'Your manager counts them.': 'ومديرك يحتسب الاجتماعات.',
+    'The meeting is saved too, under your name, on that date.': 'يُحفظ الاجتماع أيضاً باسمك، في ذلك التاريخ.',
+    'The meeting is saved too, under {name}’s name, on that date.': 'يُحفظ الاجتماع أيضاً باسم {name}، في ذلك التاريخ.',
+    'Save contract and meeting': 'احفظ العقد والاجتماع',
+    'Save reservation and meeting': 'احفظ الحجز والاجتماع',
+    'Answer the question about the meeting first.': 'أجب أولاً عن سؤال الاجتماع.',
+    'Choose the date of the meeting.': 'اختر تاريخ الاجتماع.',
+    'The meeting must be on or before this date, and no more than 12 weeks before it.': 'يجب أن يكون الاجتماع في هذا التاريخ أو قبله، وليس قبله بأكثر من 12 أسبوعاً.',
+    'Choose why there was no meeting.': 'اختر سبب عدم وجود اجتماع.',
+    'Write a short note: “Other” needs one.': 'اكتب ملاحظة قصيرة: «سبب آخر» يحتاج إلى ملاحظة.',
+    'Online meeting · {date}': 'اجتماع عبر الإنترنت · {date}',
+    /* build 145: the PDF reports in look B. The Arabic is ours. */
+    'Where it is in the app': 'أين تجده في التطبيق',
+    'How it is counted': 'كيف يُحسب',
+    'In one sentence': 'في جملة واحدة',
+    'In this report': 'في هذا التقرير',
+    '{n} more inside': '{n} أخرى في الداخل'
   };
 
   /* ---- the sheet's words and config values --------------------------- */

@@ -647,3 +647,19 @@ html[lang="ar"] .wk-m { grid-template-columns: minmax(0, 1fr) 30px; }
 /* a reservation and a contract are counted apart: four figures stand in one row */
 .kv.k4 { grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .kv.k4 div { padding: 9px 8px; } .kv.k4 b { font-size: 18px; }
+/* build 145: the dial's explanation, then the names on a line of their own */
+.legend .why-tip { white-space: pre-line; }
+/* build 145, THE MEETING BEHIND A RESERVATION: the question in the Record form, as on the mock he approved
+   (one warm box, two answers side by side, the chosen one white like a chosen chip) */
+.ask { display: grid; gap: 10px; padding: 13px; border-radius: 16px; background: rgba(247,149,30,.07); border: 1px solid rgba(247,149,30,.45); }
+.ask .q { margin: 0; font-size: 14px; font-weight: 700; line-height: 1.35; color: var(--ink); }
+.ask .q small { display: block; margin-top: 3px; font-size: 12px; font-weight: 500; color: var(--mut); }
+.ask .pick { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.ask .pick button { all: unset; box-sizing: border-box; cursor: pointer; text-align: center; min-height: 40px; padding: 9px 6px; border-radius: 12px; border: 1px solid var(--edge); font-size: 13px; font-weight: 700; color: var(--ink); }
+.ask .pick button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #000; }
+.ask .hint { margin: 0; font-size: 12px; line-height: 1.4; color: var(--mut); }
+.ask .chips .chip { white-space: normal; text-align: start; }
+.fld textarea { font: inherit; font-size: 16px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--ink); background: rgba(255,255,255,.04); border: 1px solid var(--edge); border-radius: 12px; padding: 10px; min-height: 54px; width: 100%; box-sizing: border-box; resize: vertical; color-scheme: dark; }
+/* the quiet line on a reservation's row: no meeting (orange, dashed), or the meeting was online (green) */
+.row .mflag { grid-column: 1 / -1; font-size: 12px; line-height: 1.35; color: var(--ink); padding: 6px 9px; border-radius: 9px; background: rgba(247,149,30,.09); border: 1px dashed rgba(247,149,30,.4); white-space: normal; }
+.row .mflag.ok { background: rgba(47,191,143,.08); border-color: rgba(47,191,143,.4); }

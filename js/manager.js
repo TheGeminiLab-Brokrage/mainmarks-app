@@ -789,7 +789,7 @@
       return out.join(' · ');
     }
     function unitText(e) { return nm(prod(e.p) + ' ' + e.u) + (e.area ? ' · ' + t('{n} m²', { n: e.area }) : '') + (e.v ? ' · ' + money(e.v) : ''); }
-    function detail(e) { return (isVisit(e) ? followed(e).text : e.u ? unitText(e) : prod(e.p) + (e.ch ? ' · ' + CH[e.ch] : '')) + (e.ho && !e.wait ? ' · ' + sentBy(e) : ''); }
+    function detail(e) { return (isVisit(e) ? followed(e).text : e.u ? unitText(e) : prod(e.p) + (e.k === 'meeting' && e.on ? ' · ' + t('Online') : '') + (e.ch ? ' · ' + CH[e.ch] : '')) + (e.ho && !e.wait ? ' · ' + sentBy(e) : ''); }
     /* build 136: on the manager's page an ENTRY in a feed opens to its own sheet (who entered it, and the
        way to remove it with a reason). An offer is not an entry: it was sent, and it stays as it is. */
     function feed(list, withName) {
@@ -861,8 +861,13 @@
        or a contract), visited a company (an orientation or a workshop), took requests only, or no effective
        work yet. Broadcasts are left to their card. The figure in the middle stays the special requests (the
        headline agreed in round 5). A tap on a number names the people in it, then says what it counts. */
-    var STEPS = [['client', t('Met a client'), t('A meeting, a reservation or a contract that day.')], ['visit', t('Visited a company'), t('An orientation or a workshop that day, and no client met.')],
-      ['desk', t('Requests only'), t('Special requests that day, and no visit or client.')], ['never', t('No effective work yet'), t('No special request, visit or client yet. Broadcasts are on their own card below.')]];
+    /* build 145, THE EXPLANATION IS HIS (Muhanad, 2026-10-21: "make this is the explination show when the user hover"),
+       word for word; shown on hover on a laptop and on a tap on a phone, with the names on a line under it. The
+       first says "today", so on another single day (Yesterday, a date chosen) it says "that day". */
+    var STEPS = [['client', t('Met a client'), t('Met a client: he had a meeting, a reservation or a contract today. He was in front of a buyer.'), t('Met a client: he had a meeting, a reservation or a contract that day. He was in front of a buyer.')],
+      ['visit', t('Visited a company'), t('Visited a company: he went to a brokerage for an orientation or a workshop, but met no client.')],
+      ['desk', t('Requests only'), t('Requests only: he answered brokers\' requests, but made no visit and met no client.')],
+      ['never', t('No effective work yet'), t('No effective work yet: none of the above. He sent only broadcasts, or nothing.')]];
     function bestStep(p) {
       var mine = A.list.filter(function (e) { return e.m === p.id || e.m2 === p.id; }), has = function (ks) { return mine.some(function (e) { return ks.indexOf(e.k) !== -1; }); };
       return has(['meeting', 'reservation', 'contract']) ? 'client' : has(['orientation', 'workshop']) ? 'visit' : p.n.special ? 'desk' : 'never';
@@ -870,7 +875,7 @@
     function cardHeroDay() {
       var by = { client: [], visit: [], desk: [], never: [] };
       A.crew.forEach(function (p) { by[bestStep(p)].push(p.name); });
-      var segs = STEPS.map(function (s) { var who = by[s[0]]; return { k: s[0], n: who.length, label: s[1], tip: (who.length ? who.join(AR ? '، ' : ', ') + '. ' : '') + s[2] }; });
+      var segs = STEPS.map(function (s) { var who = by[s[0]]; return { k: s[0], n: who.length, label: s[1], tip: (s[3] && period.to !== 0 ? s[3] : s[2]) + (who.length ? '\n' + who.join(AR ? '، ' : ', ') : '') }; });
       var n = '<b>' + A.normal + '</b>';
       var line = A.normal === null ? '' : '<p class="eff">' + (period.to === 0 ? t('A normal day by {time}: {n} special requests', { time: hhmm(NOW), n: n }) : t('A normal full day: {n} special requests', { n: n })) + ' · <b>' + vs(A.tot.special, A.normal, 'normal') + '</b></p>';
       return '<section class="card"><h2>' + t('Your team') + ' <em>' + periodName() + ' · ' + count(OWN, 'salesperson') + '</em></h2>' + gauge(segs, A.tot.special, t('special requests')) + line + '</section>';
@@ -884,20 +889,24 @@
     }
     function tiles() {
       var n = A.tot, beside = t('{x} beside them', { x: count(n.broadcast, 'broadcast') }), list;
+      /* build 145: the reservations in these dates recorded with no meeting behind them */
+      var bare = A.list.filter(function (e) { return e.k === 'reservation' && e.nm; }).length, noMeet = bare ? t('{n} without a meeting', { n: bare }) : '';
       /* build 139, A DAY HAS SIX TILES (Muhanad, 2026-10-10, "Yes, add them", on a picture): Orientations and
          Workshops joined the four. An orientation or a workshop recorded today had no place on Today's
          Home, so the manager who had just entered one could not open it, and could not remove it ("I was
          not able to do it"): it showed only under Team, or after the dates were set to a week. */
-      if (A.single && !MY) list = [['offers', t('Special requests'), n.special, beside], ['asked', t('Companies asked'), A.asked.length, ''],
+      /* build 145 (Muhanad, 2026-10-21, "Yes"): a day's Special requests tile no longer says "n broadcasts beside
+         them". Broadcasts have their own card on Today since build 136. */
+      if (A.single && !MY) list = [['offers', t('Special requests'), n.special, ''], ['asked', t('Companies asked'), A.asked.length, ''],
         ['orientation', t('Orientations'), n.orientation, ''], ['workshop', t('Workshops'), n.workshop, ''], ['meeting', t('Meetings'), n.meeting, ''],
-        ['deals', t('Reservations and contracts'), n.reservation + n.contract, [n.reservation + n.contract ? count(n.reservation, 'reservation') + ' · ' + count(n.contract, 'contract') : '', n.cancel ? count(n.cancel, 'cancellation') : '', n.value ? t('{v} contracted', { v: money(n.value) }) : ''].filter(Boolean).join(' · ')]];
+        ['deals', t('Reservations and contracts'), n.reservation + n.contract, [n.reservation + n.contract ? count(n.reservation, 'reservation') + ' · ' + count(n.contract, 'contract') : '', noMeet, n.cancel ? count(n.cancel, 'cancellation') : '', n.value ? t('{v} contracted', { v: money(n.value) }) : ''].filter(Boolean).join(' · ')]];
       /* a week or more: the six tiles follow the work (Muhanad, 2026-10-06): an orientation gets a company
          asking, a workshop gets an asking company to a meeting, then reservations and contracts */
       else list = [['orientation', t('Orientations'), n.orientation, n.orientation ? t('{n} led to a request', { n: A.led.orientation }) : ''],
         ['offers', t('Special requests'), n.special, A.prev ? vs(n.special, A.prev.special, A.prevBase) : beside],
         ['workshop', t('Workshops'), n.workshop, n.workshop ? t('{n} led to a meeting', { n: A.led.workshop }) : ''],
         ['meeting', t('Meetings'), n.meeting, n.meeting ? t('1 for every {n} requests', { n: Math.max(1, Math.round(n.special / n.meeting)) }) : ''],
-        ['reservation', t('Reservations'), n.reservation, n.cancel ? t('{n} cancelled in these dates', { n: n.cancel }) : t('none cancelled')],
+        ['reservation', t('Reservations'), n.reservation, [noMeet, n.cancel ? t('{n} cancelled in these dates', { n: n.cancel }) : t('none cancelled')].filter(Boolean).join(' · ')],
         ['contract', t('Contracts'), n.contract, n.value ? t('{v} total sales', { v: money(n.value) }) : '']];
       return '<div class="stats">' + list.map(function (x) { return '<button class="stat" type="button" data-s="' + x[0] + '">' + num(x[2]) + '<span>' + x[1] + '</span>' + (x[3] ? '<small>' + x[3] + '</small>' : '') + '</button>'; }).join('') + '</div>';
     }
@@ -1072,10 +1081,19 @@
       /* 2026-10-11: and the lists that are NOT on screen are cut to that height too. They stood behind it at
          their full length, so the card scrolled down into nothing ("I can scroll on the card and there is
          nothing there"). */
+      /* build 145, ONE HEIGHT FOR THE CARD, WHICHEVER LIST IS ON SCREEN (Muhanad, 2026-10-21, on tapping "Not moving":
+         "there is a weired change in the cards size"). The strip took the height of the list on screen, so the
+         card shrank from five lines to two and every card under it jumped (on a laptop, a gap opened beside the
+         card next to it). Now it is as tall as the tallest of its lists as they stand; a shorter list leaves
+         room under it, and nothing scrolls inside the card (the 2026-10-11 fix stays). An opened line makes its
+         list the tallest, and the card grows with it; closed, it comes back. */
       if ((key === 'mv' || MY) && $(key).children[i]) {
-        var strip = $(key), on = strip.children[i], h;
-        on.style.maxHeight = ''; h = on.offsetHeight; strip.style.height = h + 'px';
-        [].forEach.call(strip.children, function (s) { if (s !== on) s.style.maxHeight = h + 'px'; });
+        var strip = $(key), h = 0;
+        strip.style.height = '';
+        [].forEach.call(strip.children, function (s) { s.style.maxHeight = ''; });
+        [].forEach.call(strip.children, function (s) { h = Math.max(h, s.offsetHeight); });
+        strip.style.height = h + 'px';
+        [].forEach.call(strip.children, function (s) { s.style.maxHeight = h + 'px'; });
       }
     }
     function deckTo(key, i, smooth) {
@@ -1154,7 +1172,7 @@
     }
     function fate(e) { return e.k === 'cancel' ? ' · ' + WHYL[e.why] : e.k !== 'reservation' ? '' : e.end === 'cancel' ? ' · ' + t('later cancelled, {date}', { date: fmt(e.endD) }) : e.end === 'contract' ? ' · ' + t('became a contract') : ' · ' + t('still open'); }
     function dealRow(e) {
-      var inner = '<span class="nm">' + KIND[e.k] + ' · ' + nm(prod(e.p) + ' ' + e.u) + '</span><span class="val">' + mil(e.v) + '<small>' + t('EGP M') + '</small></span><span class="sub">' + nm(book[e.c].name) + ' · ' + people(e) + ' · ' + when(e) + fate(e) + '</span>';
+      var inner = '<span class="nm">' + KIND[e.k] + ' · ' + nm(prod(e.p) + ' ' + e.u) + '</span><span class="val">' + mil(e.v) + '<small>' + t('EGP M') + '</small></span><span class="sub">' + nm(book[e.c].name) + ' · ' + people(e) + ' · ' + when(e) + fate(e) + '</span>' + meetFlag(e);
       /* build 136: the manager opens a deal to its own sheet; on a sales agent's page it stays a plain row */
       return MY ? '<div class="row flat' + (e.k === 'cancel' ? ' gone' : '') + '">' + inner + '</div>'
                 : '<button class="row' + (e.k === 'cancel' ? ' gone' : '') + '" type="button" data-e="' + esc(e.id) + '">' + inner + '</button>';
@@ -1424,7 +1442,7 @@
     function other(e) { return e.m2 === undefined ? null : TEAM[e.m === ME ? e.m2 : e.m].name; }
     function entryRow(e) {
       var o = other(e), withWho = !o ? '' : isVisit(e) ? t('went with {name}', { name: nm(o) }) : t('split with {name}', { name: nm(o) });
-      var sub = isVisit(e) ? withWho : e.k === 'meeting' ? prod(e.p) : unitText(e) + (withWho ? ' · ' + withWho : '');
+      var sub = isVisit(e) ? withWho : e.k === 'meeting' ? prod(e.p) + (e.on ? ' · ' + t('Online') : '') : unitText(e) + (withWho ? ' · ' + withWho : '');
       var out = isVisit(e) ? followed(e) : e.k === 'reservation' ? { ok: e.end === 'contract', text: fateOf(e) } : null;
       return '<button class="row" type="button" data-e="' + esc(e.id) + '"><span class="nm"><span class="k">' + KIND[e.k] + '</span> · ' + esc(book[e.c].name) + (B.removable(e) ? '<span class="new">' + t('new') + '</span>' : '') + '</span><span class="val d">' + when(e) + '</span>' +
         (sub ? '<span class="sub">' + sub + '</span>' : '') + (out ? '<span class="mv-out' + (out.ok ? ' ok' : '') + '">' + out.text + '</span>' : '') + '</button>';
@@ -1460,6 +1478,7 @@
       if (isVisit(e)) rows.push([t('What followed'), followed(e).text]);
       if (e.k === 'reservation') rows.push([t('Today'), fateOf(e)]);
       if (e.k === 'cancel') rows.push([t('Reason'), WHYL[e.why] || esc(e.why || '')]);
+      rows = rows.concat(meetFacts(e));                                   /* build 145 */
       if (e.by !== undefined && TEAM[e.by]) {
         at = e.at && agoOf(e.at.day) !== null ? ' · <bdi>' + fmt(agoOf(e.at.day)) + ' ' + hhmm(e.at.min) + '</bdi>' : '';
         rows.push([t('Entered by'), nm(TEAM[e.by].name) + at]);
@@ -1585,6 +1604,7 @@
       if (other(e)) rows.push([isVisit(e) ? t('Also went') : t('Split with'), nm(other(e))]);
       if (isVisit(e)) rows.push([t('What followed'), followed(e).text]);
       if (e.k === 'reservation') rows.push([t('Today'), fateOf(e)]);
+      rows = rows.concat(meetFacts(e));                                   /* build 145 */
       showSheet('<div><h3>' + KIND[e.k] + '</h3><p class="role">' + nm(book[e.c].name) + ' · ' + fmt(e.d) + '</p></div><div class="facts">' + rows.map(function (r) { return '<div><span>' + r[0] + '</span><b>' + r[1] + '</b></div>'; }).join('') + '</div>' +
         (B.removable(e) ? '<button class="btn ghost" type="button" data-rm="' + esc(e.id) + '">' + t('Remove this entry') + '</button>' : '') +
         '<p class="note">' + t('You can correct an entry on the day you made it. After that, your manager corrects it.') + '</p>');
@@ -1612,6 +1632,113 @@
        this reservation may be the reason. A cancellation is not here: it is the manager's. */
     var myRec = { kind: 'orientation', company: -1 };
     var SAVE = { orientation: t('Save orientation'), workshop: t('Save workshop'), meeting: t('Save meeting'), reservation: t('Save reservation'), contract: t('Save contract') };
+    /* ---- THE MEETING BEHIND A RESERVATION (build 145; Muhanad, 2026-10-21) ---------------------------------
+       The meeting count is the step between the requests and the sales, and it was always short: a
+       reservation was saved whether or not a meeting with that company was recorded. His answer: "yes the
+       app should or a note can be filled and attached to it as maybe it was a zoom meting or a reservation
+       done with no meeting that some time happens". Built as the mock he approved ("make this applied",
+       https://claude.ai/artifact/D7ZTB13gbMwb8akgxZ7Gi1): when a reservation, or a contract on a unit with
+       no reservation, is recorded at a company where no meeting by its sales agent (or the one he splits
+       it with) is recorded in the 12 weeks up to its date, the form asks. "Yes, we met": the date, in
+       person or online; the meeting is saved too. "No meeting": why, and a note ("Other" needs one).
+       Nothing is saved until it is answered. The rule itself is the store's (mm_record: MM_MEETING_ASKED);
+       this form only does not send what the store would refuse. The manager's Record form asks the same.
+       An online meeting is a meeting: it counts as one everywhere and is marked online. Entries made
+       before this build are left as they are. */
+    var NOMEET = { direct: t('The client reserved directly'), broker: t('The broker handled it'), other: t('Other') };
+    var MEET_DAYS = 83;                                /* the 12 weeks up to the entry's date, its own day included */
+    function meetBox() {
+      return '<div class="ask" id="rMeet" hidden><p class="q" id="rMeetQ"></p>' +
+        '<div class="pick"><button type="button" data-met="yes" aria-pressed="false">' + t('Yes, we met') + '</button><button type="button" data-met="no" aria-pressed="false">' + t('No meeting') + '</button></div>' +
+        '<div class="form" id="rMetY" hidden><div class="range"><label class="fld">' + t('Meeting date') + '<input type="date" id="rMd"></label>' + whereField('rMw') + '</div><p class="hint" id="rMetH"></p></div>' +
+        '<div class="form" id="rMetN" hidden><div class="fld"><span>' + t('Why') + '</span><div class="chips">' + ['direct', 'broker', 'other'].map(function (w) { return '<button class="chip" type="button" data-nomeet="' + w + '" aria-pressed="false">' + NOMEET[w] + '</button>'; }).join('') + '</div></div>' +
+        '<label class="fld">' + t('Note') + '<textarea id="rNote" rows="2" maxlength="300"></textarea></label><p class="hint">' + t('The note stays with the entry. “Other” needs a note.') + '</p></div></div>';
+    }
+    /* in person or online: on the box, and on a meeting recorded by itself */
+    function whereField(id) {
+      return '<div class="fld"><span>' + t('Where') + '</span><div class="chips" id="' + id + '"><button class="chip" type="button" data-where="person" aria-pressed="true">' + t('In person') + '</button><button class="chip" type="button" data-where="online" aria-pressed="false">' + t('Online') + '</button></div></div>';
+    }
+    function online(id) { var b = $(id) && $(id).querySelector('[data-where="online"]'); return !!b && b.getAttribute('aria-pressed') === 'true'; }
+    function pressOne(b) { [].forEach.call(b.parentNode.children, function (x) { x.setAttribute('aria-pressed', String(x === b)); }); if ($('rErr')) $('rErr').hidden = true; }
+    /* the meeting that stands behind an entry: one with that company by its sales agent or the one he splits
+       it with, on its day or in the 12 weeks before, the latest. The rows of colleagues a sales agent is
+       shown without names (m = -1) are not his. */
+    function meetBehind(c, d, who) {
+      var w = who.filter(function (m) { return m >= 0; }), best = null;
+      all.forEach(function (e) { if (e.k === 'meeting' && e.c === c && e.d >= d && e.d <= d + MEET_DAYS && (w.indexOf(e.m) !== -1 || (e.m2 !== undefined && w.indexOf(e.m2) !== -1)) && (!best || e.d < best.d)) best = e; });
+      return best;
+    }
+    function meetKind() { var k = MY ? myRec.kind : recKind; return k === 'reservation' || (k === 'contract' && $('rR') && !$('rR').value) ? k : ''; }
+    /* show the question, or not, as the form stands: called whenever the company, the date, the sales agent,
+       the split or the reservation changes */
+    function meetAsk() {
+      var box = $('rMeet'), k = meetKind(), c, d, m, s, show, md, lo, who;
+      if (!box) return;
+      c = $('rC') && $('rC').value !== '' ? +$('rC').value : -1;
+      d = $('rD') && $('rD').value ? agoOf($('rD').value) : null;
+      m = MY ? ME : $('rM') ? +$('rM').value : -1;
+      s = $('rS') && $('rS').value !== '' ? +$('rS').value : -1;
+      show = !!k && c >= 0 && B.companies[c] !== undefined && d !== null && !meetBehind(c, d, [m, s]);
+      box.hidden = !show;
+      if (show) {
+        $('rMeetQ').innerHTML = t('No meeting with {name} is recorded. Was there one?', { name: nm(B.companies[c]) }) + '<small>' + (k === 'contract' ? t('A contract usually follows a meeting.') : t('A reservation usually follows a meeting.')) + (MY ? ' ' + t('Your manager counts them.') : '') + '</small>';
+        md = $('rMd'); lo = Math.min(SPAN, d + MEET_DAYS);
+        md.min = iso(lo); md.max = iso(d);
+        who = MY ? '' : TEAM[m] ? TEAM[m].name : '';
+        $('rMetH').innerHTML = MY ? t('The meeting is saved too, under your name, on that date.') : t('The meeting is saved too, under {name}’s name, on that date.', { name: nm(who) });
+      }
+      saveLabel();
+    }
+    function meetYes() { var b = $('rMeet') && $('rMeet').querySelector('[data-met="yes"]'); return !!b && !$('rMeet').hidden && b.getAttribute('aria-pressed') === 'true'; }
+    function saveLabel() {
+      var k = MY ? myRec.kind : recKind, b = $('rSave');
+      if (!b || !SAVE[k]) return;
+      b.textContent = meetYes() ? (k === 'contract' ? t('Save contract and meeting') : t('Save reservation and meeting')) : SAVE[k];
+    }
+    function meetPick(b) {
+      pressOne(b);
+      $('rMetY').hidden = b.dataset.met !== 'yes';
+      $('rMetN').hidden = b.dataset.met !== 'no';
+      saveLabel();
+    }
+    /* the answer as the form holds it, onto the entry r; or the sentence that says what is missing */
+    function meetOnto(r) {
+      var box = $('rMeet'), yes, no, md, ago, why, note;
+      meetAsk();
+      if (!box || box.hidden) return '';
+      yes = box.querySelector('[data-met="yes"]').getAttribute('aria-pressed') === 'true';
+      no = box.querySelector('[data-met="no"]').getAttribute('aria-pressed') === 'true';
+      if (!yes && !no) return t('Answer the question about the meeting first.');
+      if (yes) {
+        md = $('rMd').value ? B.fromIso($('rMd').value) : null;
+        ago = md ? agoOf($('rMd').value) : null;
+        if (!md || ago === null || ago !== B.agoOf(md)) return t('Choose the date of the meeting.');
+        if (ago < B.agoOf(r.date) || ago > B.agoOf(r.date) + MEET_DAYS) return t('The meeting must be on or before this date, and no more than 12 weeks before it.');
+        r.met = { date: md, on: online('rMw') };
+        return '';
+      }
+      why = box.querySelector('[data-nomeet][aria-pressed="true"]');
+      if (!why) return t('Choose why there was no meeting.');
+      note = $('rNote').value.replace(/\s+/g, ' ').trim().slice(0, 300);
+      if (why.dataset.nomeet === 'other' && !note) return t('Write a short note: “Other” needs one.');
+      r.nm = why.dataset.nomeet; if (note) r.note = note;
+      return '';
+    }
+    /* the quiet line on a reservation's or a contract's row: only when there was no meeting, or it was online */
+    function meetFlag(e) {
+      var m;
+      if (e.k !== 'reservation' && e.k !== 'contract') return '';
+      if (e.nm) return '<span class="mflag">' + t('No meeting') + ' · ' + NOMEET[e.nm] + (e.note ? ': “' + esc(e.note) + '”' : '') + '</span>';
+      if (e.k === 'contract' && e.of) return '';
+      m = meetBehind(e.c, e.d, [e.m, e.m2 === undefined ? -1 : e.m2]);
+      return m && m.on ? '<span class="mflag ok">' + t('Online meeting · {date}', { date: fmt(m.d) }) + '</span>' : '';
+    }
+    /* the same, as two lines of an entry's sheet */
+    function meetFacts(e) {
+      if (e.k === 'meeting' && e.on !== undefined) return [[t('Where'), e.on ? t('Online') : t('In person')]];
+      if (!e.nm) return [];
+      return [[t('Meeting'), t('No meeting') + ' · ' + NOMEET[e.nm]]].concat(e.note ? [[t('Note'), esc(e.note)]] : []);
+    }
     function recentCompanies() { var seen = {}, out = []; events.filter(function (e) { return e.k === 'offer' && e.c !== null; }).sort(newest).forEach(function (e) { if (!seen[e.c]) { seen[e.c] = 1; out.push(e.c); } }); return out.slice(0, 6); }
     /* build 138, THE COMPANY IS FOUND BY TYPING, on the sales agent's form and on the manager's. It was a
        drop-down of every company: 77 lines today, 2,001 with the final list (Muhanad, 2026-10-10), and a
@@ -1661,6 +1788,7 @@
       $('rC').value = i; $('rCq').value = B.companies[i];
       pickShut();
       if ($('rErr')) $('rErr').hidden = true;
+      meetAsk();
     }
     /* the whole name typed and nothing tapped: that company, when exactly one carries the name */
     function pickExact() {
@@ -1685,14 +1813,14 @@
       var price = function (label) { return '<label class="fld">' + label + '<input id="rV" type="text" inputmode="numeric" autocomplete="off"></label>'; };
       var body;
       if (went) body = company + '<div class="range">' + date + mate(t('Also went')) + '</div>';
-      else if (k === 'meeting') body = company + '<div class="range"><label class="fld">' + t('Unit type') + '<select id="rP">' + B.products.map(function (p, i) { return '<option value="' + i + '">' + esc(prod(p)) + '</option>'; }).join('') + '</select></label>' + date + '</div>';
-      else if (k === 'reservation') body = company + unit + '<div class="range">' + price(t('Reservation price, EGP')) + date + '</div>' + mate(t('Split the deal with'));
+      else if (k === 'meeting') body = company + '<div class="range"><label class="fld">' + t('Unit type') + '<select id="rP">' + B.products.map(function (p, i) { return '<option value="' + i + '">' + esc(prod(p)) + '</option>'; }).join('') + '</select></label>' + date + '</div>' + whereField('rW2');
+      else if (k === 'reservation') body = company + unit + meetBox() + '<div class="range">' + price(t('Reservation price, EGP')) + date + '</div>' + mate(t('Split the deal with'));
       else body = '<label class="fld">' + t('Which reservation was signed') + '<select id="rR">' + A.open.map(function (e) { return '<option value="' + esc(e.id) + '">' + esc(e.u + ' · ' + book[e.c].name + ' · ' + fmt(e.d)) + '</option>'; }).join('') + '<option value="">' + t('A unit with no reservation recorded') + '</option></select></label>' +
-        '<div class="form" id="rFree"' + (A.open.length ? ' hidden' : '') + '>' + company + unit + mate(t('Split the deal with')) + '</div>' + MM.contractPlan.field(A.open.length ? A.open[0].p : undefined, '') + '<div class="range">' + price(t('Contract price, EGP')) + date + '</div>';
+        '<div class="form" id="rFree"' + (A.open.length ? ' hidden' : '') + '>' + company + unit + mate(t('Split the deal with')) + '</div>' + meetBox() + MM.contractPlan.field(A.open.length ? A.open[0].p : undefined, '') + '<div class="range">' + price(t('Contract price, EGP')) + date + '</div>';
       showSheet('<div><h3>' + t('Record') + '</h3><p class="role">' + t('Entered under your name: {name}', { name: nm(WHO.name) }) + '</p></div><div class="form">' +
         '<div class="chips">' + ['orientation', 'workshop', 'meeting', 'reservation', 'contract'].map(function (x) { return '<button class="chip" type="button" data-k="' + x + '" aria-pressed="' + (k === x) + '">' + KIND[x] + '</button>'; }).join('') + '</div>' + body +
         '<p class="note bad" id="rErr" hidden></p><button class="btn" type="button" id="rSave">' + SAVE[k] + '</button></div>');
-      if (k === 'contract') fromReservation();
+      if (k === 'contract') fromReservation(); else meetAsk();
     }
     function grouped(v) { return Math.round(v).toLocaleString('en-US'); }
     function fromReservation() {
@@ -1700,6 +1828,7 @@
       $('rFree').hidden = !!rs;
       if (rs) { v.value = grouped(rs.v); v.dataset.auto = '1'; } else if (v.dataset.auto) v.value = '';
       planList();
+      meetAsk();
     }
     /* ---- THE PAYMENT PLAN OF A CONTRACT (build 141; Muhanad, 2026-10-11) --------------------------------
        A contract kept the unit, the price and the names, and not how the customer is paying. Agreed with
@@ -1777,6 +1906,9 @@
       /* build 141: no contract without the plan it was signed on */
       need = k === 'contract' ? planOnto(r) : ''; if (need) return bad(need);
       if (!rs && $('rS') && $('rS').value !== '') r.m2 = +$('rS').value;
+      /* build 145: the meeting behind it, asked when none is recorded; a meeting says where it was */
+      need = meetOnto(r); if (need) return bad(need);
+      if (k === 'meeting') r.on = online('rW2');
       if ((k === 'orientation' || k === 'workshop') && events.some(function (x) { return x.k === k && x.c === r.c && x.d === d; }))
         return bad(k === 'orientation' ? t('You already recorded an orientation at {name} on {date}.', { name: B.companies[r.c], date: fmt(d) }) : t('You already recorded a workshop at {name} on {date}.', { name: B.companies[r.c], date: fmt(d) }));
       var saved = function (e) {
@@ -1808,6 +1940,10 @@
       if (m === 'MM_SALES_AGENT_ONLY') return t('An entry is always in a sales agent’s name. Choose the sales agent.');
       /* build 141: the store's own refusal of a contract with no plan, or with numbers that cannot be */
       if (m === 'MM_NO_PLAN') return t('Pick the payment plan the customer signed.');
+      /* build 145: the meeting behind a reservation */
+      if (m === 'MM_MEETING_ASKED') { meetAsk(); return t('Answer the question about the meeting first.'); }
+      if (m === 'MM_BAD_MEETING') return t('The meeting must be on or before this date, and no more than 12 weeks before it.');
+      if (m === 'MM_NO_NOTE') return t('Write a short note: “Other” needs one.');
       if (m === 'MM_BAD_PLAN') return t('Type the down payment, from 0 to 100, and the years, up to 30.');
       if (m === 'MM_BAD_DATE') return t('Choose a date in the last 12 weeks.');
       if (m === 'MM_NO_TEAM') return t('Your account is not in a team yet. Ask the admin to add you to one.');
@@ -2004,7 +2140,17 @@
     }
     function openTile(k) {
       var n = A.tot, list = tileList(k), body, none = '<p class="note">' + t('None recorded in these dates.') + '</p>';
-      if (k === 'offers') {
+      /* build 145, THE SPECIAL REQUESTS TILE OPENS SPECIAL REQUESTS ONLY (Muhanad, 2026-10-21: "i cant see why bodcast is
+         show when this is clicked there is already a card for bodcast so this has no need to be there"). On the
+         manager's page the sheet counts and lists special requests, the companies that asked and how many of his
+         sales agents sent one; broadcasts are on the Broadcasts card and The week. The sales agent's own page is
+         unchanged: there this sheet is the only place his broadcasts of the dates are counted. */
+      if (k === 'offers' && !MY) {
+        list = list.filter(function (e) { return e.c !== null; });
+        var asking = A.crew.filter(function (p) { return p.n.special > 0; }).length;
+        body = kv([[n.special, t('Special requests')], [distinct(list, 'c').length, t('Companies asked')], [t('{a} of {b}', { a: asking, b: OWN }), t('Sales agents')]]) +
+          (list.length ? '<p class="sec">' + t('Newest first') + '</p>' + feed(list.slice(0, 12), true) + (list.length > 12 ? more(list.length - 12) : '') : '<p class="note">' + t('None recorded in these dates.') + '</p>');
+      } else if (k === 'offers') {
         body = kv([[n.special, t('Special requests')], [n.broadcast, t('Broadcasts')], [distinct(list, 'c').length, t('Companies asked')]]) +
           '<p class="note">' + (MY ? t('These are counted by themselves when you send an offer. There is nothing to type. A broadcast is counted once, however many times you send it.') : t('{x} sales agents sent an offer.', { x: t('{a} of {b}', { a: A.sending, b: OWN }) })) + '</p>' + (list.length ? '<p class="sec">' + t('Newest first') + '</p>' + feed(list.slice(0, 12), !MY) + (list.length > 12 ? (MY ? '<p class="note">' + t('{n} more in these dates.', { n: list.length - 12 }) + '</p>' : more(list.length - 12)) : '') : '');
       } else if (k === 'asked') {
@@ -2023,7 +2169,7 @@
         body = (k !== 'reservation' && n.value ? '<p class="note">' + t('{v} contracted', { v: money(n.value) }) + '</p>' : '') + (list.length ? '<div class="rows">' + list.map(dealRow).join('') + '</div>' : none);
       }
       /* a salesperson's page has no downloads at launch: reports are the manager's (held as an upgrade) */
-      showSheet('<div><h3>' + TILE[k] + '</h3><p class="role">' + rangeText() + ' · ' + list.length + '</p></div>' + body + (MY ? '' : dlBtn('tile:' + k, t('Download this list'))));
+      showSheet('<div><h3>' + (k === 'offers' && !MY ? t('Special requests') : TILE[k]) + '</h3><p class="role">' + rangeText() + ' · ' + list.length + '</p></div>' + body + (MY ? '' : dlBtn('tile:' + k, t('Download this list'))));
     }
 
     /* ---- recording for the team: an orientation, a workshop, a meeting, a reservation, a contract, a cancellation ----
@@ -2069,15 +2215,15 @@
         var unit = '<label class="fld">' + t('Unit code') + '<input id="rU" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false"></label><p class="chk wait" id="rChk">' + t('Type the unit code to see the unit.') + '</p>';
         var price = function (label) { return '<label class="fld">' + label + '<input id="rV" type="text" inputmode="numeric" autocomplete="off"></label>'; };
         if (went) body = person + company + '<div class="range">' + date + second(t('Also went'), true) + '</div>';
-        else if (k === 'meeting') body = person + company + '<div class="range"><label class="fld">' + t('Unit type') + '<select id="rP">' + B.products.map(function (p, n) { return o(n, prod(p)); }).join('') + '</select></label>' + date + '</div>';
-        else if (k === 'reservation') body = person + company + unit + '<div class="range">' + price(t('Reservation price, EGP')) + date + '</div>' + second(t('Split the deal with'));
+        else if (k === 'meeting') body = person + company + '<div class="range"><label class="fld">' + t('Unit type') + '<select id="rP">' + B.products.map(function (p, n) { return o(n, prod(p)); }).join('') + '</select></label>' + date + '</div>' + whereField('rW2');
+        else if (k === 'reservation') body = person + company + unit + meetBox() + '<div class="range">' + price(t('Reservation price, EGP')) + date + '</div>' + second(t('Split the deal with'));
         else body = '<label class="fld">' + t('Which reservation was signed') + '<select id="rR">' + A.open.map(function (e) { return o(e.id, e.u + ' · ' + book[e.c].name + ' · ' + TEAM[e.m].name + ' · ' + fmt(e.d)); }).join('') + '<option value="">' + t('A unit with no reservation recorded') + '</option></select></label>' +
-          '<div class="form" id="rFree"' + (A.open.length ? ' hidden' : '') + '>' + person + company + unit + second(t('Split the deal with')) + '</div>' + MM.contractPlan.field(A.open.length ? A.open[0].p : undefined, '') + '<div class="range">' + price(t('Contract price, EGP')) + date + '</div>';
+          '<div class="form" id="rFree"' + (A.open.length ? ' hidden' : '') + '>' + person + company + unit + second(t('Split the deal with')) + '</div>' + meetBox() + MM.contractPlan.field(A.open.length ? A.open[0].p : undefined, '') + '<div class="range">' + price(t('Contract price, EGP')) + date + '</div>';
         body += err + '<button class="btn" type="button" id="rSave">' + SAVE[k] + '</button>';
       }
       showSheet('<div><h3>' + t('Record for your team') + '</h3><p class="role">' + t('For any sales agent under you') + '</p></div><div class="form">' +
         '<div class="chips">' + [['orientation', t('Orientation')], ['workshop', t('Workshop')], ['meeting', t('Meeting')], ['reservation', t('Reservation')], ['contract', t('Contract')], ['cancel', t('Cancellation')]].map(function (x) { return '<button class="chip" type="button" data-k="' + x[0] + '" aria-pressed="' + (k === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>' + body + '</div>');
-      if (k === 'contract') fromReservation();
+      if (k === 'contract') fromReservation(); else meetAsk();
     }
     function saveRecord() {
       var k = recKind, went = k === 'orientation' || k === 'workshop', bad = function (msg) { var n = $('rErr'); n.textContent = msg; n.hidden = false; };
@@ -2119,6 +2265,9 @@
         /* build 141: no contract without the plan it was signed on */
         need = k === 'contract' ? planOnto(r) : ''; if (need) return bad(need);
         if (!rs && $('rS') && $('rS').value !== '' && +$('rS').value !== r.m) r.m2 = +$('rS').value;
+        /* build 145: the meeting behind it, asked when none is recorded; a meeting says where it was */
+        need = meetOnto(r); if (need) return bad(need);
+        if (k === 'meeting') r.on = online('rW2');
         if (went && events.some(function (x) { return x.k === k && x.c === r.c && x.d === d && x.m === r.m; })) return bad(twice(k, r.m, r.c, d));
         recFor = r.m;
         out = B.add(r);
@@ -2157,7 +2306,12 @@
     var SCOL = { active: PAL.green, quiet: PAL.yellow, inactive: PAL.slate, never: PAL.light };
     var CAP = 40;                                   /* rows of a long table the PDF prints; the Excel file has them all */
     function when2(e) { var d = B.dateOf(e.d); d.setHours(Math.floor(e.t / 60), e.t % 60, 0, 0); return d; }
-    function outcome(e) { return isVisit(e) ? followed(e).text : e.k === 'cancel' ? WHYL[e.why] : e.k !== 'reservation' ? '' : e.end === 'cancel' ? t('later cancelled, {date}', { date: fmt(e.endD) }) : e.end === 'contract' ? t('became a contract') : t('still open'); }
+    function outcome(e) {
+      var o = isVisit(e) ? followed(e).text : e.k === 'cancel' ? WHYL[e.why] : e.k !== 'reservation' ? '' : e.end === 'cancel' ? t('later cancelled, {date}', { date: fmt(e.endD) }) : e.end === 'contract' ? t('became a contract') : t('still open');
+      /* build 145: no meeting behind it, and why; a meeting held online */
+      var m = e.nm ? t('No meeting') + ' · ' + NOMEET[e.nm] + (e.note ? ': ' + e.note : '') : e.k === 'meeting' && e.on ? t('Online') : '';
+      return [o, m].filter(Boolean).join(' · ');
+    }
     function sum(list, get) { return list.reduce(function (a, x) { return a + (get(x) || 0); }, 0); }
     function capped(tb) {
       if (tb.rows.length > CAP) { tb.pdfRows = tb.rows.slice(0, CAP); tb.more = t('{n} more rows are in the Excel file.', { n: tb.rows.length - CAP }); }
@@ -2214,7 +2368,7 @@
       var notes = [t('{a} active, {b} gone quiet, {c} inactive and {d} never asked.', { a: count4.active, b: count4.quiet, c: count4.inactive, d: count4.never })];
       if (d) notes.push(t('Since {date}: active {a}, gone quiet {b}, inactive {c}, never asked {d}.', { date: fmt(period.from + 1), a: sign(d.active), b: sign(d.quiet), c: sign(d.inactive), d: sign(d.never) }));
       notes.push(t('Your team worked with {a} of {b} companies in these dates, and {c} of them brought a meeting.', { a: A.reached, b: book.length, c: A.effective }));
-      return { kicker: t('Brokerage health'), title: t('Where the {n} companies stand today', { n: book.length }),
+      return { where: [TABN.home, t('Brokerage health')], kicker: t('Brokerage health'), title: t('Where the {n} companies stand today', { n: book.length }),
         text: [t('A company is active when it asked your team for an offer in the last two weeks, gone quiet after two weeks of silence, and inactive after a month.')], notes: notes,
         charts: [stateDonut()],
         tables: [{ title: t('Brokerage health'), cols: [{ h: t('State today'), w: 30 }, { h: t('Companies'), w: 14, type: 'int' }, { h: t('Change in these dates'), w: 20 }],
@@ -2232,7 +2386,7 @@
     }
     function secRank(f, heading, text, list, notes) {
       var m = metric(f), top = list.slice(0, 10), lean = f === 'quiet' || f === 'inactive' || f === 'never';
-      return { kicker: t('Ranking'), title: heading, text: [text], notes: notes || [],
+      return { where: chipName(f) ? [TABN.companies, chipName(f)] : undefined, kicker: t('Ranking'), title: heading, text: [text], notes: notes || [],
         charts: top.length && top.some(function (c) { return m.get(c) > 0; }) ? [{ type: 'hbar', keepZero: true, title: t('The first {n}, by {what}', { n: top.length, what: m.lab }), rows: top.map(function (c) { return [c.name, m.get(c), STATE[c.state] + ' · ' + ago(c), c.state === 'never' ? PAL.slate : SCOL[c.state]]; }) }] : [],
         tables: [lean ? leanTable(heading, list) : companyTable(heading, list)] };
     }
@@ -2249,7 +2403,7 @@
       book.forEach(function (c) { n[c.step]++; });
       groups.forEach(function (g) { g.rows.forEach(function (r) { rows.push([g.label, r.c.name, r.c.step > r.c.l0 ? STEP[r.c.l0][0] + ' → ' + STEP[r.c.step][0] : r.c.was !== r.c.state ? STATE[r.c.was] + ' → ' + STATE[r.c.state] : STATE[r.c.state], r.e ? B.dateOf(r.e.d) : (r.c.days === null ? '' : B.dateOf(r.c.days)), r.e && r.e.m !== undefined ? TEAM[r.e.m].name : whoOn(r.c), touchText(g.key, r)]); }); });
       var gcol = function (g) { return M.up.indexOf(g) !== -1 ? PAL.green : M.down.indexOf(g) !== -1 ? (g.key === 'quiet' ? PAL.yellow : PAL.slate) : PAL.light; };
-      return { kicker: t('Movement'), title: t('Who moved up, who moved down'),
+      return { where: [TABN.home, t('Movement')], kicker: t('Movement'), title: t('Who moved up, who moved down'),
         text: [t('The ladder is how far each company has ever got with your team: asked, brought a meeting, reserved, signed. A company stands on the highest step it has reached. This page compares the day before these dates with today, and counts each company once.')],
         notes: [t('{a} moved up, {b} moved down, {c} not moving.', { a: count(moveCount(M.up), 'company'), b: moveCount(M.down), c: moveCount(M.still) }),
           t('On the ladder today: {a} never asked, {b} asked and brought no meeting, {c} brought a meeting, {d} reserved, {e} signed.', { a: n[0], b: n[1], c: n[2], d: n[3], e: n[4] }),
@@ -2263,7 +2417,7 @@
       var per = {}, ok = list.filter(function (x) { return x.f.ok; }).length;
       list.forEach(function (x) { var p = per[x.e.m] || (per[x.e.m] = [0, 0]); p[x.f.ok ? 0 : 1]++; });
       var o = list.filter(function (x) { return x.e.k === 'orientation'; }), w = list.filter(function (x) { return x.e.k === 'workshop'; });
-      return { kicker: t('What the team did'), title: heading,
+      return { where: [TABN.home, t('Orientations') + ' · ' + t('Workshops')], kicker: t('What the team did'), title: heading,
         text: [t('An orientation is a visit to a company to present the project. A workshop is a working session at a company that asks a lot and has brought no meeting. Each one is shown beside what followed it: a request within 7 business days of an orientation, a meeting within 14 business days of a workshop. Friday is not counted.')],
         notes: [t('{a} and {b} in these dates.', { a: count(o.length, 'orientation'), b: count(w.length, 'workshop') }), t('{a} of {b} were followed by a request or a meeting.', { a: ok, b: list.length })],
         charts: list.length ? [{ type: 'stacked', title: t('Visits, by who went'), series: [{ name: t('Followed by a request or a meeting'), color: PAL.green }, { name: t('Nothing followed yet'), color: PAL.light, ink: '#141210' }], rows: Object.keys(per).sort(function (a, b) { return per[b][0] + per[b][1] - per[a][0] - per[a][1]; }).map(function (m) { return [TEAM[m].name, per[m]]; }) }] : [],
@@ -2292,12 +2446,12 @@
       var notes = [t('{x} sales agents sent an offer.', { x: t('{a} of {b}', { a: A.sending, b: OWN }) })];
       if (idle.length) notes.push(t('Nothing sent in these dates: {names}.', { names: idle.join(', ') }));
       notes.push(t('Special requests are counted apart from broadcasts: a broadcast goes to no company in particular.'));
-      return { kicker: t('The team'), title: t('Who did what'), text: [t('Each sales agent’s offers in these dates, split into special requests and broadcasts.')], notes: notes,
+      return { where: [TABN.team, t('Your sales agents')], kicker: t('The team'), title: t('Who did what'), text: [t('Each sales agent’s offers in these dates, split into special requests and broadcasts.')], notes: notes,
         charts: [{ type: 'stacked', title: t('Offers sent, by sales agent'), series: [{ name: t('Special requests'), color: PAL.black }, { name: t('Broadcasts'), color: PAL.light, ink: '#141210' }], rows: A.people.map(function (p) { return [p.name, [p.n.special, p.n.broadcast]]; }) }],
         tables: [peopleTable()] };
     }
     function secDeals(list, heading, chartless) {
-      return { kicker: t('Results'), title: heading,
+      return { where: [TABN.team, t('Reservations, contracts, cancellations')], kicker: t('Results'), title: heading,
         text: [t('Every reservation, contract and cancellation recorded in these dates. A cancelled reservation stays in the list, with its reason.')], notes: [],
         charts: chartless || !A.salesByC.length ? [] : [{ type: 'hbar', title: t('Sales by company'), fmt: money, rows: A.salesByC.slice(0, 10).map(function (x) { return [x.c.name, x.v, count(x.n, 'contract'), PAL.green]; }) }],
         tables: [eventTable(heading, list, true)] };
@@ -2305,7 +2459,7 @@
     function secCancel(list) {
       var by = {}; list.forEach(function (e) { by[e.why] = (by[e.why] || 0) + 1; });
       var cols = [PAL.red, PAL.yellow, PAL.slate, PAL.light];
-      return { kicker: t('Results'), title: t('Cancelled reservations'),
+      return { where: [TABN.team, t('Reservations, contracts, cancellations')], kicker: t('Results'), title: t('Cancelled reservations'),
         text: [t('A reservation that was withdrawn. It is kept in the history with its date and reason, and counted apart.')], notes: [],
         charts: [{ type: 'donut', title: t('Cancellations by reason'), centre: t('cancelled'), rows: B.why.filter(function (w) { return by[w]; }).map(function (w, i) { return [WHYL[w], by[w], cols[i % cols.length]]; }) }],
         tables: [eventTable(t('Cancelled reservations'), list, true)] };
@@ -2323,7 +2477,8 @@
         demo: B.demo ? t('DEMO FIGURES. The activity in this file is invented for the demonstration.') : '', rtl: AR,
         answer: answer, summary: tiles, coverChart: coverChart, sections: sections,
         meta: [[t('Dates'), rangeText()], [t('Made on'), made, 'datetime'], [t('Prepared by'), MGR.name + (MGR.code ? ' (' + MGR.code + ')' : '')], [t('What it covers'), t('Your team’s activity only')]],
-        labels: { summary: t('In these dates'), summarySheet: t('Summary'), analysis: t('What it shows'), demoFoot: t('DEMO FIGURES'), page: t('Page {n} of {m}'), continued: t('continued'), none: t('Nothing in these dates.') },
+        labels: { summary: t('In these dates'), summarySheet: t('Summary'), analysis: t('What it shows'), demoFoot: t('DEMO FIGURES'), page: t('Page {n} of {m}'), continued: t('continued'), none: t('Nothing in these dates.'),
+          /* build 145, look B */ where: t('Where it is in the app'), how: t('How it is counted'), sentence: t('In one sentence'), contents: t('In this report'), andMore: t('{n} more inside') },
         tables: [], notes: answer ? [answer] : [] };
       sections.forEach(function (s) { (s.notes || []).forEach(function (n) { rep.notes.push(n); }); (s.tables || []).forEach(function (tb) { rep.tables.push(tb); }); });
       return rep;
@@ -2336,7 +2491,32 @@
       return [[name, list.length], [t('Special requests'), sum(list, function (c) { return n(c).special; })], [t('Meetings'), sum(list, function (c) { return n(c).meeting; })], [t('Contracts'), sum(list, function (c) { return n(c).contract; })], [t('Sales, EGP'), sum(list, function (c) { return n(c).value; }), 'money']];
     }
     function inList(list) { return t('{a} of {b} companies are in this list today.', { a: list.length, b: book.length }); }
+    /* BUILD 145, THE REPORTS IN LOOK B, EMBER (his choice of 2026-10-11; js/report.js). Each page names where its
+       subject is in the app, as a path in words ("Team › Build Check"): the look he chose had a picture of the
+       screen there, and a phone cannot photograph its own screen into a file. The names are the app's own:
+       the tabs, the cards, the chips of the Companies list. */
+    var TABN = { home: t('Home'), companies: t('Companies'), team: t('Team'), analysis: t('Analysis') };
+    function chipName(f) { return f === 'all' ? t('All') : f === 'effective' ? t('Effective') : f === 'nomeet' ? t('No meeting yet') : f === 'fresh' ? t('New') : STATE[f] || ''; }
+    function whereOf(key) {
+      var at = key.indexOf(':'), kind = at === -1 ? key : key.slice(0, at), arg = at === -1 ? '' : key.slice(at + 1), p, c;
+      if (kind === 'state') return [TABN.companies, chipName(arg)];
+      if (kind === 'effective' || kind === 'nomeet' || kind === 'fresh') return [TABN.companies, chipName(kind)];
+      if (kind === 'deals' || kind === 'cancels') return [TABN.team, t('Reservations, contracts, cancellations')];
+      if (kind === 'team') return [TABN.analysis, t('Whole team')];
+      if (kind === 'person') { p = A.people.filter(function (x) { return x.id === +arg; })[0]; return p ? [TABN.team, p.name] : [TABN.team]; }
+      if (kind === 'company') { c = book[+arg]; return c ? [TABN.companies, c.name] : [TABN.companies]; }
+      if (kind === 'movement') return [TABN.home, t('Movement')];
+      if (kind === 'visits') return [TABN.home, t('Orientations') + ' · ' + t('Workshops')];
+      if (kind === 'tile' && TILE[arg]) return [TABN.home, TILE[arg]];
+      return [];
+    }
+    /* a sales agent's, a company's or a tile's report is about that one place: every page of it is there */
     function describe(key) {
+      var r = describeOf(key);
+      if (r) { r.where = whereOf(key); if (/^(person|company|tile):/.test(key)) (r.sections || []).forEach(function (s) { s.where = r.where; }); }
+      return r;
+    }
+    function describeOf(key) {
       var at = key.indexOf(':'), kind = at === -1 ? key : key.slice(0, at), arg = at === -1 ? '' : key.slice(at + 1);
       var n = A.tot, name, list, p, c, mine, w;
       if (kind === 'state' && STATE[arg]) {
@@ -2412,7 +2592,9 @@
         if (arg === 'orientation' || arg === 'workshop') return makeReport(name, t('What the team did'), t('{a} of {b} were followed by a request or a meeting.', { a: list.filter(function (x) { return x.f.ok; }).length, b: list.length }),
           [[name, list.length], [arg === 'orientation' ? t('Led to a request') : t('Led to a meeting'), A.led[arg]]], [secVisits(list, name)]);
         if (arg === 'asked') return makeReport(name, t('Companies'), t('{x} asked your team in these dates.', { x: count(list.length, 'company') }), listTiles(name, list), [secRank('all', name, t('Ranked by special requests in these dates.'), list)]);
-        if (arg === 'offers') return makeReport(name, t('Activity'), t('{a} special requests and {b} broadcasts in these dates.', { a: n.special, b: n.broadcast }), tilesOf(n), [secTrend(teamWeeks(), t('Special requests, week by week'), t('Special requests each week')), secTeam(), secLog(list, name)], funnelChart());
+        /* build 145: the download of the Special requests sheet holds what the sheet holds: special requests */
+        if (arg === 'offers') { name = t('Special requests'); list = list.filter(function (e) { return e.c !== null; });
+          return makeReport(name, t('Activity'), t('{a} special requests from {b} companies in these dates.', { a: n.special, b: A.asked.length }), tilesOf(n).filter(function (x) { return x[0] !== t('Broadcasts'); }), [secTrend(teamWeeks(), t('Special requests, week by week'), t('Special requests each week')), secTeam(), secLog(list, name)], funnelChart()); }
         if (arg === 'meeting') return makeReport(name, t('Activity'), t('{x} recorded in these dates.', { x: count(list.length, 'meeting') }), tilesOf(n).slice(1).concat(tilesOf(n).slice(0, 1)), [secFunnel(), secLog(list, name)]);
         return makeReport(name, t('Results'), arg === 'reservation' ? t('{a} and {b} in these dates.', { a: count(n.reservation, 'reservation'), b: count(n.cancel, 'cancellation') }) : t('{x} in this list.', { x: list.length }), tilesOf(n).slice(2).concat(tilesOf(n).slice(0, 2)), [secDeals(list, name, arg !== 'contract' && arg !== 'deals')]);
       }
@@ -2499,7 +2681,7 @@
       if (e.target.id === 'rU') checkUnit();
       else if (e.target.id === 'rV') delete e.target.dataset.auto;
     });
-    $('sheet').addEventListener('change', function (e) { if ($('rErr')) $('rErr').hidden = true; if (e.target.id === 'rR' && $('rFree')) fromReservation(); if (e.target.id === 'rPl' && $('rPlO')) $('rPlO').hidden = e.target.value !== 'other'; });
+    $('sheet').addEventListener('change', function (e) { if ($('rErr')) $('rErr').hidden = true; if (e.target.id === 'rR' && $('rFree')) fromReservation(); if (e.target.id === 'rPl' && $('rPlO')) $('rPlO').hidden = e.target.value !== 'other'; if (/^r[DMS]$/.test(e.target.id)) meetAsk(); });
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') { if (!closeGlass()) closeSheet(); }
       /* build 136: an entry in a feed is a row that opens; the keyboard opens it too */
@@ -2516,6 +2698,9 @@
       var d = hit('data-dl'), c = hit('data-c'), m = hit('data-m'), f = hit('data-f'), r = hit('data-r'), g = hit('data-go'), k = hit('data-k'), l = hit('data-lang');
       if (e.target.closest('#when')) { menuOpen = !menuOpen; draw(true); }
       else if (e.target.closest('#rSave')) { if (MY) saveMyRecord(); else saveRecord(); }
+      else if (hit('data-met')) meetPick(hit('data-met'));
+      else if (hit('data-where')) pressOne(hit('data-where'));
+      else if (hit('data-nomeet')) pressOne(hit('data-nomeet'));
       else if (e.target.closest('#out')) { MM.auth.signOut(); location.replace(MY ? 'login.html' : 'login.html?next=manager.html'); }
       else if (e.target.closest('#rmGo')) removeTeamEntry(e.target.closest('#rmGo').dataset.id);
       else if (e.target.closest('#hoGo')) doHandOver();
@@ -2565,7 +2750,7 @@
     window.addEventListener('resize', deckFit);
     /* build 138, the company found by typing: a letter un-chooses and lists the names; the list goes when
        he moves to another field of the form */
-    $('sheet').addEventListener('input', function (e) { if (e.target.id === 'rCq') { $('rC').value = ''; pickList(); } });
+    $('sheet').addEventListener('input', function (e) { if (e.target.id === 'rCq') { $('rC').value = ''; pickList(); meetAsk(); } });
     $('sheet').addEventListener('focusin', function (e) {
       if (e.target.id === 'rCq') { if ($('rC').value === '') pickList(); }
       else if (!(e.target.closest && e.target.closest('#rCl'))) pickShut();

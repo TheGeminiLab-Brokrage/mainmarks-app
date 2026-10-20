@@ -219,6 +219,8 @@
       if (r.made) e.made = r.made;                                       /* the day it was entered, which is not always its date */
       if (r.k === 'reservation' || r.k === 'contract') { e.u = r.u; e.area = r.area || null; e.v = r.v; }
       if (r.k === 'contract' && r.pl) { e.pl = r.pl; e.pd = r.pd; e.py = r.py; }   /* build 141: the plan it was signed on */
+      if (r.k === 'meeting' && typeof r.on === 'boolean') e.on = r.on;              /* build 145: online or in person */
+      if (r.nm) { e.nm = r.nm; if (r.note) e.note = r.note; }                       /* build 145: why there was no meeting */
       if (r.k !== 'meeting' && m2 !== -1 && m2 !== m) e.m2 = m2;       /* a deal split with, or a visit made with */
       /* build 121: a contract entered FROM a reservation closes it; the reservation is kept, marked */
       if (r.k === 'contract' && r.of) {
@@ -285,9 +287,12 @@
       /* r: { k, c: company index, m: salesperson index, m2, date: Date, p, u, v; on a contract pl, pd, py } */
       add: function (r) {
         var u = r.u ? book.unit(r.u) : null, d = agoOf(r.date);
+        /* build 145: "Yes, we met" keeps the meeting too, under the entry's sales agent, a minute before it on one day */
+        if (r.met) { var md = agoOf(r.met.date); keep({ k: 'meeting', c: companies[r.c], m: team[r.m].code, m2: null, date: iso(r.met.date), t: md === 0 ? Math.max(0, now - 1) : 12 * 60, p: u ? productOf(u) : r.p, made: iso(today), on: !!r.met.on }); }
         return keep({ k: r.k, c: companies[r.c], m: team[r.m].code, m2: r.m2 == null ? null : team[r.m2].code, date: iso(r.date), t: d === 0 ? now : 12 * 60,
           p: u ? productOf(u) : r.p, u: r.u || null, area: u ? u.area : null, v: r.v || 0, of: r.of || null, made: iso(today),
-          pl: r.k === 'contract' ? r.pl || null : null, pd: r.k === 'contract' && r.pl ? r.pd : null, py: r.k === 'contract' && r.pl ? r.py : null });
+          pl: r.k === 'contract' ? r.pl || null : null, pd: r.k === 'contract' && r.pl ? r.pd : null, py: r.k === 'contract' && r.pl ? r.py : null,
+          on: r.k === 'meeting' && typeof r.on === 'boolean' ? r.on : null, nm: r.nm || null, note: r.nm && r.note ? r.note : null });
       },
       remove: remove, removable: removable, removeWhy: removeWhy,
       cancel: function (id, date, why) { return keep({ k: 'cancel', of: id, date: iso(date), t: agoOf(date) === 0 ? now : 12 * 60, why: why }); },
@@ -435,6 +440,11 @@
       if (r.ended) { e.end = r.ended; if (r.ended_on && fromIso(r.ended_on)) e.endD = Math.max(0, agoOf(fromIso(r.ended_on))); }
       /* build 141: the plan a contract was signed on. A contract recorded before that has none. */
       if (r.kind === 'contract' && r.plan) { e.pl = r.plan; e.pd = Number(r.plan_down); e.py = Number(r.plan_years); }
+      /* build 145, the meeting behind a reservation: a meeting says whether it was online (`on`; left out on
+         one saved before, which said nothing); a reservation or a contract with no meeting says why (`nm`),
+         with the sales agent's note */
+      if (r.kind === 'meeting' && typeof r.online === 'boolean') e.on = r.online;
+      if (r.no_meeting) { e.nm = r.no_meeting; if (r.note) e.note = r.note; }
       e.made = r.made_on;
       e.mine = r.created_by === me.id;
       /* build 140, AN OFFER A SALES MANAGER SENT HIMSELF (Muhanad, 2026-10-10). It is saved in the manager's
@@ -492,9 +502,23 @@
            (MM_NO_PLAN). The three values go with a contract only: the store finds its function by the
            names it is sent, and every other kind is sent exactly what it was sent before. */
         if (r.k === 'contract') { body.p_plan = r.pl || null; body.p_plan_down = r.pl ? r.pd : null; body.p_plan_years = r.pl ? r.py : null; }
+        /* build 145: the answer to "No meeting with this company is recorded. Was there one?" (the store asks,
+           MM_MEETING_ASKED); and on a meeting, online or in person. Sent only when there is one. */
+        if (r.met) { body.p_met_on = iso(r.met.date); body.p_online = !!r.met.on; }
+        if (r.nm) { body.p_no_meeting = r.nm; body.p_note = r.note || null; }
+        if (r.k === 'meeting' && typeof r.on === 'boolean') body.p_online = r.on;
         return rpc('mm_record', body).then(function (saved) {
           var e = row(saved);
           if (!e) throw new Error('MM_FAILED');
+          /* the meeting saved in the same step carries the entry's reference and ":met"; it is fetched so the
+             page counts it at once. If that read fails, the next opening of the page has it. */
+          if (!r.met) return e;
+          return MM.auth.call('/rest/v1/mm_events?select=*&client_ref=eq.' + encodeURIComponent(body.p_client_ref + ':met')).then(function (x) {
+            var m = x && x.status === 200 && Array.isArray(x.body) && x.body[0] ? row(x.body[0]) : null;
+            if (m && !events.some(function (y) { return y.id === m.id; })) events.push(m);
+            return e;
+          }, function () { return e; });
+        }).then(function (e) {
           events.push(e);
           if (e.k === 'contract' && e.of) events.forEach(function (x) { if (x.id === e.of) { x.end = 'contract'; x.endD = e.d; } });
           return e;
