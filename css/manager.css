@@ -452,6 +452,12 @@ html[lang="ar"] .sales > b small { margin-inline: 8px 0; }
 .hist small { font-size: 11.5px; line-height: 1.45; color: var(--mut); }
 .hist q { font-size: 12.5px; line-height: 1.45; color: var(--ink); }
 .duty-card h2 .why-tip { text-align: start; }
+/* build 146 (audit of 2026-10-10, item 8): on a phone the explanation floated over the first sales agent's name.
+   It now opens IN the card, under the heading, and the names move down for it, as the duty line's does. */
+.duty-card h2 { flex-wrap: wrap; }
+.duty-card h2 em { display: contents; }
+.duty-card h2 .why { margin-inline-start: auto; text-align: end; }
+.duty-card h2 .why-tip { position: static; flex-basis: 100%; box-shadow: none; margin-top: 4px; }
 
 /* ---- build 137 (Muhanad, 2026-10-10) ------------------------------------------------------------
    WHILE A SHEET IS OPEN THE BAR AND THE PLUS STEP ASIDE. On a laptop the sheet stands in the middle,

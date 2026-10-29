@@ -450,10 +450,33 @@
   function wrongNames() { var s = current(); return (s && s.real && Number(s.wrong)) || 0; }
   function mayPropose() { return wrongNames() < 3; }
 
+  /* build 146, A STRONGER PASSWORD RULE (audit of 2026-10-10, item 9): the app took 12345678, staff would choose
+     the same, and a manager's account reads the company list. Now: at least 10 characters, letters AND numbers,
+     not a run or a repeat (1234567890, aaaaaaaaaa, qwerty...), not a common word, not his own name from his
+     email. One rule, used by the form and by the save, so the two cannot disagree. Returns '' or why not. */
+  var EASY = ['password', 'passw0rd', 'qwerty', 'asdfgh', 'zxcvbn', 'azerty', 'letmein', 'welcome', 'admin', 'mainmarks', 'moray', 'wellness', 'iloveyou', 'abc123', '123abc', 'egypt', 'cairo'];
+  function passwordProblem(pw, email) {
+    pw = String(pw || '');
+    var low = pw.toLowerCase(), i, step = 0, steps = true, same = true;
+    if (pw.length < 10) return 'Use at least 10 characters.';
+    if (!/[a-z؀-ۿ]/i.test(pw) || !/[0-9٠-٩]/.test(pw)) return 'Use letters and numbers together.';
+    for (i = 1; i < low.length; i++) {
+      var d = low.charCodeAt(i) - low.charCodeAt(i - 1);
+      if (d !== 0) same = false;
+      if (i === 1) step = d; else if (d !== step || Math.abs(d) !== 1) steps = false;
+    }
+    if (Math.abs(step) !== 1) steps = false;
+    if (same || steps || EASY.some(function (w) { return low.indexOf(w) !== -1; }) || /(\d)\1{3}|0123|1234|2345|3456|4567|5678|6789|9876|8765|7654|6543|5432|4321/.test(low) && low.replace(/[^0-9]/g, '').length > low.length / 2) return 'This password is too easy to guess. Choose another.';
+    var parts = String(email || '').toLowerCase().split('@')[0].split(/[^a-z0-9]+/).filter(function (x) { return x.length >= 3; });
+    if (parts.some(function (x) { return low.indexOf(x) !== -1; })) return 'Do not use your name in the password.';
+    return '';
+  }
+
   /* A PERSON CHOOSES HIS OWN PASSWORD. Resolves { ok } | { ok: false, why }. */
   function changePassword(pw) {
     pw = String(pw || '');
-    if (pw.length < 8) return Promise.resolve({ ok: false, why: 'Use at least 8 characters.' });
+    var s0 = current(), why = passwordProblem(pw, s0 && s0.email);
+    if (why) return Promise.resolve({ ok: false, why: why });
     return token().then(function (access) {
       return api('/auth/v1/user', { method: 'PUT', body: { password: pw } }, access).then(function (r) {
         if (r.status !== 200) {
@@ -686,6 +709,7 @@
     offerLeft: offerLeft,
     offerNotSent: offerNotSent,
     changePassword: changePassword,
+    passwordProblem: passwordProblem,
     member: member,
     current: current,
     signIn: signIn,

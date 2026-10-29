@@ -233,20 +233,20 @@
      two, 3 to 10, and 11 up. [en one, en many, ar 1, ar 2, ar 3-10, ar 11+] */
   var NOUN = {
     company: ['company', 'companies', 'شركة واحدة', 'شركتان', 'شركات', 'شركة'],
-    salesperson: ['sales agent', 'sales agents', 'مندوب واحد', 'مندوبان', 'مندوبين', 'مندوباً'],
-    meeting: ['meeting', 'meetings', 'اجتماع واحد', 'اجتماعان', 'اجتماعات', 'اجتماعاً'],
-    deal: ['deal', 'deals', 'صفقة واحدة', 'صفقتان', 'صفقات', 'صفقة'],
+    salesperson: ['sales agent', 'sales agents', 'سيلز واحد', '2 سيلز', 'سيلز', 'سيلز'],
+    meeting: ['meeting', 'meetings', 'ميتنج واحد', '2 ميتنج', 'ميتنج', 'ميتنج'],
+    deal: ['deal', 'deals', 'بيعة واحدة', 'بيعتان', 'بيعات', 'بيعة'],
     offer: ['offer', 'offers', 'عرض واحد', 'عرضان', 'عروض', 'عرضاً'],
     request: ['request', 'requests', 'طلب واحد', 'طلبان', 'طلبات', 'طلباً'],
-    broadcast: ['broadcast', 'broadcasts', 'منشور عام واحد', 'منشوران عامان', 'منشورات عامة', 'منشوراً عاماً'],
+    broadcast: ['broadcast', 'broadcasts', 'برودكاست واحد', '2 برودكاست', 'برودكاست', 'برودكاست'],
     contract: ['contract', 'contracts', 'عقد واحد', 'عقدان', 'عقود', 'عقداً'],
     reservation: ['reservation', 'reservations', 'حجز واحد', 'حجزان', 'حجوزات', 'حجزاً'],
     cancellation: ['cancellation', 'cancellations', 'إلغاء واحد', 'إلغاءان', 'إلغاءات', 'إلغاءً'],
     post: ['WhatsApp post', 'WhatsApp posts', 'بوست واتساب واحد', 'بوستان على واتساب', 'بوستات واتساب', 'بوست واتساب'],
     pdf: ['offer PDF', 'offer PDFs', 'ملف PDF واحد', 'ملفان PDF', 'ملفات PDF', 'ملف PDF']
   };
-  NOUN.orientation = ['orientation', 'orientations', 'جلسة تعريفية واحدة', 'جلستان تعريفيتان', 'جلسات تعريفية', 'جلسة تعريفية'];
-  NOUN.workshop = ['workshop', 'workshops', 'ورشة عمل واحدة', 'ورشتا عمل', 'ورش عمل', 'ورشة عمل'];
+  NOUN.orientation = ['orientation', 'orientations', 'اورينتيشن واحد', '2 اورينتيشن', 'اورينتيشن', 'اورينتيشن'];
+  NOUN.workshop = ['workshop', 'workshops', 'ورك شوب واحد', '2 ورك شوب', 'ورك شوب', 'ورك شوب'];
   NOUN.day = ['day', 'days', 'يوم واحد', 'يومين', 'أيام', 'يوماً'];
   NOUN.special = ['special request', 'special requests', 'طلب خاص واحد', 'طلبان خاصان', 'طلبات خاصة', 'طلباً خاصاً'];
   NOUN.entry = ['entry', 'entries', 'إدخال واحد', 'إدخالان', 'إدخالات', 'إدخالاً'];
@@ -434,7 +434,7 @@
     function hhmm(m) { return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); }
     function iso(ago) { return B.iso(B.dateOf(ago)); }
     function agoOf(s) { var d = B.fromIso(s); return d ? Math.max(0, Math.min(SPAN, B.agoOf(d))) : null; }
-    function periodName() { var P = PERIODS.filter(function (x) { return x[0] === period.key; })[0]; return period.key === 'c' ? fmt(period.from) + ' – ' + fmt(period.to) : P[1]; }
+    function periodName() { var P = PERIODS.filter(function (x) { return x[0] === period.key; })[0]; return period.key === 'c' ? (period.from === period.to ? fmt(period.from) : fmt(period.from) + ' – ' + fmt(period.to)) : P[1]; }   /* build 146: one day chosen reads "8 Oct", not "8 Oct – 8 Oct" */
     function rangeText() { var y = B.dateOf(period.to).getFullYear(); return period.from === period.to ? fmt(period.from) + ' ' + y : fmt(period.from) + ' – ' + fmt(period.to) + ' ' + y; }
     /* build 144, A SPLIT DEAL IS HALF TO EACH, WHEREVER ONE PERSON'S SALES ARE ADDED UP (Muhanad's rule for the
        Team sales dial, 2026-10-12, now everywhere: "Give a split deal half the money to each agent everywhere",
@@ -494,8 +494,12 @@
       var lastWeek = period.key === 'week';
       var before = crewAll.filter(function (e) { return lastWeek ? e.d >= period.to + 7 && e.d <= period.from + 7 : e.d > period.from && e.d <= period.from + (A.single ? 28 : len); });
       for (d = period.from + 1; d <= period.from + 28; d++) if (workday(d)) days++;
-      A.normal = A.single && period.from + 28 <= SPAN ? Math.round(before.filter(function (e) { return e.k === 'offer' && e.c !== null && e.t <= upTo; }).length / days) : null;
-      A.prev = (!A.single && period.from + len <= SPAN) ? tally(before, MY ? ME : undefined) : null;
+      /* build 146, THE FIRST WEEKS STAY SILENT (audit of 2026-10-10, item 7): a comparison is made only when the
+         team's own record covers the whole time it is compared with. In a team's first weeks "12 more than a normal
+         day" compared with days nobody worked yet. `since`: how many days ago the first entry of these people is. */
+      var since = crewAll.reduce(function (m, e) { return Math.max(m, e.d); }, -1);
+      A.normal = A.single && period.from + 28 <= SPAN && since >= period.from + 28 ? Math.round(before.filter(function (e) { return e.k === 'offer' && e.c !== null && e.t <= upTo; }).length / days) : null;
+      A.prev = (!A.single && period.from + len <= SPAN && since >= (lastWeek ? period.from + 7 : period.from + len)) ? tally(before, MY ? ME : undefined) : null;
       A.prevBase = lastWeek ? 'lastweek' : 'before';
       /* who changed: each company's state the day before these dates, against today */
       A.delta = null; A.changed = [];
@@ -839,15 +843,18 @@
       if (base === 'lastweek') return d === 0 ? t('the same as last week by this day') : d > 0 ? t('{n} more than last week by this day', { n: n }) : t('{n} fewer than last week by this day', { n: n });
       return d === 0 ? t('the same as the time before') : d > 0 ? t('{n} more than the time before', { n: n }) : t('{n} fewer than the time before', { n: n });
     }
+    /* build 146, A SALES AGENT'S BIG NUMBER IS HIS SPECIAL REQUESTS (audit of 2026-10-10, item 6; his settled rule:
+       special requests, with broadcasts beside them). It read "offers", the two added together. The line under
+       the name now says the broadcasts; the bar still shows both, special first. */
     function personRow(p) {
       var unit = 100 / A.maxOffers, sub;
       if (!p.n.offers) sub = '<span class="idle">' + t('No offers yet') + '</span>';
-      else if (A.single) sub = t('{a} special · {b} broadcast', { a: p.n.special, b: p.n.broadcast }) + (p.last ? ' · ' + t('last {time}', { time: when(p.last) }) : '');
-      else sub = t('{a} special', { a: p.n.special }) + ' · ' + count(p.companies, 'company') + (p.n.value ? ' · ' + money(p.n.value) : '');
+      else if (A.single) sub = count(p.n.broadcast, 'broadcast') + (p.last ? ' · ' + t('last {time}', { time: when(p.last) }) : '');
+      else sub = count(p.n.broadcast, 'broadcast') + ' · ' + count(p.companies, 'company') + (p.n.value ? ' · ' + money(p.n.value) : '');
       /* an agent the admin has switched off keeps his rows with his last team, and the row says so */
       if (p.off) sub = t('Switched off') + ' · ' + sub;
       if (!MY && p.ho) sub += ' · ' + t('{n} sent by you', { n: p.ho });
-      return '<button class="row" type="button" data-m="' + p.id + '"><span class="nm">' + esc(p.name) + '</span><span class="val">' + p.n.offers + '<small>' + t('Offers') + '</small></span>' +
+      return '<button class="row" type="button" data-m="' + p.id + '"><span class="nm">' + esc(p.name) + '</span><span class="val">' + p.n.special + '<small>' + t(p.n.special === 1 ? 'Special request' : 'Special requests') + '</small></span>' +
         '<span class="sub">' + sub + '</span><span class="mini"><i style="width:' + (p.n.special * unit).toFixed(1) + '%"></i><i style="width:' + (p.n.broadcast * unit).toFixed(1) + '%"></i><u></u></span></button>';
     }
     /* ONE DAY: the gauge is the TEAM.
@@ -877,7 +884,9 @@
       A.crew.forEach(function (p) { by[bestStep(p)].push(p.name); });
       var segs = STEPS.map(function (s) { var who = by[s[0]]; return { k: s[0], n: who.length, label: s[1], tip: (s[3] && period.to !== 0 ? s[3] : s[2]) + (who.length ? '\n' + who.join(AR ? '، ' : ', ') : '') }; });
       var n = '<b>' + A.normal + '</b>';
-      var line = A.normal === null ? '' : '<p class="eff">' + (period.to === 0 ? t('A normal day by {time}: {n} special requests', { time: hhmm(NOW), n: n }) : t('A normal full day: {n} special requests', { n: n })) + ' · <b>' + vs(A.tot.special, A.normal, 'normal') + '</b></p>';
+      /* build 146: one is "1 special request" (audit item 7) */
+      var one = A.normal === 1;
+      var line = A.normal === null ? '' : '<p class="eff">' + (period.to === 0 ? t(one ? 'A normal day by {time}: {n} special request' : 'A normal day by {time}: {n} special requests', { time: hhmm(NOW), n: n }) : t(one ? 'A normal full day: {n} special request' : 'A normal full day: {n} special requests', { n: n })) + ' · <b>' + vs(A.tot.special, A.normal, 'normal') + '</b></p>';
       return '<section class="card"><h2>' + t('Your team') + ' <em>' + periodName() + ' · ' + count(OWN, 'salesperson') + '</em></h2>' + gauge(segs, A.tot.special, t('special requests')) + line + '</section>';
     }
     /* A WEEK OR MORE: the gauge is the COMPANIES, with how each count moved since the day before these dates. */
@@ -1218,7 +1227,8 @@
     var LIST_FIRST = 6, LIST_PART = 40, listRows = [];
     function companyList() {
       var list = listRows = companyMatches(look.filter, look.query), more = list.length - LIST_FIRST;
-      return '<h2>' + t('History with your team') + ' <em>' + t('{n} shown', { n: list.length }) + '</em></h2>' +
+      /* build 146: "76 shown" stood over the six lines the card shows (the rest scroll); it is how many companies the list holds */
+      return '<h2>' + t('History with your team') + ' <em>' + count(list.length, 'company') + '</em></h2>' +
         (list.length ? rankHead(look.filter) + '<div class="rows' + (more > 0 ? ' inbox" tabindex="0" role="region" aria-label="' + esc(t('Companies')) : '') + '" id="cbox">' + list.slice(0, LIST_PART).map(rankRow(look.filter)).join('') + '</div>' +
             (more > 0 ? '<p class="inbox-hint">' + t('{n} more · scroll the list', { n: more }) + '</p>' : '')
           : '<p class="note">' + t('No company matches.') + '</p>');
@@ -1993,7 +2003,7 @@
         var n = A.tot;
         var files = [['state:active', t('Active companies'), count(count4.active, 'company')], ['state:quiet', t('Gone quiet'), count(count4.quiet, 'company')], ['state:inactive', t('Inactive'), count(count4.inactive, 'company')], ['state:never', t('Never asked'), count(count4.never, 'company')],
           ['effective', t('Effective'), t('{x} with a meeting', { x: count(A.effective, 'company') })], ['nomeet', t('Many requests, no meeting'), count(noMeetCount(), 'company')],
-          ['deals', t('Reservations and contracts'), count(n.reservation, 'reservation') + ' · ' + count(n.contract, 'contract')], ['cancels', t('Cancelled reservations'), t('{n} in these dates, with the reason', { n: n.cancel })], ['movement', t('Movement'), A.move ? t('{a} up, {b} down', { a: moveCount(A.move.up), b: moveCount(A.move.down) }) : t('Choose a week or more')], ['visits', t('Orientations and workshops'), count(n.orientation, 'orientation') + ' · ' + count(n.workshop, 'workshop')], ['fresh', t('New companies'), count(A.fresh.length, 'company')],
+          ['deals', t('Reservations and contracts'), count(n.reservation, 'reservation') + ' · ' + count(n.contract, 'contract')], ['cancels', t('Cancelled reservations'), t('{n} in these dates, with the reason', { n: n.cancel })], ['movement', t('Movement'), A.move ? t('{a} up, {b} down', { a: moveCount(A.move.up), b: moveCount(A.move.down) }) : A.single ? t('Choose a week or more') : t('Choose a shorter time')],   /* build 146: "Last 12 weeks" is more than a week; it is too long to look back from */ ['visits', t('Orientations and workshops'), count(n.orientation, 'orientation') + ' · ' + count(n.workshop, 'workshop')], ['fresh', t('New companies'), count(A.fresh.length, 'company')],
           ['team', t('Whole team'), t('Every list in one report')]];
         return head(t('Quick analysis')) +
           '<section class="card"><h2>' + t('Download') + ' <em>' + periodName() + '</em></h2>' + files.map(function (f) { return dlRow(f[0], f[1], f[2]); }).join('') + '</section>' +
@@ -2566,7 +2576,7 @@
         var lost = book.filter(function (c) { return c.who12.length && c.who12[0].m === p.id && (c.state === 'quiet' || c.state === 'inactive'); }).sort(function (a, b) { return b.total - a.total; });
         if (lost.length) secs.push({ kicker: t('Companies'), title: t('Gone quiet or inactive with {name}', { name: p.name.split(' ')[0] }), text: [t('Companies this sales agent handled most, with no request for two weeks or more. They are not in the list above, because they did not ask in these dates.')], notes: [], charts: [], tables: [leanTable(t('Gone quiet or inactive'), lost)] });
         secs.push(secLog(mine, t('Activity')));
-        return makeReport(p.name, t('Sales agent'), t('{name} sent {a} special requests to {b} companies and {c} broadcasts in these dates.', { name: p.name, a: p.n.special, b: p.companies, c: p.n.broadcast }),
+        return makeReport(p.name, t('Sales agent'), t('{name} sent {a} to {b} and {c} in these dates.', { name: p.name, a: count(p.n.special, 'special'), b: count(p.companies, 'company'), c: count(p.n.broadcast, 'broadcast') }),
           [[t('Special requests'), p.n.special], [t('Broadcasts'), p.n.broadcast], [t('Companies'), p.companies], [t('Meetings'), p.n.meeting], [t('Reservations'), p.n.reservation], [t('Contracts'), p.n.contract], [t('Cancelled reservations'), p.n.cancel], [t('Sales, EGP'), p.n.value, 'money']], secs, funnelChart(p.n));
       }
       if (kind === 'company') {
@@ -2594,7 +2604,7 @@
         if (arg === 'asked') return makeReport(name, t('Companies'), t('{x} asked your team in these dates.', { x: count(list.length, 'company') }), listTiles(name, list), [secRank('all', name, t('Ranked by special requests in these dates.'), list)]);
         /* build 145: the download of the Special requests sheet holds what the sheet holds: special requests */
         if (arg === 'offers') { name = t('Special requests'); list = list.filter(function (e) { return e.c !== null; });
-          return makeReport(name, t('Activity'), t('{a} special requests from {b} companies in these dates.', { a: n.special, b: A.asked.length }), tilesOf(n).filter(function (x) { return x[0] !== t('Broadcasts'); }), [secTrend(teamWeeks(), t('Special requests, week by week'), t('Special requests each week')), secTeam(), secLog(list, name)], funnelChart()); }
+          return makeReport(name, t('Activity'), t('{a} from {b} in these dates.', { a: count(n.special, 'special'), b: count(A.asked.length, 'company') }), tilesOf(n).filter(function (x) { return x[0] !== t('Broadcasts'); }), [secTrend(teamWeeks(), t('Special requests, week by week'), t('Special requests each week')), secTeam(), secLog(list, name)], funnelChart()); }
         if (arg === 'meeting') return makeReport(name, t('Activity'), t('{x} recorded in these dates.', { x: count(list.length, 'meeting') }), tilesOf(n).slice(1).concat(tilesOf(n).slice(0, 1)), [secFunnel(), secLog(list, name)]);
         return makeReport(name, t('Results'), arg === 'reservation' ? t('{a} and {b} in these dates.', { a: count(n.reservation, 'reservation'), b: count(n.cancel, 'cancellation') }) : t('{x} in this list.', { x: list.length }), tilesOf(n).slice(2).concat(tilesOf(n).slice(0, 2)), [secDeals(list, name, arg !== 'contract' && arg !== 'deals')]);
       }

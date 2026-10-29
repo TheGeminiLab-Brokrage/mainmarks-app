@@ -90,7 +90,7 @@
       contact: function (name, phone) { return '📞 ' + [name, phone].filter(Boolean).join(' · '); }
     },
     ar: {
-      sample: '⚠️ عينة — شروط الخطة لم تؤكدها Main Marks بعد',
+      sample: '⚠️ عينة — شروط نظام السداد لم تؤكدها Main Marks بعد',
       headline: function (s, pl) {
         if (s.cash) return '🔥خصم ' + isoPct(s.discountPct) + ' كاش🔥';
         var yrs = pl.years + (pl.years <= 10 ? ' سنين' : ' سنة');
@@ -395,7 +395,7 @@
         return '💰 ' + (s.discount ? 'خصم ' + isoPct(s.discountPct) + ' و' : '') + 'تقسيط على ' + pl.years + (pl.years <= 10 ? ' سنين ' : ' سنة ') + (pl.down ? 'بمقدم ' + isoPct(pl.down) : 'بدون مقدم');
       },
       unit: function (i, u) { return KEYCAP[i] + ' 📍*' + u.code + '* · ' + (USE_AR[u.type] || u.type) + ' ' + money(u.area) + ' متر'; },
-      role: { fit: '✅ الأنسب للميزانية', cheapest: '✅ أقل سعر', value: '✅ أقل سعر للمتر', lower: '✅ سعر أقل', stretch: '⬆️ خطوة أعلى' },
+      role: { fit: '✅ الأنسب للميزانية', cheapest: '✅ أقل سعر', value: '✅ أقل سعر للمتر', lower: '✅ سعر أقل', stretch: '⬆️ فوق الميزانية بقليل' },
       twins: function (c) { return ' (ومثلها ' + c.join(' و') + ')'; },
       stepQ: function (m2, v) { return ': مساحة أكبر بـ ' + m2 + ' متر بزيادة ' + v + ' كل 3 شهور'; },
       stepC: function (m2, v) { return ': مساحة أكبر بـ ' + m2 + ' متر بزيادة ' + v; },

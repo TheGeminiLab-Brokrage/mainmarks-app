@@ -402,6 +402,8 @@ body.is-login { min-height: 100svh; }
 .newpw[hidden] { display: none; }
 .newpw-h { margin: 0 0 18px; color: var(--white); font: 400 17px/1.3 var(--font-corporate); }
 .newpw .field + .field { margin-top: 16px; }
+.newpw-h:has(+ .newpw-rule) { margin-bottom: 4px; }   /* build 146: the rule sits under the heading */
+.newpw-rule { margin: 0 0 18px; }
 .newpw .signin-btn { margin-top: 22px; }
 .who-pw { display: block; text-decoration: none; margin-bottom: 10px; }
 .forgot-note {

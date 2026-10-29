@@ -128,7 +128,9 @@
     function bad(msg) { pwWhy.textContent = msg; pwWhy.hidden = false; pwWhy.setAttribute('role', 'alert'); }
     function save() {
       pwWhy.hidden = true;
-      if (pw1.value.length < 8) return bad(t('Use at least 8 characters.'));
+      /* build 146: the same rule the save keeps (MM.auth.passwordProblem), said before anything is sent */
+      var s = MM.auth.current && MM.auth.current(), why = MM.auth.passwordProblem(pw1.value, s && s.email);
+      if (why) return bad(t(why));
       if (pw1.value !== pw2.value) return bad(t('The two passwords are not the same.'));
       pwGo.disabled = true;
       MM.auth.changePassword(pw1.value).then(function (r) {

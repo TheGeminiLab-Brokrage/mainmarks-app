@@ -165,7 +165,7 @@
      English rather than vanish (a note nobody can read beats no note) */
   var ASSUME_AR = {
     'The down payment is taken as a share of the price after the plan’s discount.':
-      'المقدم محسوب كنسبة من السعر بعد خصم الخطة.',
+      'المقدم محسوب كنسبة من السعر بعد خصم نظام السداد.',
     'The first instalment falls three months after the down payment, as in Main Marks’ sample contract.':
       'القسط الأول يستحق بعد 3 شهور من المقدم، كما في نموذج عقد Main Marks.'
   };
@@ -209,28 +209,28 @@
     onFloor: function (fl) { return 'في ' + fl; },
     drawingsSrc: function (b, page, floor) { return 'الرسومات: كتيب Moray، صفحة ' + page + '، ' + floor + '؛ رسم ' + b + ' نسخة أوضح منها.'; },
     /* 5 */
-    paymentPlan: 'خطة السداد',
+    paymentPlan: 'نظام السداد',
     planLabel: function (pl) {
       if (pl.cash) return 'كاش فوري  ·  خصم ' + pct(pl.discount) + '%';
       return 'مقدم ' + pct(pl.down) + '%  ·  ' + pl.years + ' سنوات' + (pl.discount ? '  ·  خصم ' + pct(pl.discount) + '%' : '');
     },
-    group: function (until) { return until ? 'العرض الحالي  ·  ساري حتى ' + until : 'خطة أساسية'; },
+    group: function (until) { return until ? 'العرض الحالي  ·  ساري حتى ' + until : 'نظام أساسي'; },
     cPayable: 'السعر بعد الخصم', cPrice: 'السعر', cOff: function (p, l) { return 'خصم ' + p + '% من ' + l; },
-    cNoDiscount: 'بدون خصم على هذه الخطة', cDown: 'المقدم', cOnSigning: 'عند التعاقد', cNothing: 'لا شيء عند التعاقد',
+    cNoDiscount: 'بدون خصم على نظام السداد هذا', cDown: 'المقدم', cOnSigning: 'عند التعاقد', cNothing: 'لا شيء عند التعاقد',
     cEvery: 'كل 3 شهور', cOver: function (n, y) { return n + ' قسطاً على ' + y + ' سنوات'; },
     cPaid: 'السداد', cOnce: 'دفعة واحدة عند التعاقد',
     sPrice: 'السعر', list: 'السعر الأصلي', discount: 'خصمك',
     /* NO space after the sign: with one, the shaper's ordering put the minus on
        the far side of the figure ("1,391,200 −"); joined, it stays on the figure */
     minus: function (v) { return '−' + money(v) + ' جنيه'; },
-    discountSub: function (p, current) { return 'خصم ' + p + '% من السعر الأصلي  ·  ' + (current ? 'العرض الحالي' : 'هذه الخطة'); },
+    discountSub: function (p, current) { return 'خصم ' + p + '% من السعر الأصلي  ·  ' + (current ? 'العرض الحالي' : 'هذا النظام'); },
     payable: 'السعر بعد الخصم', price: 'السعر',
     sHow: 'طريقة السداد', paidFull: 'السداد بالكامل عند التعاقد', downRow: 'المقدم، عند التعاقد',
     downSub: function (p, onList, date) { return p + (onList ? '% من السعر الأصلي  ·  ' : '% من السعر بعد الخصم  ·  ') + date; },
     instRow: function (n) { return n + ' قسطاً، كل 3 شهور'; },
     instSub: function (a, b, last) { return 'الأول في ' + a + '، والأخير في ' + b + (last ? ' (الأخير ' + last + ')' : ''); },
     each: function (v) { return v + ' للقسط'; },
-    planTotal: 'إجمالي الخطة',
+    planTotal: 'إجمالي نظام السداد',
     sNotYet: 'غير مشمول حتى الآن', maint: 'وديعة الصيانة', maintSub: 'لم تؤكد Main Marks قيمتها أو موعد استحقاقها',
     tbc: 'يُحدد لاحقاً', delivery: 'الاستلام', deliverySub: 'لم تؤكد Main Marks موعد الاستلام',
     assumed: 'افتراضات حتى تؤكدها Main Marks', assume: function (n) { return ASSUME_AR[n] || n; },
