@@ -1,0 +1,376 @@
+/* css/haze.css — THE HAZE THEME (build 186, Muhanad 2026-11-19: "export the style to the whole moray app we will go
+   with haze"). Loaded LAST by my.html, manager.html and admin.html (the pages on css/manager.css); the sales pages
+   load css/haze-sales.css. Made from the try-out's styles by Desktop\Moray - Main Marks\Try-out 186\build-haze.js,
+   keeping only Haze and the new My activity. The look, in short: black ground with a soft grey light from the top,
+   neutral smoky glass, white ink, orange #F7951E only for what is chosen and the one action; no warm tint, no glow.
+   The new My activity (cards, dates switch, graph, day window, guided tour) is styled here too. */
+
+/* ---- 1. every warm colour and orange glow of css/manager.css, made neutral (written by neutral.js) ---- */
+:root { --bg: #030303; --card: #161618; --mut: #ababae; --faint: #8d8d91; --never: rgba(255,255,255,.14); }
+@keyframes emberUp { from { opacity: 0; transform: translateY(22px); box-shadow: 0 0 0 rgba(247,149,30,0); } 60% { box-shadow: none; } }
+.fld select option { background: #161618; }
+.card { background: linear-gradient(160deg, #19191b, #0f0f10); }
+.stat { background: linear-gradient(160deg, #19191b, #0f0f10); }
+.tab { background: #161618; }
+.tab button[aria-current="page"] svg { filter: none; }
+.tab button[aria-current="page"]::before { box-shadow: none; }
+.pi-dial .g-beat { filter: none; }
+.why-tip { background: #232325; }
+.pick-list { background: #161618; }
+.mv-list .row, .mv-list .row:first-child { background: rgba(255,255,255, .055); }
+.mv-list .row:hover, .mv-list .row:focus-visible { background: rgba(255,255,255, .085); }
+.gauge .ts-beat { filter: none; }
+.glass { box-shadow: 0 24px 70px rgba(0,0,0,.55); }
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+.gveil { background: rgba(0,0,0,.3); }
+.glass { background: linear-gradient(160deg, rgba(255,255,255,.14), rgba(255,255,255,.04)), rgba(22,22,24,.5); border-color: rgba(255,255,255,.24); box-shadow: 0 24px 70px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.16); }
+}
+.glass .x { border: 1px solid rgba(255,255,255,.24); }
+.gl-week { border: 1px solid rgba(255,255,255,.14); }
+.gl-day { background: rgba(255,255,255,.045); }
+.gl-day:nth-child(even) { background: rgba(255,255,255,.1); }
+.gl-day > p b { background: rgba(255,255,255,.12); }
+.feed > div, .story > div, .who > div, .facts > div, .rows > .row { background: rgba(255,255,255,.025); }
+.feed > div:nth-child(even), .story > div:nth-child(even), .who > div:nth-child(even), .facts > div:nth-child(even), .rows > .row:nth-child(even) { background: rgba(255,255,255,.055); }
+@media (min-width: 900px) {
+.wide .rows > .row:nth-child(even) { background: rgba(255,255,255,.025); }
+.wide .rows > .row:nth-child(4n+3), .wide .rows > .row:nth-child(4n+4) { background: rgba(255,255,255,.055); }
+}
+.col.later i, .col.later i.z { border: 1px dashed rgba(255,255,255,.2); }
+.strip i.later { box-shadow: inset 0 0 0 1px rgba(255,255,255,.16); }
+.adm-prev { background: rgba(255,255,255,.02); }
+
+/* ---- 2. the Haze look and the new My activity ---- */
+/* header: an Apple large title, the dates as one switch */
+.hd.my h1 { font-size: 34px; font-weight: 800; letter-spacing: -.02em; }
+.hd.my .when { display: none; }
+.segrow186 { display: grid; grid-template-columns: 1fr 42px; gap: 8px; align-items: center; }
+.dates186 { all: unset; box-sizing: border-box; cursor: pointer; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: rgba(255,255,255,.07); color: var(--mut); }
+.dates186 svg { width: 18px; height: 18px; }
+.dates186[aria-pressed="true"] { color: var(--acc); background: rgba(255,255,255,.14); }
+.seg186 { display: grid; grid-template-columns: repeat(4, 1fr); padding: 3px; border-radius: 12px; background: rgba(255,255,255,.07); }
+.seg186 button { all: unset; cursor: pointer; text-align: center; font-size: 13.5px; font-weight: 600; color: var(--mut); padding: 9px 2px; min-height: 20px; border-radius: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.seg186 button[aria-pressed="true"] { background: rgba(255,255,255,.14); color: var(--acc); box-shadow: 0 2px 8px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.1); }
+.seg186 button:focus-visible { outline: 2px solid var(--acc); }
+html[data-view="my"] .menu .chip[data-r="today"], html[data-view="my"] .menu .chip[data-r="week"], html[data-view="my"] .menu .chip[data-r="month"], html[data-view="my"] .menu .chip[data-r="ever"], html[data-view="my"] .menu .chip[data-r="all"] { display: none; }
+.grp186 { margin: 4px 0 -4px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+html[data-view="my"] .showing { margin-top: -4px; }
+/* cards: one calm surface, no orange outline, a lit top edge */
+.scr .card { background: linear-gradient(180deg, #18181a, #161618); border: 0; border-radius: 24px; box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 10px 30px rgba(0,0,0,.3); }
+/* sales */
+.hero186 .sales > b { font-size: 52px; }
+.delta186 { margin: 0; display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; color: var(--good); }
+.delta186 i { font-style: normal; display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: rgba(47,191,143,.16); font-size: 11px; }
+.delta186.down { color: var(--bad); }
+.delta186.down i { background: rgba(255,138,122,.16); }
+.delta186.same { color: var(--mut); }
+.sub186 { margin: 0; font-size: 13px; line-height: 1.5; color: var(--mut); }
+.sub186 b { color: var(--ink); }
+/* the big number of a card */
+.big186 { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: baseline; gap: 10px; }
+.big186.still { cursor: default; }
+.big186 b { font-size: 46px; font-weight: 800; letter-spacing: -.03em; line-height: 1; }
+.big186 span { font-size: 15px; font-weight: 600; color: var(--mut); }
+.big186 .pct186 { margin-inline-start: auto; font-style: normal; font-size: 13px; font-weight: 700; color: var(--ink); background: rgba(255,255,255,.09); padding: 4px 10px; border-radius: 999px; align-self: center; }
+/* the curve */
+.chart186 { position: relative; height: 84px; }
+.chart186 svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.end186 { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: var(--acc); box-shadow: 0 0 0 2px #161618, 0 0 10px rgba(247,149,30,.7); }
+.axis186 { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--faint); margin-top: -4px; }
+.key186 { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--mut); }
+.key186 span::before { content: ""; display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-inline-end: 6px; vertical-align: 3px; background: var(--acc); }
+.key186 span.was::before { background: none; border-top: 2px dashed rgba(255,255,255,.38); height: 0; }
+/* active companies */
+.stack186 { display: flex; gap: 2px; height: 12px; border-radius: 6px; overflow: hidden; background: rgba(255,255,255,.06); }
+.stack186 i { display: block; height: 100%; }
+.states186 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.st186 { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: 9px 1fr auto; align-items: center; gap: 7px; min-height: 44px; padding: 10px 10px 10px 12px; border-radius: 12px; background: rgba(255,255,255,.045); white-space: nowrap; }
+.st186:nth-child(2), .st186:nth-child(3) { background: rgba(255,255,255,.022); }
+.st186 i { width: 9px; height: 9px; border-radius: 50%; }
+.st186 span { font-size: 13px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
+.st186 b { font-size: 16px; font-weight: 800; }
+.st186 b::after { content: "›"; color: var(--faint); font-weight: 600; margin-inline-start: 5px; }
+.st186:active, .step186:active, .mini186:active { filter: brightness(1.25); }
+.call186 { margin: 2px 0 -4px; font-size: 12.5px; font-weight: 700; color: var(--warn); }
+.q186 .sub::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); margin-inline-end: 6px; }
+/* today's broadcasts ring */
+.ring186 { grid-template-columns: 76px 1fr; align-items: center; gap: 14px !important; }
+.ring186 svg { width: 76px; height: 76px; }
+.ring186 text { font-family: Manrope, system-ui, sans-serif; }
+.ring186 h3 { margin: 0; font-size: 16px; font-weight: 700; }
+.ring186 p { margin: 2px 0 4px; font-size: 12.5px; line-height: 1.45; color: var(--mut); }
+.ring186 > div { position: relative; }
+.ring186 .why { font-size: 12px; color: var(--mut); }
+/* request to contract */
+.steps186 { display: grid; border-radius: 14px; overflow: hidden; }
+.step186 { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: 10px 1fr auto; align-items: center; gap: 10px; padding: 12px; min-height: 48px; }
+.step186:nth-child(odd) { background: rgba(255,255,255,.045); }
+.step186:nth-child(even) { background: rgba(255,255,255,.022); }
+.step186 i { width: 10px; height: 10px; border-radius: 50%; }
+.step186 .nm { font-size: 15px; font-weight: 600; }
+.step186 small { display: block; font-size: 12px; font-weight: 500; color: var(--faint); margin-top: 1px; }
+.step186 b { font-size: 22px; font-weight: 800; }
+.step186 b::after, .mini186 span::after { content: " ›"; color: var(--faint); font-size: 15px; font-weight: 600; }
+.two186 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mini186 { all: unset; box-sizing: border-box; cursor: pointer; display: grid; gap: 2px; align-content: start; padding: 12px; border-radius: 14px; background: rgba(255,255,255,.045); }
+.mini186 b { font-size: 22px; font-weight: 800; }
+.mini186 span { font-size: 13px; font-weight: 600; }
+.mini186 small { font-size: 12px; color: var(--faint); }
+/* glass: the bottom bar, the plus button, the sheets (option A) */
+.tab {
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.03)), rgba(26,26,28,.40) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(1.7); backdrop-filter: blur(26px) saturate(1.7);
+  border: 1px solid rgba(255,255,255,.20) !important; border-radius: 28px !important;
+  box-shadow: 0 14px 34px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.16) !important;
+}
+.tab button[aria-current="page"] { background: rgba(255,255,255,.10); }
+.fab {
+  background: radial-gradient(120% 90% at 30% 15%, rgba(255,255,255,.38), rgba(255,255,255,0) 55%), rgba(247,149,30,.9) !important;
+  border: 1px solid rgba(255,255,255,.55) !important;
+  box-shadow: 0 10px 28px rgba(247,149,30,.35), inset 0 1px 0 rgba(255,255,255,.45) !important;
+}
+.sheet {
+  background: linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.02)), rgba(22,22,24,.84) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(1.6); backdrop-filter: blur(30px) saturate(1.6);
+  border-top: 1px solid rgba(255,255,255,.24) !important; border-radius: 32px 32px 0 0 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 -20px 50px rgba(0,0,0,.5);
+}
+.veil.on { -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.curve186 .big186 b { font-size: 40px; }
+@media (max-width: 380px) {
+.st186 { gap: 6px; padding: 10px 8px 10px 10px; }
+.st186 span { font-size: 12.5px; }
+.st186 b::after { margin-inline-start: 3px; }
+}
+/* the graph reads a day under the finger */
+.curve186 { position: relative; }
+.chart186 { touch-action: pan-y; cursor: crosshair; }
+.line186 { position: absolute; top: -6px; bottom: 0; width: 1px; background: rgba(255,255,255,.45); pointer-events: none; }
+.dot186 { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: #F7951E; box-shadow: 0 0 0 3px #161618; pointer-events: none; }
+.ghost186 { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: #161618; border: 2px solid rgba(255,255,255,.6); pointer-events: none; }
+.tip186 { position: absolute; z-index: 3; display: grid; gap: 2px; padding: 10px 12px; border-radius: 14px; min-width: 190px; font-size: 12.5px; color: var(--mut);
+  background: rgba(40,40,42,.92); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,.12); box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+.tip186 b { color: var(--ink); font-size: 13.5px; }
+.tip186 .up { color: var(--good); font-weight: 700; }
+.tip186 .down { color: var(--bad); font-weight: 700; }
+.day186 { all: unset; cursor: pointer; margin-top: 4px; font-size: 12.5px; font-weight: 700; color: var(--acc); }
+.key186 span.bar::before { background: rgba(255,255,255,.18); height: 8px; width: 6px; vertical-align: 0; }
+.hint186 { margin: -4px 0 0; font-size: 11.5px; color: var(--faint); }
+/* the plus: no glow (Muhanad: "the glow in the plus circle i dont like it") */
+.fab { background: var(--acc) !important; border: 0 !important; box-shadow: 0 6px 16px rgba(0,0,0,.5) !important; }
+/* the day window: floating glass over a blurred page */
+#day186 { position: fixed; inset: 0; z-index: 30; display: grid; align-items: end; justify-items: center; padding: 0 10px calc(14px + env(safe-area-inset-bottom, 0px)); overflow-y: auto;
+  background: rgba(8,6,5,.38); -webkit-backdrop-filter: blur(18px) saturate(1.2); backdrop-filter: blur(18px) saturate(1.2);
+  opacity: 0; visibility: hidden; transition: opacity .28s ease, visibility 0s linear .28s; }
+#day186.on { opacity: 1; visibility: visible; transition: opacity .28s ease; }
+.win186 { position: relative; width: min(100%, 460px); max-height: calc(100dvh - 60px); overflow-y: auto; display: grid; gap: 12px; padding: 20px 16px 18px; border-radius: 30px;
+  background: linear-gradient(180deg, rgba(255,255,255,.13), rgba(255,255,255,.04)), rgba(30,23,18,.55);
+  -webkit-backdrop-filter: blur(34px) saturate(1.8); backdrop-filter: blur(34px) saturate(1.8);
+  border: 1px solid rgba(255,255,255,.18); box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 30px 80px rgba(0,0,0,.6);
+  transform: translateY(30px) scale(.97); transition: transform .42s cubic-bezier(.2,1.1,.3,1); scrollbar-width: none; }
+#day186.on .win186 { transform: none; }
+.win186 h3 { margin: -6px 0 0; font-size: 24px; font-weight: 800; letter-spacing: -.01em; padding-inline-end: 40px; }
+.win186 .eyebrow { margin: 0; }
+.x186 { all: unset; cursor: pointer; position: absolute; top: 14px; inset-inline-end: 14px; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 14px; color: var(--ink);
+  background: rgba(255,255,255,.12); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.pace186 { margin: -4px 0 0; font-size: 13px; color: var(--mut); }
+.pace186 .up { color: var(--good); }
+.pace186 .down { color: var(--bad); }
+.kv186 { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; }
+.kv186 div { display: grid; gap: 2px; padding: 12px; border-radius: 16px; background: rgba(255,255,255,.07); }
+.kv186 b { font-size: 22px; font-weight: 800; }
+.kv186 span { font-size: 12px; color: var(--mut); }
+.sec186 { margin: 4px 0 -4px; font-size: 11.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--mut); }
+.win186 .rows .row { background: rgba(255,255,255,.05); }
+.win186 .rows .row:nth-child(even) { background: rgba(255,255,255,.025); }
+/* ---- round 4: the guided tour ---- */
+.hd.my { grid-template-columns: 1fr auto; }
+.tour186 { all: unset; cursor: pointer; align-self: center; justify-self: end; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+  font: 800 17px/1 Manrope, sans-serif; color: var(--ink); background: rgba(255,255,255,.09); box-shadow: inset 0 1px 0 rgba(255,255,255,.1); }
+.tour186:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+.tour186.fresh { color: #000; background: var(--acc); animation: tourPing 2.4s ease-out infinite; }
+@keyframes tourPing { 0% { box-shadow: 0 0 0 0 rgba(247,149,30,.55); } 70%, 100% { box-shadow: 0 0 0 12px rgba(247,149,30,0); } }
+@media (prefers-reduced-motion: reduce) {
+.tour186.fresh { animation: none; }
+}
+.tour-ov { position: fixed; inset: 0; z-index: 40; display: none; }
+.tour-ov.on { display: block; }
+.tour-hole { position: fixed; box-shadow: 0 0 0 200vmax rgba(4,3,2,.72); transition: all .38s cubic-bezier(.3,1,.3,1); pointer-events: none; outline: 1.5px solid rgba(255,255,255,.35); }
+.tour-note { position: fixed; width: min(340px, calc(100vw - 24px)); padding: 16px 16px 12px; border-radius: 22px; color: var(--ink);
+  background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.04)), rgba(34,34,36,.72);
+  -webkit-backdrop-filter: blur(28px) saturate(1.7); backdrop-filter: blur(28px) saturate(1.7);
+  border: 1px solid rgba(255,255,255,.2); box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 20px 60px rgba(0,0,0,.6); transition: top .38s cubic-bezier(.3,1,.3,1); }
+.tour-note.in { animation: tourIn .32s ease-out both; }
+@keyframes tourIn { from { opacity: 0; transform: translateY(8px); } }
+.tour-k { margin: 0 0 4px; font-size: 11.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--acc); }
+.tour-note h4 { margin: 0 0 4px; font-size: 18px; font-weight: 800; }
+.tour-note p { margin: 0; font-size: 14px; line-height: 1.45; color: rgba(255,255,255,.82); }
+.tour-b { display: flex; align-items: center; gap: 6px; margin-top: 12px; }
+.tour-b button { all: unset; cursor: pointer; font: 700 14px/1 Manrope, sans-serif; padding: 11px 14px; border-radius: 999px; }
+.tour-skip { color: var(--mut); padding-inline-start: 2px !important; margin-inline-end: auto; }
+.tour-back { color: var(--ink); background: rgba(255,255,255,.1); }
+.tour-next { color: #000; background: var(--acc); min-width: 52px; text-align: center; }
+.tour-b .tour-skip { color: var(--mut); padding-inline-start: 2px; margin-inline-end: auto; }
+.tour-b .tour-back { color: var(--ink); background: rgba(255,255,255,.12); }
+.tour-b .tour-next { color: #000; background: var(--acc); min-width: 52px; text-align: center; }
+/* the day window opens in the middle of the screen (Muhanad: "should be in the middle of the screen not come up from down") */
+#day186 { align-items: center; padding: 16px 12px; }
+.win186 { transform: scale(.92); opacity: 0; transition: transform .38s cubic-bezier(.2,1.2,.3,1), opacity .25s ease; max-height: calc(100dvh - 32px); }
+#day186.on .win186 { transform: none; opacity: 1; }
+/* the tour: a welcome note in the middle, progress dots, the finger that drags across the graph */
+.tour-note { width: min(360px, calc(100vw - 24px)); }
+.tour-note.welcome { text-align: center; padding: 22px 18px 14px; }
+.tour-note.welcome h4 { font-size: 21px; }
+.tour-note.welcome .tour-b { justify-content: center; }
+.tour-note.welcome .tour-skip { margin-inline-end: 0; padding-inline-start: 14px !important; }
+.tour-dots { display: flex; gap: 5px; margin: 0 0 10px; }
+.tour-dots i { width: 6px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.2); transition: width .3s, background .3s; }
+.tour-dots i.done { background: rgba(255,255,255,.45); }
+.tour-dots i.on { width: 18px; background: var(--acc); }
+.tour-gap { margin-inline-end: auto; }
+.tour-finger { position: fixed; z-index: 2; width: 38px; height: 38px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(255,255,255,.35), rgba(255,255,255,.12) 60%, rgba(255,255,255,0) 72%); border: 1.5px solid rgba(255,255,255,.55);
+  box-shadow: 0 4px 14px rgba(0,0,0,.4); }
+.tour-hole { transition: left .38s cubic-bezier(.3,1,.3,1), top .38s cubic-bezier(.3,1,.3,1), width .38s cubic-bezier(.3,1,.3,1), height .38s cubic-bezier(.3,1,.3,1), border-radius .38s; }
+/* the day note under a finger: its blur let the card's words show through it (seen at 375 px); it sits on a card, so it is solid instead */
+.tip186 { -webkit-backdrop-filter: none; backdrop-filter: none; }
+/* the tour: the chapter name above the dots */
+.tour-note .tour-k + .tour-dots { margin-top: 2px; }
+.tour-dots { flex-wrap: wrap; gap: 4px; }
+.tour-dots i { width: 5px; height: 5px; }
+.tour-dots i.on { width: 14px; }
+/* ---- round 8 (2026-11-19, night): "the animation in the tutorial should be slower and more smooth" ----
+   The lit box is moved by the tour frame by frame (transform + size), together with the page, never by a CSS
+   transition that the scroll keeps restarting (that was the jerk). The dim fades in; the note fades out,
+   then in beside its card. */
+.tour-ov { display: block !important; opacity: 0; visibility: hidden; transition: opacity .45s ease, visibility 0s linear .45s; }
+.tour-ov.on { opacity: 1; visibility: visible; transition: opacity .45s ease; }
+.tour-hole { left: 0 !important; top: 0 !important; transition: none !important; will-change: transform, width, height; }
+.tour-note { animation: none !important; transition: opacity .4s ease, transform .5s cubic-bezier(.2,.8,.2,1); }
+.tour-note.out { opacity: 0; transform: translateY(8px) scale(.985); transition: opacity .2s ease, transform .2s ease; pointer-events: none; }
+.tour-finger { left: 0; top: 0; opacity: 0; transition: opacity .35s ease; }
+.tour-finger.on { opacity: 1; }
+/* the choice he makes before every offer, drawn small inside the first note */
+.tour-mock { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.tour-mock span { display: grid; gap: 3px; padding: 10px 11px; border-radius: 14px; font-size: 12px; line-height: 1.35; color: rgba(255,255,255,.7); background: rgba(255,255,255,.07); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+.tour-mock b { font-size: 13px; color: #fff; }
+@media (prefers-reduced-motion: reduce) {
+.tour-note, .tour-note.out, .tour-ov, .tour-ov.on { transition: none; }
+}
+.tour-mock span { align-content: start; }
+/* ---- round 10 (2026-11-19, night): his reference video, "the same style but keeping the CI of our app",
+   "remove the orange glow in the back", "3 different versions, one of them a dark mode" ----
+   THE CONCEPT, read off the video: smoky neutral glass panels over a dark, blurred photograph of a room;
+   orange only as the signal (the chosen pill, solid; the graph line with a soft fill); the chosen pill
+   SLIDES to the next choice; the cards LAND in reading order (rise 26 px, from 98.5 % size, fade in,
+   0.8 s, a soft "expo out" finish, 0.06 s apart). In Main Marks' CI: black ground, #F7951E, Manrope.
+   The room is Main Marks' own Offices interior (moray-line-admin.jpg), blurred and greyed IN THE FILE
+   (img/bg186-room.jpg, 29 KB), so the phone does no blur work while scrolling. No orange anywhere behind. */
+html { background: #0a0a0a; }
+body { background: #0a0a0a; --bg: #0a0a0a; --ink: #f5f5f5; --mut: #ababae; --faint: #8d8d91; --edge: rgba(255,255,255,.09); }
+/* the one big panel, as the video's frame */
+body .scr { width: calc(100% - 12px); margin: 6px auto 0; padding-left: 10px !important; padding-right: 10px !important; border-radius: 30px;
+  border: 1px solid rgba(255,255,255,.09); box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 30px 60px rgba(0,0,0,.4); }
+body .hd { padding-inline: 6px; }
+/* the cards: smoky glass panes */
+body .scr .card { border: 1px solid rgba(255,255,255,.1); border-radius: 20px; -webkit-backdrop-filter: none; backdrop-filter: none;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 16px 32px -16px rgba(0,0,0,.65); }
+body .st186, body .step186:nth-child(odd), body .mini186, body .rows .row:nth-child(odd) { background: rgba(255,255,255,.065); }
+body .st186:nth-child(2), body .st186:nth-child(3), body .step186:nth-child(even), body .rows .row:nth-child(even) { background: rgba(255,255,255,.03); }
+body .pct186, body .tour186:not(.fresh) { background: rgba(255,255,255,.1); }
+body .end186, body .dot186 { box-shadow: 0 0 0 3px #1c1c1c; }
+body .ghost186 { background: #1c1c1c; }
+/* the date switch: a dark well, the chosen one a SOLID ORANGE pill that slides there (black ink, as the +) */
+body .seg186, body .dates186 { background: rgba(0,0,0,.28); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+.seg186 { position: relative; }
+.seg186 button { position: relative; z-index: 1; }
+body .seg186 button[aria-pressed="true"] { background: none; box-shadow: none; color: #000; animation: ink186 .5s ease both; }
+@keyframes ink186 { from { color: var(--mut); } }
+.pill186 { position: absolute; z-index: 0; top: 3px; bottom: 3px; left: 3px; width: calc((100% - 6px) / 4); border-radius: 9px; background: var(--acc);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 4px 12px rgba(0,0,0,.35);
+  transform: translateX(calc(var(--b) * 100%)); animation: slide186 .6s cubic-bezier(.16,1,.3,1) both; }
+@keyframes slide186 { from { transform: translateX(calc(var(--a) * 100%)); } }
+body .dates186[aria-pressed="true"] { color: var(--acc); background: rgba(247,149,30,.14); }
+/* the cards land in reading order, as in the video (and no orange flash: the app's own entrance had one) */
+body .scr.in > * { animation: land186 .8s cubic-bezier(.16,1,.3,1) both; animation-delay: calc(var(--i, 0) * 60ms); }
+@keyframes land186 { from { opacity: 0; transform: translateY(26px) scale(.985); } }
+@media (prefers-reduced-motion: reduce) {
+body .scr.in > *, .pill186, body .seg186 button[aria-pressed="true"] { animation: none; }
+}
+/* the bar, the sheets, the windows, the notes: the same smoky glass */
+body .tab { background: linear-gradient(180deg, rgba(255,255,255,.1), rgba(255,255,255,.035)), rgba(30,30,32,.55) !important; border-color: rgba(255,255,255,.13) !important; box-shadow: 0 14px 34px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.16) !important; }
+body .tab button[aria-current="page"] { background: rgba(247,149,30,.14); }
+body .sheet { background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02)), rgba(28,28,30,.9) !important; border-top-color: rgba(255,255,255,.15) !important; }
+body .win186 { background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.04)), rgba(28,28,30,.6); border-color: rgba(255,255,255,.15); }
+body .win186 .rows .row { background: rgba(255,255,255,.06); }
+body .win186 .rows .row:nth-child(even) { background: rgba(255,255,255,.028); }
+body .kv186 div, body .x186 { background: rgba(255,255,255,.08); }
+body .tip186 { background: #2a2a2c; border-color: rgba(255,255,255,.14); }
+body .tour-note { background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.05)), rgba(34,34,36,.76); border-color: rgba(255,255,255,.18); }
+body .tour-back { background: rgba(255,255,255,.12) !important; }
+body .tour-mock span { background: rgba(255,255,255,.07); }
+body { --bg186: radial-gradient(130% 46% at 50% -6%, rgba(128,128,136,.34), rgba(0,0,0,0) 70%), radial-gradient(90% 34% at 50% 108%, rgba(80,80,88,.16), rgba(0,0,0,0) 70%), #040404; }
+/* the shared colours every base rule reads */
+html { background: #000; }
+body { --bg: #000; --card: #161618; --edge: rgba(255,255,255,.09); --never: rgba(255,255,255,.14); --ink: #f5f5f5; --mut: #ababae; --faint: #8d8d91; }
+body .scr { background: rgba(255,255,255,.025); border: 1px solid rgba(255,255,255,.08); }
+body .scr .card { background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04)), rgba(0,0,0,.35); border-color: rgba(255,255,255,.1); }
+/* glows removed: the bar's chosen tab, the opening animation, the "?" call */
+body .tab button[aria-current="page"] svg { filter: none; }
+body .tab button[aria-current="page"]::before { box-shadow: none; }
+body .pi-halo { display: none; }
+body .pi-dial .g-beat, body .gauge .ts-beat { filter: none; }
+body .tour186.fresh { animation-name: tourPing186; }
+@keyframes tourPing186 { 0% { box-shadow: 0 0 0 0 rgba(255,255,255,.4); } 70%, 100% { box-shadow: 0 0 0 12px rgba(255,255,255,0); } }
+/* chosen = orange, black ink (as the + and the date pill) */
+body .chip { border-color: rgba(255,255,255,.14); background: rgba(255,255,255,.04); }
+body .chip[aria-pressed="true"] { background: var(--acc); border-color: var(--acc); color: #000; }
+body .btn.ghost { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.14); }
+/* the record form: fields, the company picker */
+body .fld input, body .fld select, body .fld textarea, body .search { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.11); color-scheme: dark; }
+body .fld input:focus, body .fld select:focus, body .fld textarea:focus, body .search:focus { outline: none; border-color: var(--acc); }
+body .fld select option { background: #1c1c1e; }
+body .pick-list { background: #1c1c1e; border-color: rgba(255,255,255,.11); box-shadow: 0 14px 30px rgba(0,0,0,.5); }
+/* the sheets that come up from below (record, lists, a company) and the dim behind them */
+body .sheet { background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02)), rgba(20,20,22,.9) !important; border-top: 1px solid rgba(255,255,255,.14) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(1.3); backdrop-filter: blur(30px) saturate(1.3); box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 -20px 50px rgba(0,0,0,.6); }
+body .sheet .grab { background: rgba(255,255,255,.25); }
+body .veil { background: rgba(0,0,0,.55); }
+/* the date menu, the "How it counts" note, the message bar */
+body .menu { background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.035)), rgba(18,18,20,.75); border-color: rgba(255,255,255,.1); -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px); }
+body .why-tip { background: #232325; border-color: rgba(255,255,255,.12); }
+body .toast { background: rgba(38,38,40,.94); color: #fff; border: 1px solid rgba(255,255,255,.14); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); box-shadow: 0 12px 30px rgba(0,0,0,.5); }
+/* the centred windows (a week, a day) and their veil */
+body .gveil { background: rgba(0,0,0,.4); }
+body .glass { background: linear-gradient(160deg, rgba(255,255,255,.12), rgba(255,255,255,.04)), rgba(22,22,24,.62); border-color: rgba(255,255,255,.16); box-shadow: 0 24px 70px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.16); }
+body .glass .x { border-color: rgba(255,255,255,.18); }
+body #day186 { background: rgba(0,0,0,.42); }
+/* every list of rows: neutral shading, one lighter, the next darker (his rule) */
+body .feed > div, body .story > div, body .who > div, body .facts > div, body .rows > .row, body .mv-list .row, body .gl-day, body .gl-week { background: rgba(255,255,255,.055); }
+body .feed > div:nth-child(even), body .story > div:nth-child(even), body .who > div:nth-child(even), body .facts > div:nth-child(even), body .rows > .row:nth-child(even), body .gl-day:nth-child(even) { background: rgba(255,255,255,.028); }
+body .gl-day > p b { background: rgba(255,255,255,.08); }
+body .col.later i, body .col.later i.z { border-color: rgba(255,255,255,.2); }
+body .strip i.later { box-shadow: inset 0 0 0 1px rgba(255,255,255,.2); }
+body { --bg186: radial-gradient(150% 60% at 50% -10%, rgba(150,150,160,.5), rgba(60,60,66,.18) 45%, rgba(0,0,0,0) 75%), #030303; }
+
+/* ---- THE BACK OF THE PAGE (written fresh for the app) ----
+   Black, with a soft grey light from the top, still; the page panel and the cards are see-through over it.
+   Drawn behind everything (z-index -1, the body transparent), so no page needs a positioned wrapper. */
+html { background: #030303; }
+html body { background: transparent; }
+body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(150% 60% at 50% -10%, rgba(150,150,160,.5), rgba(60,60,66,.18) 45%, rgba(0,0,0,0) 75%), #030303; }
+/* the soft dark under the bar, so a card passing under it never fights the bar's words */
+body::after { content: ""; position: fixed; z-index: 4; left: 0; right: 0; bottom: 0; height: 120px; pointer-events: none;
+  background: linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,.55) 75%); }
+/* the page panel keeps the app's column on a wide screen (the manager view on a laptop) */
+body .scr { width: min(calc(100% - 12px), var(--col)); }
+@media (prefers-reduced-motion: reduce) { body .scr.in > * { animation: none; } }
+/* Arabic: the dates run right to left, so the chosen pill is placed and slides from the right (it sat one place
+   off, on "Week" for "30 days", seen on the Arabic page) */
+html[dir="rtl"] .pill186 { left: auto; right: 3px; transform: translateX(calc(var(--b) * -100%)); animation-name: slide186rtl; }
+@keyframes slide186rtl { from { transform: translateX(calc(var(--a) * -100%)); } }
+/* the tour's notes are English until their Arabic is written: kept left to right so the full stops sit right */
+html[dir="rtl"] .tour-note { direction: ltr; text-align: left; }
+/* the manager view's number tiles: the same glass panes as every card */
+body .stat { background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04)), rgba(0,0,0,.35); border-color: rgba(255,255,255,.1); box-shadow: inset 0 1px 0 rgba(255,255,255,.12); }

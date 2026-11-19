@@ -46,7 +46,7 @@ button, input, select { font: inherit; }
 .scr.in > * { animation: emberUp .6s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 60ms); }
 @keyframes emberUp { from { opacity: 0; transform: translateY(22px); box-shadow: 0 0 0 rgba(247,149,30,0); } 60% { box-shadow: 0 0 34px rgba(247,149,30,.22); } }
 
-.eyebrow { margin: 0; font-size: 10.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--mut); }
+.eyebrow { margin: 0; font-size: 11.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--mut); }
 .hd { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: end; }
 .hd .eyebrow { align-self: center; }
 /* the way across to the sales app: small, top corner, the same place on every tab */
@@ -66,7 +66,7 @@ button, input, select { font: inherit; }
 .chip { font-size: 12.5px; font-weight: 600; white-space: nowrap; color: var(--ink); background: transparent; border: 1px solid var(--edge); border-radius: 999px; padding: 7px 12px; min-height: 34px; cursor: pointer; }
 .chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #000; }
 .range { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.fld { display: grid; gap: 4px; font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--mut); min-width: 0; }
+.fld { display: grid; gap: 4px; font-size: 11.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--mut); min-width: 0; }
 .fld input, .fld select { font-size: 16px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--ink); background: rgba(255,255,255,.04); border: 1px solid var(--edge); border-radius: 12px; padding: 10px; min-width: 0; width: 100%; min-height: 44px; color-scheme: dark; }
 .fld select option { background: #17110c; color: #fff; }
 .showing { margin: 0; font-size: 12px; color: var(--mut); } .showing b { color: var(--ink); font-weight: 600; }
@@ -74,7 +74,7 @@ button, input, select { font: inherit; }
 .card { background: linear-gradient(160deg, #1f160e, #130e09); border: 1px solid var(--edge); border-radius: var(--r); padding: 16px; display: grid; gap: 12px; position: relative; }
 .card { align-content: start; }
 .card > * { min-width: 0; }
-.card h2 { margin: 0; font-size: 10.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--mut); display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.card h2 { margin: 0; font-size: 11.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--mut); display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .card h2 em { font-style: normal; font-weight: 500; letter-spacing: 0; text-transform: none; font-size: 12px; color: var(--faint); text-align: end; }
 
 /* the half-dial gauge and its key */
@@ -148,7 +148,7 @@ button, input, select { font: inherit; }
 .busy { opacity: .5; cursor: progress; }
 
 /* a ranking table: place, company, the figure it is ranked by */
-.rkhead { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; padding-bottom: 7px; border-bottom: 1px solid var(--edge); font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); }
+.rkhead { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; padding-bottom: 7px; border-bottom: 1px solid var(--edge); font-size: 11.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); }
 .row.rk { grid-template-columns: 26px minmax(0, 1fr) auto; }
 .row.rk .no { grid-column: 1; grid-row: 1 / span 3; align-self: start; padding-top: 1px; font-size: 15px; font-weight: 800; color: var(--acc); }
 .row.rk .nm, .row.rk .strip, .row.rk .sub { grid-column: 2; }
@@ -413,7 +413,8 @@ html[lang="ar"] .sales > b small { margin-inline: 8px 0; }
 .duty .dots { display: inline-flex; gap: 5px; }
 .duty .dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--never); }
 .duty .dots i.on { background: var(--acc); }
-.duty .why { color: var(--ink); font-weight: 700; font-size: 12.5px; }
+.duty .why { color: var(--ink); font-weight: 700; font-size: 12.5px; position: relative; }
+.duty .why::before { content: ''; position: absolute; inset: -13px 0; }   /* 185: an invisible 44 px tap area; the dotted line stays under the words */
 /* its explanation opens INSIDE the card, under the line: one that floats is painted over by the tiles below */
 .duty .why-tip { position: static; flex-basis: 100%; box-shadow: none; }
 

@@ -310,7 +310,7 @@ body.is-login { min-height: 100svh; }
 .field { display: grid; gap: 8px; margin-bottom: 22px; }
 .field span {
   font-family: var(--font-utility);
-  font-size: 10.5px;
+  font-size: 11.5px;   /* 185: Apple minimum 11 px */
   font-weight: 500;
   letter-spacing: .26em;
   text-transform: uppercase;
@@ -393,8 +393,9 @@ body.is-login { min-height: 100svh; }
 .forgot {
   background: none;
   border: 0;
-  padding: 0;
-  margin-top: 20px;
+  padding: 12px 0;      /* 185: 44 px tap area, same look (margins give the space back) */
+  margin-top: 8px;
+  margin-bottom: -12px;
   color: var(--white);
   font: 300 14px/1.4 var(--font-corporate);
   text-decoration: underline;
@@ -679,7 +680,7 @@ body.is-login { min-height: 100svh; }
   top: 12px;
   left: 12px;
   font-family: var(--font-utility);
-  font-size: 10px;
+  font-size: 11.5px;   /* 185: Apple minimum 11 px */
   letter-spacing: .14em;
   text-transform: uppercase;
   font-weight: 500;
@@ -707,7 +708,8 @@ body.is-login { min-height: 100svh; }
 .c-band-name { font-size: 26px; font-weight: 300; letter-spacing: -.03em; }
 .c-tagline {
   font-family: var(--font-utility);
-  font-size: 10px;
+  font-size: 11.5px;   /* 185: Apple minimum 11 px */
+  font-weight: 400;
   letter-spacing: .22em;
   text-transform: uppercase;
   opacity: .72;
@@ -766,7 +768,8 @@ body.is-login { min-height: 100svh; }
 .c-facts div { display: flex; flex-direction: column; gap: 2px; }
 .c-facts dt {
   font-family: var(--font-utility);
-  font-size: 10.5px;
+  font-size: 11.5px;   /* 185: Apple minimum 11 px */
+  font-weight: 400;
   letter-spacing: .1em;
   text-transform: uppercase;
   color: var(--muted);
@@ -829,7 +832,7 @@ body.is-login { min-height: 100svh; }
 .mm-card.soon .c-meta { gap: 9px; padding: 14px 18px 16px; }
 .mm-card.soon .c-go-soon { padding-top: 12px; }
 .mm-card.soon .c-blurb { font-size: 13px; color: var(--muted); }
-.mm-card.soon .c-place { color: var(--muted-2); }
+.mm-card.soon .c-place { color: var(--muted); }   /* 185: #8B8989 = 5.2:1 (muted-2 was 4.48) */
 .c-badge-soon {
   background: rgba(0, 0, 0, .72);
   color: #C0BDBD;
@@ -837,7 +840,7 @@ body.is-login { min-height: 100svh; }
   border: 1px solid rgba(255, 255, 255, .18);
 }
 .mm-card.soon .c-go-soon {
-  color: var(--muted-2);
+  color: var(--muted);   /* 185: 5.2:1 */
   font-weight: 400;
   font-size: 11.5px;
   letter-spacing: .1em;
@@ -913,7 +916,7 @@ body.is-login { min-height: 100svh; }
 .steps {
   display: flex; align-items: center; gap: 14px; list-style: none; margin: 0; padding: 0;
   color: var(--muted-2);
-  font-family: var(--font-utility); font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase;
+  font-family: var(--font-utility); font-size: 11.5px; font-weight: 400; letter-spacing: .12em; text-transform: uppercase;
 }
 .top .steps {
   grid-column: 1 / -1;
@@ -1244,10 +1247,10 @@ body.is-login { min-height: 100svh; }
   .chooser .l-mark-moray-endorsed .l-wordmark { height: 21px; }
   .chooser .l-heading { font-size: 9.5px; letter-spacing: .2em; }
   .chooser .l-meta { padding: 9px 13px 10px; gap: 6px; }
-  .chooser .l-kind { font-size: 9.5px; margin-bottom: -3px; }
+  .chooser .l-kind { font-size: 11.5px; margin-bottom: -3px; }   /* 185: Apple minimum 11 px */
   .chooser .l-go { padding-top: 8px; font-size: 12px; }
   .chooser .c-facts { padding-top: 7px; gap: 4px 12px; }
-  .chooser .c-facts dt { font-size: 9.5px; }
+  .chooser .c-facts dt { font-size: 11.5px; }   /* 185: Apple minimum 11 px */
   .chooser .c-facts dd { font-size: 12.5px; }
   /* the brand compositions, re-fitted to the shorter top */
   .chooser .f4-logo { top: 10%; }
@@ -1593,7 +1596,7 @@ body.is-login { min-height: 100svh; }
 
 @media (max-width: 420px) {
   :root { --gutter: 16px; }
-  .steps { font-size: 10.5px; }
+  .steps { font-size: 11.5px; }   /* 185: Apple minimum 11 px */
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2613,7 +2616,7 @@ body.is-ready .mv-hint { opacity: 1; }
 .q-ghost:disabled { opacity: .5; cursor: default; }
 .q-tiny { padding: 5px 11px; font-size: 12px; }
 .q-select {
-  font: inherit; font-size: 14px; color: var(--white); background: #121215;
+  font: inherit; font-size: 16px; color: var(--white); background: #121215;   /* 185: 16 px, iPhone does not zoom */
   border: 1px solid var(--q-edge); border-radius: 10px; padding: 9px 12px; min-height: 42px;
 }
 .q-select:focus-visible, .q-ghost:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
@@ -2723,20 +2726,20 @@ body.is-ready .mv-hint { opacity: 1; }
 .q-card.is-on { border-color: color-mix(in srgb, var(--orange) 85%, transparent); background: color-mix(in srgb, var(--orange) 13%, transparent); }
 .q-card:disabled { opacity: .42; cursor: not-allowed; }
 .q-card:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
-.q-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.q-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
 .q-id {
   min-width: 30px; height: 26px; padding: 0 6px; border-radius: 8px; display: grid; place-items: center;
   background: rgba(255, 255, 255, .1); font-weight: 700; font-size: 12px;
 }
 .q-card.is-on .q-id { background: var(--orange); color: #000; }
 .q-pill {
-  font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700;
-  padding: 4px 9px; border-radius: 999px; white-space: nowrap;
+  font-size: 11px; letter-spacing: .04em; text-transform: uppercase; font-weight: 700;   /* 185: Apple minimum 11 px */
+  padding: 4px 7px; border-radius: 999px; white-space: nowrap;
   background: color-mix(in srgb, var(--orange) 22%, transparent); color: var(--q-accent-soft);
 }
 .q-pill.none { background: rgba(255, 255, 255, .09); color: var(--q-dim); }
 .q-val { font-size: 17px; font-weight: 700; letter-spacing: -.015em; line-height: 1.15; }
-.q-lab { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--q-faint); }
+.q-lab { font-size: 11.5px; font-weight: 400; letter-spacing: .08em; text-transform: uppercase; color: var(--q-faint); }
 
 /* ---- 3 · units (Qomor #unitPanel / #units) ---- */
 .q-panel { background: var(--q-glass); border: 1px solid var(--q-edge); border-radius: 14px; overflow: hidden; }
@@ -2745,7 +2748,8 @@ body.is-ready .mv-hint { opacity: 1; }
   padding: 12px 14px; border-bottom: 1px solid var(--q-edge);
 }
 .q-pcount { font-size: 13px; color: var(--q-dim); }
-.q-sort { font-size: 13px; min-height: 36px; padding: 6px 10px; }
+.q-sort { font-size: 16px; min-height: 36px; padding: 6px 10px; }   /* 185: 16 px, no zoom */
+.q-phead .q-sort { flex: 1 1 100%; }   /* 185: at 16 px it cannot share a 390 px line with the floor name */
 .q-units { display: flex; flex-direction: column; gap: 5px; padding: 8px; max-height: 460px; overflow-y: auto; }
 .q-unit {
   font: inherit; color: var(--white); text-align: start; cursor: pointer;
@@ -2773,14 +2777,14 @@ body.is-ready .mv-hint { opacity: 1; }
   margin: 22px 0 10px; font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase;
   color: var(--q-dim);
 }
-.q-plansel { width: 100%; font-size: 15px; font-weight: 600; min-height: 50px; padding: 10px 14px; border-radius: 12px; }
+.q-plansel { width: 100%; font-size: 16px; font-weight: 600; min-height: 50px; padding: 10px 14px; border-radius: 12px; }
 .q-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
 .q-tile { padding: 14px 16px 16px; background: var(--q-glass); border: 1px solid var(--q-edge); border-radius: 14px; }
 .q-tile .q-v { font-size: 20px; }
 .q-sched { margin-top: 14px; border: 1px solid var(--q-edge); border-radius: 14px; overflow-x: auto; }
 .q-sched table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
 .q-sched th {
-  text-align: start; padding: 11px 12px; font-size: 10.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+  text-align: start; padding: 11px 12px; font-size: 11.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
   color: var(--q-faint); background: #111; white-space: nowrap;
 }
 .q-sched td { padding: 10px 12px; border-top: 1px solid rgba(255, 255, 255, .07); white-space: nowrap; color: var(--q-dim); }
@@ -3134,7 +3138,7 @@ body.is-ready .mv-hint { opacity: 1; }
 .q-plate-lift { position: absolute; background-repeat: no-repeat; background-color: #0d0d0f; border-radius: 8px; opacity: 0;
   box-shadow: 0 26px 56px rgba(0, 0, 0, .85), 0 6px 16px rgba(0, 0, 0, .6), 0 0 0 1px rgba(255, 255, 255, .22); }
 .q-plate.is-ready .q-plate-lift { opacity: 1; }
-.q-plate-src { margin: 8px 2px 6px; font-size: 10px; letter-spacing: .04em; color: var(--q-faint); }
+.q-plate-src { margin: 8px 2px 6px; font-size: 11.5px; font-weight: 400; letter-spacing: .04em; color: var(--q-faint); }
 
 /* =====================================================================
    BUILD 72 — the units on the lifted building, tappable
@@ -3499,7 +3503,7 @@ body.has-sp-bar { padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px))
   .chooser .l-band.lc-band { height: 70px; gap: 5px; }
   .chooser .lc-logo { height: 19px; }
   .chooser .lc-logo.is-tall { height: 30px; }
-  .chooser .lc-sub { font-size: 9px; }
+  .chooser .lc-sub { font-size: 11px; }   /* 185: Apple minimum 11 px */
 }
 /* the logo over a card's picture is not the picture: `.l-shot > img` (cover, the whole box) must not reach it */
 .l-shot > img.lc-overlay, .chooser .l-shot > img.lc-overlay { position: absolute; inset: auto; left: 50%; top: 50%; width: 62%; height: auto;
@@ -3515,7 +3519,7 @@ body.has-sp-bar { padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px))
 /* build 156: the line card's "Open ..." in Manrope capitals with the long hairline arrow (their mock) */
 .l-card .l-go { text-transform: uppercase; letter-spacing: .1em; font-size: 11.5px; }
 .l-card .l-go > span { white-space: nowrap; }
-.chooser .l-card .l-go { font-size: 10px; letter-spacing: .07em; }
+.chooser .l-card .l-go { font-size: 11.5px; letter-spacing: .07em; }   /* 185: Apple minimum 11 px */
 /* the label stays on one line; where room is short the arrow gives way from its tail (the svg's
    preserveAspectRatio keeps the head whole) */
 .l-card .l-go .l-go-arrow { flex: 0 1 64px; min-width: 22px; height: 12px; }

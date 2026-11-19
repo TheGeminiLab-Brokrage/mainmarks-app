@@ -1994,9 +1994,231 @@
         '<p class="note center">' + t(sayDemo(B) ? 'Main Marks · My activity · demo figures' : 'Main Marks · My activity') + '</p>';
     }
 
+    /* ==== BUILD 186: the new My activity (designed as try-out 186 with Muhanad, 2026-11-19) ==================================
+       Order: sales, the special-requests curve, active companies (the four groups open their lists,
+       the gone-quiet names on the page), today's broadcasts as a ring, request to contract, what I entered.
+       Every figure is the page's own (A.tot, A.prev, count4, book, events); nothing is typed in. */
+    /* ALL TIME: from her first entry. The demo book (and today's store read) goes back 12 weeks; the real
+       build would read her whole history for this choice. */
+    (function () { var o = 1; events.forEach(function (e) { if (e.d > o) o = e.d; }); PERIODS.splice(PERIODS.length - 1, 0, ['ever', t('All time'), o, 0]); })();
+    var SEG186 = [['today', t('Today')], ['week', t('Week')], ['month', t('30 days')], ['ever', t('All time')]], seg186Last = -1;
+    function head186() {
+      var h = head(t('My activity')), inSeg = SEG186.some(function (s) { return s[0] === period.key; });
+      /* round 10, from his reference video: the orange "chosen" pill SLIDES from the last choice to the new one */
+      var at186 = SEG186.map(function (s) { return s[0]; }).indexOf(period.key), from186 = seg186Last < 0 ? at186 : seg186Last;
+      var pill = at186 < 0 ? '' : '<i class="pill186" aria-hidden="true" style="--a:' + from186 + ';--b:' + at186 + '"></i>';
+      if (at186 >= 0) seg186Last = at186;
+      var seg = '<div class="segrow186"><div class="seg186" role="group" aria-label="' + esc(t('Dates')) + '">' + pill + SEG186.map(function (s) {
+        return '<button type="button" data-r="' + s[0] + '" aria-pressed="' + (period.key === s[0]) + '">' + s[1] + '</button>';
+      }).join('') + '</div><button type="button" class="dates186" aria-pressed="' + !inSeg + '" aria-label="' + esc(t('Choose dates')) + '">' + svg('cal') + '</button></div>';
+      var at = h.indexOf('<div class="menu"'); if (at < 0) at = h.indexOf('<p class="showing"'); if (at < 0) at = h.length;
+      var seen = false; try { seen = !!localStorage.getItem('tour186-seen'); } catch (e) { /* not remembered */ }
+      h = h.replace('</h1>', '</h1><button class="tour186' + (seen ? '' : ' fresh') + '" type="button" aria-label="' + esc(t('How this page works')) + '">?</button>');
+      at = h.indexOf('<div class="menu"'); if (at < 0) at = h.indexOf('<p class="showing"'); if (at < 0) at = h.length;
+      return h.slice(0, at) + seg + h.slice(at);
+    }
+    function base186() { return A.prevBase === 'lastweek' ? t('last week by this day') : t('the time before'); }
+    function card186Sales() {
+      var n = A.tot, held = A.open.reduce(function (a, e) { return a + (e.m2 !== undefined ? e.v / 2 : e.v); }, 0);
+      var fig = '<span data-n="' + mil(n.value) + '" data-dec="1">' + mil(n.value) + '</span>', delta = '';
+      if (A.prev) {
+        var d = n.value - A.prev.value;
+        delta = d === 0 ? '<p class="delta186 same">' + t('The same as {b}', { b: base186() }) + '</p>'
+          : '<p class="delta186 ' + (d > 0 ? 'up' : 'down') + '"><i>' + (d > 0 ? '↑' : '↓') + '</i>' + money(Math.abs(d)) + ' ' + (d > 0 ? t('more than') : t('less than')) + ' ' + base186() + '</p>';
+      }
+      return '<section class="card hero186"><h2>' + t('My sales') + '</h2>' +
+        '<div class="sales"><b>' + (AR ? fig + ' <small>' + t('million EGP') + '</small>' : '<small>EGP</small>' + fig + 'M') + '</b></div>' + delta +
+        '<p class="sub186">' + (n.contract ? '<b>' + count(n.contract, 'contract') + '</b> ' + t('signed') : t('No contract signed in these dates')) +
+        (A.open.length ? ' · <b>' + money(held) + '</b> ' + t('reserved, not signed yet') : '') + '</p></section>';
+    }
+    function smooth186(pts) {
+      if (pts.length < 2) return '';
+      var p = 'M' + pts[0][0].toFixed(1) + ' ' + pts[0][1].toFixed(1), i;
+      for (i = 0; i < pts.length - 1; i++) {
+        var p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+        p += ' C' + (p1[0] + (p2[0] - p0[0]) / 6).toFixed(1) + ' ' + (p1[1] + (p2[1] - p0[1]) / 6).toFixed(1) + ', ' + (p2[0] - (p3[0] - p1[0]) / 6).toFixed(1) + ' ' + (p2[1] - (p3[1] - p1[1]) / 6).toFixed(1) + ', ' + p2[0].toFixed(1) + ' ' + p2[1].toFixed(1);
+      }
+      return p;
+    }
+    function card186Curve() {
+      var n = A.tot, len = period.from - period.to + 1, shift = A.prevBase === 'lastweek' ? 7 : len;
+      var top = '<section class="card curve186"><h2>' + t('Special requests') + ' <em>' + (A.prev ? vs(n.special, A.prev.special, A.prevBase) : '') + '</em></h2>' +
+        '<button class="big186" type="button" data-s="offers"><b data-n="' + n.special + '">' + n.special + '</b><span>' + t('to companies, one by one') + '</span></button>';
+      if (len < 2) return top + '</section>';
+      var by = {}, cur = [], was = [], run = 0, run2 = 0, i;
+      events.forEach(function (e) { if (e.k === 'offer' && e.c !== null) by[e.d] = (by[e.d] || 0) + 1; });
+      for (i = period.from; i >= period.to; i--) { run += by[i] || 0; cur.push(run); run2 += by[i + shift] || 0; was.push(run2); }
+      var W = 358, H = 84, max = Math.max(run, A.prev ? run2 : 0, 1), N = cur.length;
+      var pt = function (v, j) { return [N === 1 ? W : j / (N - 1) * W, H - 3 - v / max * (H - 10)]; };
+      var line = smooth186(cur.map(pt)), old = A.prev ? smooth186(was.map(pt)) : '', end = pt(run, N - 1);
+      var mid = Math.round((period.from + period.to) / 2);
+      /* each day's own requests as a faint bar at the foot: the rhythm (which days went quiet) */
+      var daily = [], dmax = 1; for (i = period.from; i >= period.to; i--) { daily.push(by[i] || 0); dmax = Math.max(dmax, by[i] || 0); }
+      var bw = Math.max(1, W / N * .55), bars = daily.map(function (v, j) { if (!v) return ''; var h = v / dmax * 26, x = (N === 1 ? W : j / (N - 1) * W) - bw / 2; return '<rect x="' + x.toFixed(1) + '" y="' + (H - h).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + h.toFixed(1) + '" rx="1" fill="rgba(255,236,214,.13)"/>'; }).join('');
+      C186 = { from: period.from, cur: cur, was: A.prev ? was : null, daily: daily, N: N, W: W, H: H, max: max, base: A.prevBase === 'lastweek' ? t('last week') : t('the time before') };
+      return top + '<div class="chart186" aria-label="' + esc(t('Drag across the graph to read each day')) + '"><svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-hidden="true">' +
+        '<defs><linearGradient id="g186" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#F7951E" stop-opacity=".34"/><stop offset="1" stop-color="#F7951E" stop-opacity="0"/></linearGradient></defs>' +
+        bars + '<path d="' + line + ' L' + W + ' ' + H + ' L0 ' + H + ' Z" fill="url(#g186)"/>' +
+        (old ? '<path d="' + old + '" fill="none" stroke="rgba(255,236,214,.38)" stroke-width="1.5" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>' : '') +
+        '<path d="' + line + '" fill="none" stroke="#F7951E" stroke-width="2.5" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>' +
+        '<i class="end186" style="left:calc(' + (end[0] / W * 100).toFixed(2) + '% - 5px);top:' + (end[1] - 5).toFixed(1) + 'px"></i>' +
+        '<i class="line186" hidden></i><i class="dot186" hidden></i><i class="ghost186" hidden></i></div>' +
+        '<div class="tip186" hidden></div>' +
+        '<div class="axis186"><span>' + fmt(period.from) + '</span><span>' + fmt(mid) + '</span><span>' + fmt(period.to) + '</span></div>' +
+        '<div class="key186"><span>' + t('These dates') + '</span>' + (old ? '<span class="was">' + (A.prevBase === 'lastweek' ? t('Last week') : t('The time before')) + '</span>' : '') + '<span class="bar">' + t('Each day') + '</span></div>' +
+        '<p class="hint186">' + t('Drag across the graph to read any day.') + '</p></section>';
+    }
+    /* THE GRAPH ANSWERS WHEN TOUCHED (Muhanad, 2026-11-19: "the graph is not interactive ... how it could benefit
+       the sales"). A finger on the graph reads one day: that day's requests, the total so far, and where he stood
+       at the same point the time before (ahead or behind: his pace). "Open this day" turns the whole page to it. */
+    var C186 = null, pick186 = null;
+    function scrub186(chart, clientX) {
+      var C = C186; if (!C) return;
+      var r = chart.getBoundingClientRect(), k = Math.max(0, Math.min(1, (clientX - r.left) / r.width)), j = Math.round(k * (C.N - 1));
+      var x = C.N === 1 ? r.width : j / (C.N - 1) * r.width, yOf = function (v) { return (C.H - 3 - v / C.max * (C.H - 10)) / C.H * r.height; };
+      var d = C.from - j, now = C.cur[j], was = C.was ? C.was[j] : null, gap = was === null ? null : now - was;
+      pick186 = d;
+      var q = function (s) { return chart.querySelector(s); }, tip = chart.parentNode.querySelector('.tip186');
+      q('.line186').hidden = false; q('.line186').style.left = x + 'px';
+      q('.dot186').hidden = false; q('.dot186').style.cssText = 'left:' + (x - 6) + 'px;top:' + (yOf(now) - 6) + 'px';
+      if (was !== null) { q('.ghost186').hidden = false; q('.ghost186').style.cssText = 'left:' + (x - 4) + 'px;top:' + (yOf(was) - 4) + 'px'; }
+      tip.hidden = false;
+      tip.innerHTML = '<b>' + B.dateOf(d).toLocaleDateString(AR ? 'ar-EG' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) + '</b>' +
+        '<span>' + t('{n} that day', { n: C.daily[j] }) + ' · ' + t('{n} so far', { n: now }) + '</span>' +
+        (gap === null ? '' : '<span class="' + (gap > 0 ? 'up' : gap < 0 ? 'down' : '') + '">' + (gap > 0 ? t('{n} ahead of {b}', { n: gap, b: C.base }) : gap < 0 ? t('{n} behind {b}', { n: -gap, b: C.base }) : t('level with {b}', { b: C.base })) + '</span>') +
+        '<button type="button" class="day186">' + t('Open this day') + ' ›</button>';
+      var tw = tip.offsetWidth, cw = chart.parentNode.clientWidth, left = Math.max(0, Math.min(cw - tw, x + chart.offsetLeft - tw / 2));
+      tip.style.left = left + 'px'; tip.style.top = Math.max(0, chart.offsetTop - tip.offsetHeight - 8) + 'px';
+    }
+    function unscrub186() {
+      [].forEach.call(document.querySelectorAll('.line186, .dot186, .ghost186, .tip186'), function (el) { el.hidden = true; });
+    }
+    (function () {
+      var on = null;
+      document.addEventListener('pointerdown', function (e) {
+        var ch = e.target.closest && e.target.closest('.chart186');
+        if (ch) { on = ch; scrub186(ch, e.clientX); return; }
+        if (e.target.closest && e.target.closest('.day186')) return;
+        if (!e.target.closest || !e.target.closest('.tip186')) unscrub186();
+      });
+      document.addEventListener('pointermove', function (e) { if (on) scrub186(on, e.clientX); else if (e.pointerType === 'mouse') { var ch = e.target.closest && e.target.closest('.chart186'); if (ch) scrub186(ch, e.clientX); } });
+      document.addEventListener('pointerup', function () { on = null; });
+      document.addEventListener('pointercancel', function () { on = null; });
+      document.addEventListener('click', function (e) {
+        if (!e.target.closest || !e.target.closest('.day186') || pick186 === null) return;
+        openDay186(pick186);
+      });
+    })();
+
+    /* THE DAY WINDOW (Muhanad, 2026-11-19: "when the user click open this day open a glassy window and blur the
+       background"). A floating glass window over the blurred page: that day's figures, the companies that asked
+       (each opens its history), and what he entered. The page underneath stays where it was. */
+    function openDay186(d) {
+      var C = C186, j = C ? C.from - d : -1;
+      var asked = {}, nb = 0, sold = 0, nc = 0;
+      events.forEach(function (e) {
+        if (e.d !== d) return;
+        if (e.k === 'offer' && e.c !== null) asked[e.c] = (asked[e.c] || 0) + 1;
+        else if (e.k === 'offer') nb++;
+        else if (e.k === 'contract') { nc++; sold += e.m2 !== undefined ? e.v / 2 : e.v; }
+      });
+      var cos = Object.keys(asked).map(function (c) { return { c: book[c], n: asked[c] }; }).filter(function (x) { return x.c; }).sort(function (a, b) { return b.n - a.n || a.c.name.localeCompare(b.c.name); });
+      var nreq = cos.reduce(function (a, x) { return a + x.n; }, 0);
+      var ent = events.filter(function (e) { return e.d === d && e.k !== 'offer' && e.k !== 'cancel'; });
+      var pace = '';
+      if (C && j >= 0 && j < C.N) { var now = C.cur[j], was = C.was ? C.was[j] : null, gap = was === null ? null : now - was;
+        pace = '<p class="pace186">' + t('{n} so far in these dates', { n: now }) + (gap === null ? '' : ' · <b class="' + (gap > 0 ? 'up' : gap < 0 ? 'down' : '') + '">' + (gap > 0 ? t('{n} ahead of {b}', { n: gap, b: C.base }) : gap < 0 ? t('{n} behind {b}', { n: -gap, b: C.base }) : t('level with {b}', { b: C.base })) + '</b>') + '</p>'; }
+      var date = B.dateOf(d).toLocaleDateString(AR ? 'ar-EG' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+      var html = '<div class="win186" role="dialog" aria-modal="true" aria-label="' + esc(date) + '"><button class="x186" type="button" aria-label="' + esc(t('Close')) + '">✕</button>' +
+        '<p class="eyebrow">' + t('One day') + '</p><h3>' + date + '</h3>' + pace +
+        '<div class="kv186"><div><b>' + nreq + '</b><span>' + t('Special requests') + '</span></div><div><b>' + cos.length + '</b><span>' + t('Companies asked') + '</span></div><div><b>' + nb + '</b><span>' + t('Broadcasts') + '</span></div>' +
+        (nc ? '<div><b>' + money(sold) + '</b><span>' + t('Sold') + '</span></div>' : '') + '</div>' +
+        (cos.length ? '<p class="sec186">' + t('Who asked') + '</p><div class="rows">' + cos.map(function (x) {
+          return '<button class="row" type="button" data-c="' + x.c.id + '"><span class="nm">' + esc(x.c.name) + '</span><span class="val">' + x.n + '</span><span class="sub">' + pill(x.c.state) + '</span></button>'; }).join('') + '</div>'
+          : '<p class="note">' + t('No special request that day.') + '</p>') +
+        (ent.length ? '<p class="sec186">' + t('What you entered') + '</p><div class="rows">' + ent.map(entryRow).join('') + '</div>' : '') + '</div>';
+      var o = document.getElementById('day186'); if (!o) { o = document.createElement('div'); o.id = 'day186'; document.body.appendChild(o); }
+      o.innerHTML = html; o.scrollTop = 0; document.documentElement.classList.add('is-locked');
+      requestAnimationFrame(function () { o.classList.add('on'); });
+      unscrub186();
+    }
+    function closeDay186() { var o = document.getElementById('day186'); if (!o || !o.classList.contains('on')) return; o.classList.remove('on'); document.documentElement.classList.remove('is-locked'); }
+    document.addEventListener('click', function (e) {
+      var o = document.getElementById('day186'); if (!o || !o.classList.contains('on')) return;
+      if (e.target.closest('.x186') || e.target === o) { closeDay186(); return; }
+      if (e.target.closest('[data-c], [data-e]')) closeDay186();
+    }, true);
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDay186(); });
+    var COL186 = { active: '#2FBF8F', quiet: '#F2C037', inactive: '#7C8794', never: 'rgba(255,236,214,.16)' };
+    /* THE COMPANIES FOLLOW THE DATES (Muhanad, 2026-11-19: "is interactive with the selected data or not? ...
+       this is important"). The big number: the companies that asked her for an offer in the dates, of all the
+       companies she serves, against the same window before. The four groups: how the companies stood on the
+       LAST day of the dates (stateAt), which is today for every choice but a custom range in the past. */
+    function asked186(from, to) { var s = {}; events.forEach(function (e) { if (e.k === 'offer' && e.c !== null && e.d <= from && e.d >= to) s[e.c] = 1; }); return Object.keys(s).length; }
+    function groups186() {
+      var g = { active: [], quiet: [], inactive: [], never: [] };
+      book.forEach(function (c) { g[period.to === 0 ? c.state : stateAt(c, period.to)].push(c); });
+      Object.keys(g).forEach(function (k) { g[k].sort(function (a, b) { return b.total - a.total || a.name.localeCompare(b.name); }); });
+      return g;
+    }
+    function openGroup186(key) {
+      if (period.to === 0) return openMyList(key);
+      var list = groups186()[key];
+      showSheet('<div><h3>' + STATE[key] + '</h3><p class="role">' + count(list.length, 'company') + ' · ' + t('on {date}', { date: fmt(period.to) }) + '</p></div><div class="rows">' + list.map(function (c, i) {
+        return '<button class="row rk" type="button" data-c="' + c.id + '"><span class="no">' + (i + 1) + '</span><span class="nm">' + esc(c.name) + '</span><span class="val">' + c.total + '</span><span class="sub">' + pill(key) + '</span></button>';
+      }).join('') + '</div>');
+    }
+    MM.openGroup186 = openGroup186;
+    /* the guided tour (js/tour186.js) moves the finger across the graph itself, to show what a touch does */
+    MM.scrub186 = scrub186; MM.unscrub186 = unscrub186;
+    function card186Reach() {
+      var tot = book.length, len = period.from - period.to + 1, shift = A.prevBase === 'lastweek' ? 7 : len, keys = ['active', 'quiet', 'inactive', 'never'];
+      var n = asked186(period.from, period.to), pct = tot ? Math.round(n / tot * 100) : 0, g = groups186(), cmp = '';
+      if (A.prev) { var was = asked186(period.from + shift, period.to + shift), d = n - was; cmp = d === 0 ? t('the same as {b}', { b: base186() }) : (d > 0 ? t('{n} more than', { n: d }) : t('{n} fewer than', { n: -d })) + ' ' + base186(); }
+      var quiet = period.to === 0 ? g.quiet : [];
+      var when = period.from === period.to ? (period.to === 0 ? t('today') : t('on {date}', { date: fmt(period.to) })) : t('in these dates');
+      return '<section class="card reach186"><h2>' + t('Active companies') + ' <em>' + periodName() + '</em></h2>' +
+        '<div class="big186 still"><b data-n="' + n + '">' + n + '</b><span>' + t('of {n}', { n: tot }) + '</span><i class="pct186">' + pct + '%</i></div>' +
+        '<p class="sub186">' + t('asked you for an offer {when}', { when: when }) + (cmp ? ' · <b>' + cmp + '</b>' : '') + '</p>' +
+        '<p class="grp186">' + (period.to === 0 ? t('Where your {n} companies stand today', { n: tot }) : t('Where your {n} companies stood on {date}', { n: tot, date: fmt(period.to) })) + '</p>' +
+        '<div class="stack186" aria-hidden="true">' + keys.map(function (k) { return g[k].length ? '<i style="flex:' + g[k].length + ';background:' + COL186[k] + '"></i>' : ''; }).join('') + '</div>' +
+        '<div class="states186">' + keys.map(function (k) { return '<button type="button" class="st186" data-g186="' + k + '"><i style="background:' + COL186[k] + '"></i><span>' + STATE[k] + '</span><b>' + g[k].length + '</b></button>'; }).join('') + '</div>' +
+        (quiet.length ? '<p class="call186">' + t('Gone quiet: worth a call today') + '</p><div class="rows">' + quiet.slice(0, 3).map(function (c) {
+          return '<button class="row q186" type="button" data-c="' + c.id + '"><span class="nm">' + esc(c.name) + '</span><span class="val">' + c.total + '</span><span class="sub">' + ago(c) + '</span></button>';
+        }).join('') + '</div>' + (quiet.length > 3 ? '<button class="go" type="button" data-go="quiet"><span>' + t('See all gone quiet') + '</span><b>' + quiet.length + '</b></button>' : '') : '') + '</section>';
+    }
+    function card186Ring() {
+      var goal = Number(((typeof CONFIG !== 'undefined' && CONFIG.salesDay) || {}).broadcasts) || 0;
+      if (!MY || !goal) return '';
+      var done = events.filter(function (e) { return e.k === 'offer' && e.c === null && e.d === 0 && e.m === ME; }).length, C = 2 * Math.PI * 31, k = Math.min(1, done / goal);
+      var tip = t('The daily target is at least {b} offers sent as a general broadcast to all the companies. An offer sent again to more chats still counts as one.', { b: goal });
+      return '<section class="card ring186"><svg viewBox="0 0 76 76" aria-hidden="true"><circle cx="38" cy="38" r="31" fill="none" stroke="rgba(247,149,30,.18)" stroke-width="10"/>' +
+        '<circle cx="38" cy="38" r="31" fill="none" stroke="#F7951E" stroke-width="10" stroke-linecap="round" stroke-dasharray="' + Math.max(0.1, k * C).toFixed(1) + ' 400" transform="rotate(-90 38 38)"/>' +
+        '<text x="38" y="44" text-anchor="middle" fill="#fff" font-size="18" font-weight="800">' + done + '/' + goal + '</text></svg>' +
+        '<div><h3>' + t('Today’s broadcasts') + '</h3><p>' + (done >= goal ? t('Done for today: {x}.', { x: count(done, 'broadcast') }) : t('Send an offer to all your companies {b} times a day.', { b: goal })) + '</p>' +
+        '<button class="why" type="button" aria-expanded="false">' + t('How it counts') + '</button><span class="why-tip" role="note">' + esc(tip) + '</span></div></section>';
+    }
+    function card186Path() {
+      var n = A.tot, eff = companyMatches('effective').length;
+      var bare = A.list.filter(function (e) { return e.k === 'reservation' && e.nm; }).length;
+      var rows = [
+        ['offers', t('Special requests'), n.special, '#fff', ''],
+        ['meeting', t('Meetings'), n.meeting, '#8C97A4', n.meeting ? t('1 for every {n} requests', { n: Math.max(1, Math.round(n.special / n.meeting)) }) : ''],
+        ['reservation', t('Reservations'), n.reservation, '#F2C037', [bare ? t('{n} without a meeting', { n: bare }) : '', n.cancel ? t('{n} cancelled in these dates', { n: n.cancel }) : ''].filter(Boolean).join(' · ')],
+        ['contract', t('Contracts'), n.contract, '#2FBF8F', n.value ? t('{v} total sales', { v: money(n.value) }) : '']];
+      return '<section class="card path186"><h2>' + t('From request to contract') + '</h2><div class="steps186">' + rows.map(function (r) {
+          return '<button type="button" class="step186" data-s="' + r[0] + '"><i style="background:' + r[3] + '"></i><span class="nm">' + r[1] + (r[4] ? '<small>' + r[4] + '</small>' : '') + '</span><b>' + r[2] + '</b></button>';
+        }).join('') + '</div>' +
+        '<div class="two186"><button type="button" class="mini186" data-s="orientation"><b>' + n.orientation + '</b><span>' + t('Orientations') + '</span>' + (n.orientation ? '<small>' + t('{n} led to a request', { n: A.led.orientation }) + '</small>' : '') + '</button>' +
+        '<button type="button" class="mini186" data-s="workshop"><b>' + n.workshop + '</b><span>' + t('Workshops') + '</span>' + (n.workshop ? '<small>' + t('{n} led to a meeting', { n: A.led.workshop }) + '</small>' : '') + '</button></div>' +
+        '<button class="go" type="button" data-go="effective"><span>' + t('Companies that brought a meeting') + '</span><b>' + eff + '</b></button></section>';
+    }
+    function my186() { return head186() + card186Sales() + card186Curve() + card186Reach() + card186Ring() + card186Path() + cardEntered(); }
+
     var SCREENS = {
       /* a salesperson's one page of figures: sales, the six tiles, his companies, what he entered */
-      my: function () { return head(t('My activity')) + cardSales() + tiles() + cardDeck() + cardEntered(); },
+      /* build 186: the new My activity (my186 above); the old one was: head + cardSales + tiles + cardDeck + cardEntered */
+      my: function () { return my186(); },
       /* SHORT ON PURPOSE: the gauge first, the tiles (six on a day since build 139, see tiles()), two short lists. Everything else is one tap away. */
       home: function () {
         return A.single ? head(t('Your team')) + noTeam() + cardHeroDay() + cardSent() + tiles() + cardDuty() + cardTeamShort()
@@ -2751,7 +2973,8 @@
       [].forEach.call(document.querySelectorAll('.why[aria-expanded="true"]'), function (b) { if (b !== why) b.setAttribute('aria-expanded', 'false'); });
       if (why) { why.setAttribute('aria-expanded', why.getAttribute('aria-expanded') === 'true' ? 'false' : 'true'); return; }
       var d = hit('data-dl'), c = hit('data-c'), m = hit('data-m'), f = hit('data-f'), r = hit('data-r'), g = hit('data-go'), k = hit('data-k'), l = hit('data-lang');
-      if (e.target.closest('#when')) { menuOpen = !menuOpen; draw(true); }
+      if (hit('data-g186')) openGroup186(hit('data-g186').dataset.g186);
+      else if (e.target.closest('#when, .dates186')) { menuOpen = !menuOpen; draw(true); }
       else if (e.target.closest('#rSave')) { if (MY) saveMyRecord(); else saveRecord(); }
       else if (hit('data-met')) meetPick(hit('data-met'));
       else if (hit('data-where')) pressOne(hit('data-where'));
