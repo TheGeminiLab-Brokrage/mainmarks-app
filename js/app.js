@@ -144,7 +144,9 @@
     } else {
       b.appendChild(el('span', 'c-band-name', p.full || p.name));
     }
-    if (p.promise) b.appendChild(el('span', 'c-tagline', t(p.promise)));
+    /* build 155: a card line of its own first (Moray: "1st Mark of Distinction", Main Marks' design notes) */
+    if (p.cardLine) b.appendChild(el('span', 'c-tagline', t(p.cardLine)));
+    else if (p.promise) b.appendChild(el('span', 'c-tagline', t(p.promise)));
     else if (p.mark) b.appendChild(el('span', 'c-tagline', t(p.mark)));
     return b;
   }

@@ -84,6 +84,7 @@
     'on hold': 'On hold',
     'sold': 'Sold',
     'blocked': 'Blocked',
+    'block': 'Blocked',            /* Main Marks' word (Moray sheet, 2026-11-17: every serviced apartment): not sellable */
     'not released': 'Not released'
   };
 
@@ -160,7 +161,24 @@
     /* build 132: on My activity the pulse stands in the logo build's place (MM.entry, js/manager.js) */
     var mb = (typeof MM !== 'undefined' && (MM.markbuild || MM.entry)) || null;
     var letGo = mb && mb.hold ? mb.hold() : function () {};
-    var pr = fetch(url, { cache: 'no-store' }).then(function (r) {
+    /* LIVE (2026-11-18). Where the line names a reader (`live`, a Supabase Edge Function) and
+       this copy is on the real store with a person signed in, the rows come from that reader:
+       Main Marks' own sheet on their SharePoint, checked every minute (Main Marks Store,
+       functions/moray-inventory). It answers only a signed-in, active person. There is NO
+       fall-back to the file: if the reader cannot answer, the page says so (fail closed: an
+       old "Available" can sell a held unit). A copy without the store (the demo) reads `url`. */
+    var st = (typeof CONFIG !== 'undefined' && CONFIG.store) || null;
+    var useLive = !!(inv.live && st && st.url && st.key && typeof MM !== 'undefined' &&
+                     MM.auth && MM.auth.real && MM.auth.real());
+    var got = useLive
+      ? MM.auth.token().then(function (tok) {
+          return fetch(st.url + '/functions/v1/' + inv.live + '?t=' + Date.now(),
+            { cache: 'no-store', headers: { apikey: st.key, Authorization: 'Bearer ' + tok } });
+        }, function () { throw new Error('Sign in again to see the units.'); })
+      : fetch(url, { cache: 'no-store' });
+    var pr = got.then(function (r) {
+      if (useLive && r.status === 401) throw new Error('Sign in again to see the units.');
+      if (useLive && r.status === 503) throw new Error('The inventory cannot be read right now. Try again in a minute.');
       if (!r.ok) throw new Error('The inventory answered HTTP ' + r.status + '.');
       return r.text();
     }).then(function (text) {
@@ -220,7 +238,9 @@
         var u = {
           code: get('code'),
           project: get('project'),
-          building: get('building'),
+          /* config inventory.sameBuilding: a second sheet name for a building the sheet already names
+             (2026-11-17: "A02" = "A", block A2). An unknown name still stands as its own building. */
+          building: ((inv.sameBuilding || {})[get('building')] || get('building')),
           floor: get('floor'),
           floorNo: num(get('floorNo')),
           unit: get('unit'),
@@ -237,6 +257,12 @@
           status: st.label,
           sellable: st.ok
         };
+
+        /* A size the client says is wrong in the sheet (config `planAreas`, 2026-11-05): the plan's figure,
+           only while the sheet still holds the figure it replaces. A corrected sheet, or any other figure,
+           is read as it stands. */
+        var fix = inv.planAreas && inv.planAreas[u.code];
+        if (fix && u.area === fix.was) { u.area = fix.m2; u.areaFrom = 'plan'; }
 
         /* Fail closed, in this order. A unit with no code cannot be
            offered, quoted or recorded; one with no price cannot be
@@ -317,6 +343,17 @@
     return s || 'unknown';
   }
 
-  MM.inventory = { load: load, num: num, parseCSV: parseCSV, readStatus: readStatus, byBuilding: byBuilding, floorsOf: floorsOf, COLS: COLS, floorId: floorId };
+  /* AUTO REFRESH (18 Nov 2026). A tiny question to the database: which version of Main Marks' file
+     does the stored copy hold? (rpc mm_inventory_version: signed-in active staff only.) It is not a
+     call to the reader, so asking it every 30 seconds costs nothing against the reader's allowance;
+     the page downloads the list again only when the answer changes. Null on the demo and offline. */
+  function version(inv) {
+    var st = (typeof CONFIG !== 'undefined' && CONFIG.store) || null;
+    if (!(inv && inv.live && st && typeof MM !== 'undefined' && MM.auth && MM.auth.real && MM.auth.real())) return Promise.resolve(null);
+    return MM.auth.call('/rest/v1/rpc/mm_inventory_version', { method: 'POST', body: {} })
+      .then(function (r) { return r.status === 200 && typeof r.body === 'string' ? r.body : null; }, function () { return null; });
+  }
+
+  MM.inventory = { version: version, load: load, num: num, parseCSV: parseCSV, readStatus: readStatus, byBuilding: byBuilding, floorsOf: floorsOf, COLS: COLS, floorId: floorId };
   if (typeof module === 'object' && module.exports) module.exports = MM.inventory;
 }(typeof window !== 'undefined' ? window : globalThis));

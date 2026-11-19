@@ -218,8 +218,9 @@
       : cfgB.filter(function (b) { return b.roof && b.roof.length >= 3; })
           .map(function (b) { return { id: b.id, name: b.name, sheet: [b.inventory || b.id], roof: b.roof }; });
     function unitNo(code) { var m = /(\d{2})\D*$/.exec(String(code)); return m ? +m[1] : -1; }
-    /* a roof answers to the sheet's names for it; one the sheet has no name for yet answers to its own id */
-    function isOf(x, key) { return (x.sheet || []).indexOf(key) !== -1 || (!(x.sheet || []).length && x.id === key); }
+    /* a roof answers to the sheet's names for it, and to its own id (a unit joined to its block, B1 / B2,
+       carries the block's id: 2026-11-03) */
+    function isOf(x, key) { return (x.sheet || []).indexOf(key) !== -1 || x.id === key; }
     function physFor(u) {
       var c = PH.filter(function (x) { return isOf(x, u.building); });
       if (c.length < 2) return c[0] || null;
@@ -227,51 +228,90 @@
       return c.filter(function (x) { return (x.units || []).some(function (r) { return n >= r[0] && n <= r[1]; }); })[0] || null;
     }
     function physOfBuilding(key) {
-      return PH.filter(function (x) { return isOf(x, key); }).map(function (x) { return x.id; });
+      var ids = PH.filter(function (x) { return isOf(x, key); }).map(function (x) { return x.id; });
+      /* build 155: "Street level" is no block of its own; it lights the blocks its shops stand under */
+      if (!ids.length) ((byKey(key) || {}).rows || []).forEach(function (u) { var P = physFor(u); if (P && ids.indexOf(P.id) === -1) ids.push(P.id); });
+      return ids;
+    }
+    /* BUILD 155 (Main Marks Development, 11 Nov 2026): "Make the street-level units a separate building in
+       the application, as shown in the inventory sheet, so users can select it from the building list."
+       A shop joined to the block above it (below) keeps the sheet's own name in `joined` ("ST"); a line
+       that lists that name as a building (Commercial: Street level) keeps every such shop under it. The
+       shop still stands in its block (u.building), so that roof lights, its offer draws that block, and
+       its delivery date is that block's. */
+    function homeKey(u) { return u.joined && cfgB.some(function (x) { return (x.inventory || x.id) === u.joined; }) ? u.joined : u.building; }
+    function homeOf(u) { return byKey(homeKey(u)); }
+    /* the building a document names: a joined shop's block ("Building HA · Street level", as Main Marks'
+       own offer design writes it), with that block's rows; any other unit's list building */
+    function docOf(u, b) {
+      var P = u.joined ? physFor(u) : null;
+      if (!P) return { name: b && b.name, label: b && b.label, rows: b && b.rows };
+      return { name: P.name, label: bLabel(P.name), rows: rows.filter(function (x) { return physFor(x) === P; }) };
     }
     /* a tap on a roof opens the sheet building under it with the most to sell */
     var unplaced = false;          /* the sheet does not say which building this line's units are in */
     function pick(P) {
       if (unplaced) { if (buildings[0]) selectBuilding(buildings[0].id, true); return; }
       var c = buildings.map(function (b) {
-        var mine = b.rows.filter(function (u) { return physFor(u) === P; });
+        var mine = tabRows(b).filter(function (u) { return physFor(u) === P; });   /* build 183: the open tab's rows */
         return { b: b, n: mine.length, a: mine.filter(function (u) { return u.sellable; }).length };
       }).filter(function (x) { return x.n; }).sort(function (x, y) { return y.a - x.a || y.n - x.n; });
       if (c[0]) selectBuilding(c[0].b.id, true);
     }
     var lights = {}, roofs = {}, glows = {};
-    function litLayer(box) {
+    /* BUILD 165 (Muhanad, 16 Nov 2026): "when the user enter the card selected all the building is shutdown
+       with no light; what will glow is the tracing in the buildings that contain available units, and when
+       the building is selected by the user the building will light up". The page opens on the dark night
+       picture; only the OUTLINES of buildings with something available glow. A building lights when it is
+       chosen: the line's lit picture (the one its card shows on the Moray page), cut to that building's
+       traced outline (config buildings[].outline: the whole building as the camera sees it). Until 164 the
+       whole line's lit picture was on from the start (or, on Clinics, a rectangle per building). A layer is
+       made the first time its building lights, so a page with 14 buildings does not hold 14 pictures. */
+    /* BUILD 166 (Muhanad, 17 Nov 2026: "what should light is the top of the building and the type of the
+       card"). A chosen building lights in two parts:
+         its TOP  = the every-building-lit picture (config aerial.allLit: the roofs lit as terraces) inside its
+                    traced top (config `outline`, else the older `roof`);
+         its TYPE = this card's own lit picture (Offices: floors 1-3; The Fourth: the 4th floor; Commercial: the
+                    shops; ...) inside everything of the building the camera sees (config `area`), so only THIS
+                    building's floors of that type light, never the same floors of the building next to it. */
+    var topSrc = (p.aerial && p.aerial.allLit) || null, typeSrc = l.lit || null;
+    function shapeOf(P) { return P.outline && P.outline.length >= 3 ? P.outline : P.roof; }
+    function areaOf(P) { return P.area && P.area.length >= 3 ? P.area : shapeOf(P); }
+    function litLayer(src, shape) {
       var im = new Image();
       im.className = 'q-img q-lit is-off';
       im.alt = ''; im.draggable = false;
       im.setAttribute('aria-hidden', 'true');
-      im.src = l.lit;
-      var pc = function (v, of) { return (v / of * 100).toFixed(3) + '%'; };
-      im.style.clipPath = 'inset(' + pc(box[1], H) + ' ' + pc(W - box[2], W) + ' ' + pc(H - box[3], H) + ' ' + pc(box[0], W) + ')';
-      canvas.appendChild(im);
+      im.src = src;
+      im.style.clipPath = 'polygon(' + shape.map(function (q) {
+        return (q[0] / W * 100).toFixed(3) + '% ' + (q[1] / H * 100).toFixed(3) + '%';
+      }).join(', ') + ')';
+      canvas.insertBefore(im, svg && svg.parentNode === canvas ? svg : null);
+      void im.offsetWidth;            /* drawn once off, so its first light fades in */
       return im;
     }
-    if (l.lit) cfgB.forEach(function (b) { if (b.light && b.light.length === 4) lights[b.id] = litLayer(b.light); });
-    /* A line whose buildings are not traced yet (Offices, The Fourth,
-       R- Residence) has no per-building lights to switch, so the WHOLE
-       line's lit picture stays on — the same picture its card lights on
-       the Moray page — and the building is chosen from the select. Its
-       roofs join the moment they are traced into config. */
-    if (l.lit && !Object.keys(lights).length) {
-      var whole = litLayer([0, 0, W, H]);
-      whole.classList.remove('is-off');
+    function lightOn(P, on) {
+      if (!topSrc && !typeSrc) return;
+      if (!lights[P.id]) {
+        if (!on) return;
+        lights[P.id] = [];
+        if (typeSrc) lights[P.id].push(litLayer(typeSrc, areaOf(P)));
+        if (topSrc) lights[P.id].push(litLayer(topSrc, shapeOf(P)));   /* the top over the type: the roof wins */
+      }
+      lights[P.id].forEach(function (im) { im.classList.toggle('is-off', !on); });
     }
+    var svg = null;
     if (!PH.length) s1.hint.textContent = t('Choose a building below');
     var NS = 'http://www.w3.org/2000/svg';
-    var svg = document.createElementNS(NS, 'svg');
+    svg = document.createElementNS(NS, 'svg');
     svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
     svg.setAttribute('preserveAspectRatio', 'none');
     svg.setAttribute('class', 'lp-roofs is-idle');
     svg.innerHTML = '<defs><filter id="lp-glow" x="-15%" y="-15%" width="130%" height="130%">' +
-      '<feGaussianBlur in="SourceGraphic" stdDeviation="4" result="b"/>' +
+      '<feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="b"/>' +
       '<feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>';
     PH.forEach(function (b) {
-      var pts = b.roof.map(function (q) { return q[0] + ',' + q[1]; }).join(' ');
+      var pts = shapeOf(b).map(function (q) { return q[0] + ',' + q[1]; }).join(' ');
       var glow = document.createElementNS(NS, 'polygon');
       glow.setAttribute('points', pts);
       glow.setAttribute('class', 'lp-roof-glow');
@@ -311,6 +351,138 @@
       badges[b.id] = bd;
     });
 
+    /* ---- BUILD 183: Commercial's two tabs, Street level / Ground floor -------------------------------
+       Muhanad, 18 Nov 2026 (Main Marks' request): on the street level the salesperson does not see buildings;
+       he sees the WHOLE street-level plan, each block of shops a zone (config `zones`), lit where it holds
+       shops for sale, with their number. A tap on a zone lifts that block's cut (step "Unit", the same lift
+       as a building's floor) and lists its shops. The Ground floor tab is the aerial and its buildings. A
+       street shop is filed under its block (u.building), so the zone is that block's street floor. */
+    var tabbed = !!l.streetTabs, tab = null;               /* 'street' | 'ground' */
+    var STF = (p.floors || []).filter(function (x) { return x.id === 'street'; })[0];
+    var zoneP = {}, zonePolys = {}, zoneBadges = {}, zsvg = null, scanvas = null, tabBtns = {};
+    function inTab(u) { return !tabbed || !tab || (tab === 'street' ? u.fid === 'street' : u.fid !== 'street'); }
+    function tabRows(b) { return b.rows.filter(inTab); }
+    function streetMode() { return tabbed && tab === 'street'; }
+    /* a zone is named by its shops' own numbers, as the salespeople know them: "ST09–ST14" */
+    function zoneName(P) {
+      var s = (P.street || []).slice().sort(function (a, c) { return a.localeCompare(c, 'en', { numeric: true }); });
+      return s.length > 1 ? s[0] + '–' + s[s.length - 1] : (s[0] || P.id);
+    }
+    if (tabbed && STF && l.zones) {
+      var tabs = el('div', 'q-tabs');
+      tabs.setAttribute('role', 'tablist');
+      [['street', 'Street level'], ['ground', 'Ground floor']].forEach(function (x) {
+        var bt = el('button', 'q-tab', t(x[1]));
+        bt.type = 'button';
+        bt.setAttribute('role', 'tab');
+        bt.addEventListener('click', function () { if (tab !== x[0]) setTab(x[0]); });
+        tabs.appendChild(bt);
+        tabBtns[x[0]] = bt;
+      });
+      s1.insertBefore(tabs, hero);
+      scanvas = el('div', 'q-canvas q-street');
+      scanvas.hidden = true;
+      var splan = new Image();
+      splan.className = 'q-img';
+      splan.alt = t('{p} — street level plan', { p: p.name });
+      splan.draggable = false;
+      splan.src = STF.img;
+      scanvas.appendChild(splan);
+      zsvg = document.createElementNS(NS, 'svg');
+      zsvg.setAttribute('viewBox', '0 0 ' + STF.w + ' ' + STF.h);
+      zsvg.setAttribute('preserveAspectRatio', 'none');
+      zsvg.setAttribute('class', 'lp-roofs lp-zones is-idle');
+      scanvas.appendChild(zsvg);
+      Object.keys(l.zones).forEach(function (id) {
+        var P = PH.filter(function (x) { return x.id === id; })[0], pts = l.zones[id];
+        if (!P || !pts || pts.length < 3) return;
+        zoneP[id] = P;
+        var g = document.createElementNS(NS, 'polygon');
+        g.setAttribute('points', pts.map(function (q) { return q[0] + ',' + q[1]; }).join(' '));
+        g.setAttribute('class', 'lp-roof is-none');
+        g.setAttribute('role', 'button');
+        g.addEventListener('click', function () { pickZone(P); });
+        g.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickZone(P); } });
+        zsvg.appendChild(g);
+        zonePolys[id] = g;
+        /* its count sits in its middle: a zone is large, and its top edge is often the plan's own edge */
+        var xs = pts.map(function (q) { return q[0]; }), ys = pts.map(function (q) { return q[1]; });
+        var bd = el('button', 'q-badge');
+        bd.type = 'button';
+        bd.hidden = true;
+        bd.style.left = ((Math.min.apply(null, xs) + Math.max.apply(null, xs)) / 2 / STF.w * 100).toFixed(2) + '%';
+        bd.style.top = ((Math.min.apply(null, ys) + Math.max.apply(null, ys)) / 2 / STF.h * 100).toFixed(2) + '%';
+        bd.addEventListener('click', function () { pickZone(P); });
+        scanvas.appendChild(bd);
+        zoneBadges[id] = bd;
+      });
+      hero.appendChild(scanvas);
+    } else tabbed = false;
+    function pickZone(P) {
+      var b = byKey((P.sheet || [])[0] || P.id);
+      if (b && tabRows(b).some(function (u) { return u.sellable; })) selectBuilding(b.id, true);
+    }
+    function zoneState() {
+      if (!tabbed) return;
+      var curB = streetMode() ? buildings.filter(function (x) { return x.id === cur.b; })[0] : null;
+      var curPh = curB ? physOfBuilding(curB.key) : [];
+      Object.keys(zonePolys).forEach(function (id) {
+        var P = zoneP[id], mine = rows.filter(function (u) { return u.fid === 'street' && physFor(u) === P; });
+        var a = mine.filter(function (u) { return u.sellable; }).length;
+        var n = search.active ? mine.filter(search.match).length : a;
+        var g = zonePolys[id], label = zoneName(P) + ' · ' + t('{n} available', { n: a });
+        g.classList.toggle('is-none', !a);
+        g.classList.toggle('is-on', curPh.indexOf(id) !== -1);
+        g.classList.toggle('is-match', !!(search.active && n));
+        if (a) g.setAttribute('tabindex', '0'); else g.removeAttribute('tabindex');
+        g.setAttribute('aria-label', label);
+        zoneBadges[id].hidden = !n;
+        zoneBadges[id].textContent = String(n);
+        zoneBadges[id].setAttribute('aria-label', label);
+      });
+      zsvg.classList.toggle('is-idle', !curB);
+      zsvg.classList.toggle('is-searching', !!search.active);
+    }
+    function setTab(tb) {
+      tab = tb;
+      cur.b = null; cur.f = null; cur.u = null;
+      s2.hidden = s3.hidden = s4.hidden = true;
+      chip.textContent = '—';
+      chip.classList.remove('is-on');
+      bmeta.textContent = '';
+      Object.keys(roofs).forEach(function (k) { roofs[k].classList.remove('is-on'); glows[k].classList.remove('is-on'); });
+      svg.classList.add('is-idle');
+      tabUI();
+      paint();
+    }
+    function tabUI() {
+      if (!tabbed) return;
+      var st = tab === 'street';
+      Object.keys(tabBtns).forEach(function (k) {
+        tabBtns[k].classList.toggle('is-on', k === tab);
+        tabBtns[k].setAttribute('aria-selected', String(k === tab));
+      });
+      canvas.hidden = st;
+      scanvas.hidden = !st;
+      s1.querySelector('.q-h span').textContent = t(st ? 'Zone' : 'Building');
+      s1.hint.textContent = t(st ? 'Tap a lit zone, or choose it below' : 'Tap a building on the view, or choose it below');
+      /* on the street level there is no floor step: Unit is step 2 */
+      s3.querySelector('.q-h i').textContent = st ? '2' : '3';
+      s4.querySelector('.q-h i').textContent = st ? '3' : '4';
+      fillSelect();
+      roofState();
+      zoneState();
+      if (!rows.length) return;                 /* build() has said the line is empty */
+      var emptyTab = !rows.some(inTab);
+      bar.hidden = emptyTab;
+      none.hidden = !emptyTab;
+      if (emptyTab) {
+        s1.hint.textContent = '';
+        none.textContent = t(st ? 'No street-level shops are available right now.' :
+          'No ground-floor shops are available right now. They will appear here as soon as they are released.');
+      }
+    }
+
     /* ---- the data -------------------------------------------------------- */
     var rows = [], buildings = [], cur = { b: null, f: null, u: null };
 
@@ -327,7 +499,19 @@
         var code = String(u.code).toUpperCase();
         var P = PH.filter(function (x) { return (x.street || []).some(function (s) { return code.indexOf(s) === 0; }); })[0];
         if (!P) return;
+        u.joined = u.building;
         u.building = (P.sheet || [])[0] || P.id;
+        above[u.building] = P.name;
+      });
+      /* ONE SHEET NAME, TWO BUILDINGS (2026-11-03, Muhanad: "those 2 buildings are selected together"): the
+         sheet's "B" is two blocks, B1 and B2 (config `buildings`, told apart by unit number). On a line that
+         lists no buildings of its own, each such unit joins its own block, so B1 and B2 are chosen, lit and
+         drawn apart. A unit no block's numbers claim keeps the sheet's name (fail closed). */
+      if (!cfgB.length) rows.forEach(function (u) {
+        if (PH.filter(function (x) { return (x.sheet || []).indexOf(u.building) !== -1; }).length < 2) return;
+        var P = physFor(u);
+        if (!P) return;
+        u.building = P.id;
         above[u.building] = P.name;
       });
       /* the buildings: the traced ones first, in the picture's order, then
@@ -336,13 +520,13 @@
       buildings = cfgB.slice().sort(function (a, c) { return (SIDE[a.side] || 0) - (SIDE[c.side] || 0); })
         .map(function (b) { return { id: b.id, name: b.name, label: bLabel(b.name), key: b.inventory || b.id, traced: !!roofs[b.id] }; });
       rows.forEach(function (u) {
-        if (!buildings.some(function (b) { return b.key === u.building; })) {
+        if (!buildings.some(function (b) { return b.key === homeKey(u); })) {
           var nm = above[u.building];
           buildings.push({ id: u.building, name: nm || 'Building ' + u.building, label: nm ? bLabel(nm) : t('Building {b}', { b: u.building }), key: u.building, traced: false, short: nm ? nm.replace(/^Building /, '') : '' });
         }
       });
       buildings.forEach(function (b) {
-        b.rows = rows.filter(function (u) { return u.building === b.key; });
+        b.rows = rows.filter(function (u) { return homeKey(u) === b.key; });
         b.avail = b.rows.filter(function (u) { return u.sellable; }).length;
         b.hold = b.rows.filter(function (u) { return u.status === 'On hold'; }).length;
       });
@@ -355,25 +539,10 @@
          the line has anything available, and a tap opens the line's one list. */
       var placed = rows.some(function (u) { return physFor(u); });
       unplaced = !!rows.length && !placed;
-      var lineAvail = rows.filter(function (u) { return u.sellable; }).length;
-      PH.forEach(function (P) {
-        var mine = rows.filter(function (u) { return physFor(u) === P; });
-        var a = unplaced ? lineAvail : mine.filter(function (u) { return u.sellable; }).length, g = roofs[P.id];
-        g.classList.toggle('is-none', !a);
-        if (a) g.setAttribute('tabindex', '0'); else g.removeAttribute('tabindex');
-        g.setAttribute('aria-label', bLabel(P.name) + (unplaced ? '' : ' · ' + t('{n} available', { n: a })));
-      });
+      roofState();
       var avail = rows.filter(function (u) { return u.sellable; }).length;
       counts.textContent = t('{n} {use} · {a} available', { n: rows.length, use: useMany(types[0]).toLowerCase(), a: avail });
-      sel.textContent = '';
-      var ph = el('option', null, t('Choose a building'));
-      ph.value = ''; ph.disabled = true; ph.selected = true;
-      sel.appendChild(ph);
-      buildings.forEach(function (b) {
-        var op = el('option', null, b.label + ' — ' + (b.avail ? t('{n} available', { n: b.avail }) : t('none available')));
-        op.value = b.id;
-        sel.appendChild(op);
-      });
+      fillSelect();
       if (res.problems && res.problems.length) {
         warn.hidden = false;
         warn.textContent = '';
@@ -390,6 +559,42 @@
       if (empty) s1.hint.textContent = '';
       none.textContent = empty ? t('No {use} are available right now. They will appear here as soon as they are released.',
         { use: useMany(types[0]).toLowerCase() }) : '';
+      /* build 183: the tab opens where the shops are; a reload keeps the tab the salesperson is on */
+      if (tabbed) {
+        if (!tab) tab = rows.some(function (u) { return u.fid === 'street'; }) ? 'street' : 'ground';
+        tabUI();
+      }
+    }
+    /* each roof shows ONLY when the sheet has an available unit of this product there, in the open tab
+       (build 108; build 183: the ground-floor tab's roofs count no street shop) */
+    function roofState() {
+      var lineAvail = rows.filter(function (u) { return u.sellable && inTab(u); }).length;
+      PH.forEach(function (P) {
+        var mine = rows.filter(function (u) { return inTab(u) && physFor(u) === P; });
+        var a = unplaced ? lineAvail : mine.filter(function (u) { return u.sellable; }).length, g = roofs[P.id];
+        g.classList.toggle('is-none', !a);
+        glows[P.id].classList.toggle('is-avail', !!a);   /* build 165: its outline glows */
+        if (a) g.setAttribute('tabindex', '0'); else g.removeAttribute('tabindex');
+        g.setAttribute('aria-label', bLabel(P.name) + (unplaced ? '' : ' · ' + t('{n} available', { n: a })));
+      });
+    }
+    /* the building select; on the Street level tab it lists the zones, by their shops' numbers */
+    function fillSelect() {
+      sel.textContent = '';
+      var ph = el('option', null, t(streetMode() ? 'Choose a zone' : 'Choose a building'));
+      ph.value = ''; ph.disabled = true; ph.selected = true;
+      sel.appendChild(ph);
+      sel.setAttribute('aria-label', ph.textContent);
+      buildings.forEach(function (b) {
+        var rs = tabRows(b);
+        if (tabbed && !rs.length) return;
+        var av = rs.filter(function (u) { return u.sellable; }).length;
+        var P = streetMode() ? PH.filter(function (x) { return isOf(x, b.key); })[0] : null;
+        var op = el('option', null, (P ? zoneName(P) + ' · ' : '') + b.label + ' — ' + (av ? t('{n} available', { n: av }) : t('none available')));
+        op.value = b.id;
+        sel.appendChild(op);
+      });
+      if (cur.b && buildings.some(function (b) { return b.id === cur.b && (!tabbed || tabRows(b).length); })) sel.value = cur.b;
     }
     function useWord(type) { return USE[type] || type || ''; }
     /* build 92: the same words in the app's language (js/i18n.js) */
@@ -408,10 +613,16 @@
        round 2). Inside the building the floors and units follow it. */
     if (finder) {
       finder.onChange(function (out) { search = out; paint(); });
-      finder.onPickBuilding(function (key) { var b = byKey(key); if (b) selectBuilding(b.id, false); });
+      finder.onPickBuilding(function (key) {
+        var b = byKey(key);
+        if (!b) return;
+        if (tabbed && !tabRows(b).length) setTab(tab === 'street' ? 'ground' : 'street');   /* build 183 */
+        selectBuilding(b.id, false);
+      });
       finder.onShowUnit(function (u, plan) {
-        var b = byKey(u.building);
+        var b = homeOf(u);
         if (!b || !u.sellable) return;               /* fail closed: only a sellable unit is opened */
+        if (tabbed && tab !== (u.fid === 'street' ? 'street' : 'ground')) setTab(u.fid === 'street' ? 'street' : 'ground');   /* build 183 */
         selectBuilding(b.id, false);
         selectFloor(u.fid);
         if (plan) planId = plan;
@@ -424,8 +635,9 @@
       finder.onSendOptions(function (list) {
         if (!MM.post || !MM.post.captionOptions) return;
         var opts = list.map(function (x) {
-          var b = byKey(x.u.building);
-          return { unit: x.u, role: x.role, buildingName: b && b.name,
+          /* a shop under "Street level" is still named by the block it stands in (build 155) */
+          var b = homeOf(x.u), P = x.u.joined ? physFor(x.u) : null;
+          return { unit: x.u, role: x.role, buildingName: P ? P.name : b && b.name,
                    plan: x.plan ? (p.plans || []).filter(function (q) { return q.id === x.plan; })[0] || null : null };
         });
         if (opts.length < 2 || opts.some(function (x) { return !x.unit.sellable; })) return;
@@ -448,9 +660,11 @@
       var curB = buildings.filter(function (x) { return x.id === cur.b; })[0];
       var curPh = curB ? physOfBuilding(curB.key) : [];
       PH.forEach(function (P) {
-        var n = on ? rows.filter(function (u) { return physFor(u) === P && search.match(u); }).length : 0;
+        var n = on ? rows.filter(function (u) { return inTab(u) && physFor(u) === P && search.match(u); }).length : 0;
         var isBest = !!(bestRow && physFor(bestRow) === P);
         var shown = n > 0 && (!cur.b || lightAll || curPh.indexOf(P.id) !== -1);
+        /* build 165: a building lights when it is the chosen one, or while a search shows its matches */
+        lightOn(P, curPh.indexOf(P.id) !== -1 || (on && shown));
         roofs[P.id].classList.toggle('is-best', isBest);
         glows[P.id].classList.toggle('is-best', isBest);
         roofs[P.id].classList.toggle('is-match', shown);
@@ -461,10 +675,9 @@
       });
       buildings.forEach(function (b) {
         var n = on ? (search.byBuilding[b.key] || 0) : 0;
-        var shown = n > 0 && (!cur.b || lightAll || b.id === cur.b);
         if (n > 0 && cur.b && b.id !== cur.b) others += n;
-        if (lights[b.id]) lights[b.id].classList.toggle('is-off', !(b.id === cur.b || (on && shown)));
       });
+      zoneState();                                  /* build 183: the street level's zones and their counts */
       relight.hidden = !(on && cur.b && others && !lightAll);
       relight.textContent = t(others === 1 ? 'Light the other {n} match' : 'Light the other {n} matches', { n: others });
       var b = buildings.filter(function (x) { return x.id === cur.b; })[0];
@@ -476,19 +689,28 @@
       });
     }
 
+    function stampNow() {
+      var now = new Date();
+      dot.className = 'q-dot is-live';
+      syncText.textContent = '';
+      syncText.appendChild(el('b', null, t('Updated')));
+      syncText.appendChild(document.createTextNode(' ' + t('{time}', {
+        time: String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') })));
+    }
+    var seenVersion = null, loading = false;
     function load() {
       dot.className = 'q-dot';
       syncText.textContent = t('Loading units…');
+      loading = true;
+      var ver = MM.inventory.version ? MM.inventory.version(p.inventory) : Promise.resolve(null);
       return MM.inventory.load(p.inventory).then(function (res) {
+        loading = false;
         build(res);
-        dot.className = 'q-dot is-live';
-        var now = new Date();
-        syncText.textContent = '';
-        syncText.appendChild(el('b', null, t('Updated')));
-        syncText.appendChild(document.createTextNode(' ' + t('{time}', {
-          time: String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') })));
+        stampNow();
+        ver.then(function (v) { seenVersion = v; });
         if (cur.b) selectBuilding(cur.b, false, true);
       }).catch(function (err) {
+        loading = false;
         /* fail closed: nothing is offered from a sheet we could not read */
         dot.className = 'q-dot is-bad';
         syncText.textContent = t('Units could not be loaded. Please try again.');
@@ -498,6 +720,27 @@
       });
     }
     refresh.addEventListener('click', load);
+
+    /* AUTO REFRESH (18 Nov 2026, Muhanad: "yes auto refresh"). While the page is in front, every 30
+       seconds (and the moment the phone comes back to it) ask which version of Main Marks' file the
+       database holds. Same version: the clock moves on ("Updated" = confirmed now). New version and no
+       unit chosen yet: the list is read again, keeping the chosen building. New version while a unit is
+       chosen: nothing moves under his finger; the dot turns amber, "Units changed", and Refresh is his.
+       Only on the real store with the live reader (MM.inventory.version gives null on the demo). */
+    if (p.inventory && p.inventory.live) {
+      var check = function () {
+        if (document.hidden || loading || seenVersion === null) return;
+        MM.inventory.version(p.inventory).then(function (v) {
+          if (!v || loading) return;
+          if (v === seenVersion) { if (dot.className !== 'q-dot is-changed') stampNow(); return; }
+          if (!cur.u) { load(); return; }
+          dot.className = 'q-dot is-changed';
+          syncText.textContent = t('Units changed');
+        });
+      };
+      setInterval(check, 30000);
+      document.addEventListener('visibilitychange', function () { if (!document.hidden) check(); });
+    }
     sel.addEventListener('change', function () { selectBuilding(sel.value, false); });
 
     /* build 126 (Muhanad, 2026-10-07): a tap moves the page to the next step at EVERY width. It used to
@@ -515,14 +758,16 @@
       sel.value = id;
       chip.textContent = b.short || id;
       chip.classList.add('is-on');
-      bmeta.textContent = b.hold ? t('{n} on hold', { n: b.hold }) : '';
+      var bh = tabRows(b).filter(function (u) { return u.status === 'On hold'; }).length;
+      bmeta.textContent = bh ? t('{n} on hold', { n: bh }) : '';
       var onPh = physOfBuilding(b.key);
       Object.keys(roofs).forEach(function (k) { roofs[k].classList.toggle('is-on', onPh.indexOf(k) !== -1); });
       Object.keys(glows).forEach(function (k) { glows[k].classList.toggle('is-on', onPh.indexOf(k) !== -1); });
       svg.classList.remove('is-idle');
       lightAll = false;
-      s2.hidden = false;
+      s2.hidden = streetMode();       /* build 183: the street level has one floor, so no floor step */
       paint();                       /* lights, badges, and the floors with their matches */
+      if (streetMode()) { if (!keep) selectFloor('street'); else if (cur.f) selectFloor(cur.f, true); return; }
       if (!keep) { s3.hidden = true; s4.hidden = true; go(s2); }
       else if (cur.f) selectFloor(cur.f, true);
     }
@@ -542,12 +787,12 @@
       if (l.floorsByBuilding) {
         ids = [];
         PH.filter(function (x) { return isOf(x, b.key); }).forEach(function (P) {
-          [(P.street || []).length ? 'street' : '', 'ground', P.showrooms ? 'first' : ''].forEach(function (f) {
+          [(P.street || []).length && !tabbed ? 'street' : '', 'ground', P.showrooms ? 'first' : ''].forEach(function (f) {
             if (f && ids.indexOf(f) === -1) ids.push(f);
           });
         });
       }
-      b.rows.forEach(function (u) { if (ids.indexOf(u.fid) === -1) ids.push(u.fid); });
+      tabRows(b).forEach(function (u) { if (ids.indexOf(u.fid) === -1) ids.push(u.fid); });
       ids.sort(function (a, c) { return ORDER.indexOf(a) - ORDER.indexOf(c); });
       ids.forEach(function (fid) {
         var on = b.rows.filter(function (u) { return u.fid === fid; });
@@ -590,7 +835,7 @@
        zoomed). As numbers: `fill` = how much of the frame it takes, `lift` =
        how much closer it comes, `back` / `dim` / `blur` = how far back the
        floor sits. */
-    var VIEW = { fill: 0.72, lift: 1.12, back: 0.97, dim: 0.5, blur: 1.1 };
+    var VIEW = { fill: 0.8, lift: 1.12, back: 0.97, dim: 0.5, blur: 1.1 };   /* build 155: fill .72 -> .8, nothing behind it now */
 
     /* ---- the units on the lifted building (build 72) ------------------------
        Each unit Muhanad traced (config `unitShapes`, corners in the floor
@@ -641,14 +886,28 @@
           g.setAttribute('tabindex', '0');
           g.setAttribute('role', 'button');
           g.setAttribute('aria-label', u.code + ' · ' + money(u.area) + ' m² · ' + money(u.listPrice));
-          g.addEventListener('click', function () { selectUnit(u.code); });
-          g.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectUnit(u.code); } });
-        } else g.setAttribute('aria-label', u.code + ' · ' + u.status);
+          g.addEventListener('click', function () { tapUnit(u); });
+          g.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tapUnit(u); } });
+        } else {
+          /* build 155: opens for checking its layout, never for an offer (selectUnit) */
+          g.setAttribute('role', 'button');
+          g.setAttribute('aria-label', u.code + ' · ' + u.status);
+          g.addEventListener('click', function () { tapUnit(u); });
+        }
         if (search.active && !search.match(u)) g.classList.add('is-nomatch');
         s.appendChild(g);
       });
       return s;
     }
+    /* 2026-11-03: the drawing shows the WHOLE building, so it can hold units the sheet files under the
+       other name of the same block (D1 beside D2). A tap on one of those opens its own building first,
+       then the unit, exactly as Find a unit does. */
+    function tapUnit(u) {
+      var ub = homeOf(u), curB = buildings.filter(function (x) { return x.id === cur.b; })[0];
+      if (ub && curB && ub.id !== curB.id) { cur.u = u.code; selectBuilding(ub.id, false, true); }
+      selectUnit(u.code);
+    }
+    function lineRows() { return rows; }           /* the line's rows; floorPlate's own `rows` is one building's */
 
     function floorPlate(b, fid, quiet, rows) {
       /* the cut Muhanad drew in tools/cut-buildings.html (config `plates`, by the
@@ -656,6 +915,17 @@
          the next building, so nothing is guessed */
       var box = p.plates && p.plates[b.key] && p.plates[b.key][fid];
       var f = (p.floors || []).filter(function (x) { return x.id === fid; })[0];
+      /* build 155: a cut set to 'units' (Street level, which is no block) is drawn around the traced outlines
+         of the building's own units on this floor, 40 px clear, inside the drawing's frame */
+      if (box === 'units' && f) {
+        var xs = [], ys = [];
+        b.rows.forEach(function (u) {
+          var sh = u.fid === fid && (p.unitShapes || {})[u.code];
+          (sh || []).forEach(function (q) { xs.push(q[0]); ys.push(q[1]); });
+        });
+        box = xs.length ? [Math.max(0, Math.min.apply(null, xs) - 40), Math.max(0, Math.min.apply(null, ys) - 40),
+          Math.min(f.w || Infinity, Math.max.apply(null, xs) + 40), Math.min(f.h || Infinity, Math.max.apply(null, ys) + 40)] : null;
+      }
       if (!box || !f || !f.img) return null;
       var bw = box[2] - box[0], bh = box[3] - box[1];
 
@@ -676,7 +946,17 @@
       if (sharp) { lift.style.backgroundSize = '100% 100%'; lift.style.backgroundPosition = '0 0'; }
       plate.appendChild(back);
       plate.appendChild(lift);
-      var units = unitLayer(box, rows || []);
+      /* every unit of this line on this floor whose outline lies inside the cut glows, whichever of the
+         block's sheet names it is filed under (2026-11-03: "the building's available units glow") */
+      var shapesAll = p.unitShapes || {};
+      var inCut = rows ? rows.slice() : [];
+      lineRows().forEach(function (u) {
+        var s = shapesAll[u.code];
+        if (u.fid !== fid || inCut.indexOf(u) !== -1 || !s || s.length < 3) return;
+        if (s.every(function (q) { return q[0] >= box[0] && q[0] <= box[2] && q[1] >= box[1] && q[1] <= box[3]; })) inCut.push(u);
+      });
+      rows = inCut;
+      var units = unitLayer(box, rows);
       if (units) lift.appendChild(units);
       holder.appendChild(plate);
       /* the answer is named under the drawing, so it is never lost: glowing
@@ -709,35 +989,73 @@
       }
       /* a unit on hold has its own colour on the drawing (build 99); the line under it says which and why */
       var heldU = (rows || []).filter(function (u) { return !u.sellable && units && units.querySelector('.q-u.is-held[data-code="' + u.code + '"]'); });
-      if (heldU.length) holder.appendChild(el('p', 'q-plate-key', heldU.map(function (u) { return u.code + ' · ' + (MM.tx ? MM.tx.status(u.status) : u.status); }).join(' , ')));
-      holder.appendChild(el('p', 'q-plate-src', t('Drawing: {src}', { src: f.source || p.name }) + (sharp ? ' · ' + t('sharpened copy') : '')));
+      /* build 181 (Muhanad, 19 Nov 2026: "the name of the unit are mentioned this is messy ... a square with its
+         colour and 'hold' so the user knows any unit traced in this colour is hold"): a key, never a list of
+         codes. The colour square is the CSS ::before; the words are the status, each named once. */
+      /* build 182 (Muhanad, 18 Nov 2026: "add a square that let the user know the color of the available unit"):
+         the key names every colour of the drawing's outlines: Available first, then each held status. */
+      var availN = units ? units.querySelectorAll('.q-u.is-avail').length : 0;
+      if (availN || heldU.length) {
+        var heldSt = [];
+        heldU.forEach(function (u) { var s = MM.tx ? MM.tx.status(u.status) : u.status; if (heldSt.indexOf(s) === -1) heldSt.push(s); });
+        var key = el('p', 'q-plate-key');
+        if (availN) key.appendChild(el('span', 'q-key is-avail', MM.tx ? MM.tx.status('Available') : 'Available'));
+        heldSt.forEach(function (s) { key.appendChild(el('span', 'q-key is-held', s)); });
+        holder.appendChild(key);
+      }
+      /* 2026-11-03: every cut is now Main Marks' original drawing, never a sharpened copy */
+      holder.appendChild(el('p', 'q-plate-src', t('Drawing: {src}', { src: f.source || p.name })));
+
+      /* BUILD 155 (Main Marks Marketing, 11 Nov 2026, their page 5: "Remove the blury Master plan", "You may
+         add it here clear and small"): the whole floor no longer sits blurred behind the building. It is
+         seen only while the building lifts off it, then fades out; a small, sharp key plan sits in the
+         bottom-right corner with the building framed on it, and the building is placed above it. */
+      var mini = el('div', 'q-plate-mini');
+      mini.setAttribute('aria-hidden', 'true');
+      var miniImg = new Image();
+      miniImg.alt = '';
+      miniImg.draggable = false;
+      miniImg.src = f.img;
+      var miniBox = el('span', 'q-plate-mini-box');
+      mini.appendChild(miniImg);
+      mini.appendChild(miniBox);
+      plate.appendChild(mini);
 
       var shown = false;
       function lay() {
-        var iw = back.naturalWidth, ih = back.naturalHeight;
-        var pw = plate.clientWidth, ph = plate.clientHeight;
-        if (!iw || !pw || !ph) return;
+        /* the floor's FRAME (config `w`, `h`), which `plates` and `unitShapes` are measured in; the
+           picture itself can carry more pixels than its frame (2026-11-03: the originals at 2x) */
+        var iw = f.w || back.naturalWidth, ih = f.h || back.naturalHeight;
+        var pw = plate.clientWidth, ph0 = plate.clientHeight;
+        if (!iw || !pw || !ph0) return;
+        /* the key plan: a third of the frame wide, at the floor's own proportions; the building gets the
+           frame above it */
+        var mw = Math.round(pw * 0.34), mh = Math.round(mw * ih / iw), PADK = 10;
+        mini.style.width = mw + 'px'; mini.style.height = mh + 'px';
+        miniBox.style.left = (box[0] / iw * 100) + '%'; miniBox.style.top = (box[1] / ih * 100) + '%';
+        miniBox.style.width = ((box[2] - box[0]) / iw * 100) + '%'; miniBox.style.height = ((box[3] - box[1]) / ih * 100) + '%';
+        var ph = ph0 - mh - PADK;
         if (!sharp) {
           lift.style.backgroundSize = (iw / bw * 100) + '% ' + (ih / bh * 100) + '%';
           lift.style.backgroundPosition = (box[0] / (iw - bw) * 100) + '% ' + (box[1] / (ih - bh) * 100) + '%';
         }
         /* the whole floor fitted in the frame (object-fit: contain), and the
            building's spot and size on it — where the lift starts */
-        var s = Math.min(pw / iw, ph / ih);
-        var c00 = { x: (pw - iw * s) / 2 + (box[0] + bw / 2) * s, y: (ph - ih * s) / 2 + (box[1] + bh / 2) * s };
+        var s = Math.min(pw / iw, ph0 / ih);
+        var c00 = { x: (pw - iw * s) / 2 + (box[0] + bw / 2) * s, y: (ph0 - ih * s) / 2 + (box[1] + bh / 2) * s };
         var start = { x: c00.x - bw * s / 2, y: c00.y - bh * s / 2, w: bw * s, h: bh * s };
         var V = VIEW;
-        /* the WHOLE floor stays in view behind, never zoomed (Muhanad,
-           2026-10-01), only set back a little */
+        /* the WHOLE floor, never zoomed (Muhanad, 2026-10-01), only set back a little as it fades */
         var k = V.back;
-        var cam = 'translate(' + (pw / 2 * (1 - k)) + 'px,' + (ph / 2 * (1 - k)) + 'px) scale(' + k + ')';
+        var cam = 'translate(' + (pw / 2 * (1 - k)) + 'px,' + (ph0 / 2 * (1 - k)) + 'px) scale(' + k + ')';
         var bw0 = bw * s * k, bh0 = bh * s * k;
         /* the building alone is brought close: grown until it fills `fill` of the frame */
         var Z = Math.max(1, Math.min(pw * V.fill / bw0, ph * V.fill / bh0));
         var gw = bw0 * Z * V.lift, gh = bh0 * Z * V.lift;
         back.style.transformOrigin = '0 0';
         back.style.transform = cam;
-        back.style.filter = 'brightness(' + V.dim + ') saturate(.45) blur(' + V.blur + 'px)';
+        back.style.filter = 'brightness(' + V.dim + ') saturate(.45)';
+        back.style.opacity = '0';                    /* build 155: gone once the building has lifted */
         /* the piece: in the middle of the frame, grown */
         var to = { x: (pw - gw) / 2, y: (ph - gh) / 2, w: gw, h: gh };
         lift.style.left = to.x + 'px'; lift.style.top = to.y + 'px';
@@ -749,7 +1067,7 @@
         if (quiet || !lift.animate || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
         /* the whole floor, then it settles back while the building lifts off it */
         var ease = { duration: 1000, easing: 'cubic-bezier(.25,.7,.15,1)', fill: 'backwards' };
-        back.animate([{ transform: 'none' }, { transform: cam }], ease);
+        back.animate([{ transform: 'none', opacity: 1 }, { opacity: 1, offset: 0.45 }, { transform: cam, opacity: 0 }], ease);
         lift.animate([
           { transform: 'translate(' + (start.x - to.x) + 'px,' + (start.y - to.y) + 'px) scale(' + (start.w / to.w) + ')', boxShadow: '0 0 0 0 rgba(0,0,0,0)', filter: 'brightness(.45)' },
           { filter: 'brightness(1)', offset: 0.4 },
@@ -775,7 +1093,7 @@
       s3.hint.textContent = '— ' + t('{n} available on this floor', { n: av.length });
       unitPanel.textContent = '';
       var head = el('div', 'q-phead');
-      head.appendChild(el('p', 'q-pcount', b.label + ' · ' + floorName(fid)));
+      head.appendChild(el('p', 'q-pcount', b.label === floorName(fid) ? b.label : b.label + ' · ' + floorName(fid)));   /* build 155: never "Street level · Street level" */
       var sort = el('select', 'q-select q-sort');
       sort.setAttribute('aria-label', t('Sort the units'));
       [['code', 'Sort: unit number'], ['price', 'Sort: price, low to high'], ['priceD', 'Sort: price, high to low'], ['area', 'Sort: size, small to large']]
@@ -807,8 +1125,8 @@
       /* the answer always heads the list, whatever the sort */
       if (search.best) sorted.sort(function (x, y) { return (isAnswer(y) ? 1 : 0) - (isAnswer(x) ? 1 : 0); });
       sorted.concat(on.filter(function (u) { return !u.sellable; })).forEach(function (u) {
-        var row = el(u.sellable ? 'button' : 'div', 'q-unit' + (u.sellable ? '' : ' is-held'));
-        if (u.sellable) row.type = 'button';
+        var row = el('button', 'q-unit' + (u.sellable ? '' : ' is-held'));
+        row.type = 'button';
         row.appendChild(el('span', 'q-ucode', u.code));
         row.appendChild(el('span', 'q-umeta', t('{a} m²', { a: money(u.area) }) + ' · ' + useOne(u.type)));
         row.appendChild(el('span', 'q-uprice', u.sellable ? money(u.listPrice) : (MM.tx ? MM.tx.status(u.status) : u.status)));
@@ -819,10 +1137,10 @@
           row.appendChild(el('span', 'q-ufit is-best', t(TAG[search.kind] || 'Best fit') + (plan ? ' · ' + plan : '')));
           row.classList.add('is-best');
         } else if (fo) row.appendChild(el('span', 'q-ufit', t('Fits') + ' · ' + plan));
-        if (u.sellable) {
-          row.classList.toggle('is-on', cur.u === u.code);
-          row.addEventListener('click', function () { selectUnit(u.code); });
-        }
+        /* build 155 (Main Marks Development, 11 Nov 2026: "Open all inventory, including blocked units, to
+           allow us to check and validate all layouts"): a unit not for sale opens too, to be checked */
+        row.classList.toggle('is-on', cur.u === u.code);
+        row.addEventListener('click', function () { selectUnit(u.code); });
         row.dataset.code = u.code;
         list.appendChild(row);
       });
@@ -860,9 +1178,10 @@
     }
 
     function selectUnit(code, keep) {
-      var u = rows.filter(function (x) { return x.code === code && x.sellable; })[0];
+      /* build 155: every unit of the sheet opens, whatever its status; only an available one is offered */
+      var u = rows.filter(function (x) { return x.code === code; })[0];
       if (!u) return;
-      if (!keep) { var fo0 = fitOf(u); if (fo0) planId = fo0.id; }
+      if (!keep && u.sellable) { var fo0 = fitOf(u); if (fo0) planId = fo0.id; }
       cur.u = code;
       [].forEach.call(unitPanel.querySelectorAll('.q-unit, .q-u'), function (r) { r.classList.toggle('is-on', r.dataset.code === code); });
       detail.textContent = '';
@@ -878,6 +1197,16 @@
         card.appendChild(c);
       });
       detail.appendChild(card);
+
+      /* not for sale: its details and its place on the drawing, and nothing to offer (fail closed) */
+      if (!u.sellable) {
+        current = null;
+        detail.appendChild(el('p', 'q-empty q-notsale', t('{status}: not for sale. It opens so its layout can be checked; no offer can be made on it.',
+          { status: MM.tx ? MM.tx.status(u.status) : u.status })));
+        s4.hidden = false;
+        if (!keep) go(s4);
+        return;
+      }
 
       var plans = plansFor(u);
       if (!plans.length) {
@@ -951,6 +1280,7 @@
           tile('You save', money(s.discount));
         } else {
           tile('Down payment', money(s.down));
+          if (down2Of(s)) tile('Then, after 3 months', money(down2Of(s).amount));
           tile('Quarterly', money(s.each));
           tile('Instalments', String(s.count));
           tile('Total payable', money(s.payable));
@@ -963,13 +1293,13 @@
          is over, and one tap to the plan that does fit */
       function budgetCheck(s) {
         /* a box the agent left empty is zero, never "no limit" (finder.js) */
-        var B = search.budget, needC = s.down - (B.cash || 0);
+        var B = search.budget, needC = s.downTotal - (B.cash || 0);   /* both parts of a split down payment */
         var needQ = !s.cash ? Math.max(s.each, s.lastInstalment) - (B.quarter || 0) : 0;
         var box = el('div', 'q-budget');
         if (needC <= 0 && needQ <= 0) {
           box.classList.add('is-ok');
           var have = [];
-          if (B.cash) have.push(t('{v} down of {of}', { v: money(s.down), of: money(B.cash) }));
+          if (B.cash) have.push(t('{v} down of {of}', { v: money(s.downTotal), of: money(B.cash) }));
           if (B.quarter && !s.cash) have.push(t('{v} a quarter of {of}', { v: money(s.each), of: money(B.quarter) }));
           box.appendChild(el('p', null, t('Within the client’s budget: {list}.', { list: have.join(' · ') })));
           return box;
@@ -994,7 +1324,7 @@
       function offerText() {
         var c = current, s = c.s, lines = [];
         lines.push('*' + l.name + ' · ' + useOne(c.u.type) + ' ' + c.u.code + '*');
-        lines.push(c.b.label + ' · ' + floorName(c.u.fid) + ' · ' + t('{a} m²', { a: money(c.u.area) }));
+        lines.push(docOf(c.u, c.b).label + ' · ' + floorName(c.u.fid) + ' · ' + t('{a} m²', { a: money(c.u.area) }));
         lines.push(t('Price: {v}', { v: egp(c.u.listPrice) }));
         lines.push(t('Plan: {plan}', { plan: planName(c.pl.label) }) +
           (c.pl.until ? ' ' + t('(offer until {date})', { date: day(new Date(c.pl.until + 'T12:00:00')) }) : ''));
@@ -1002,6 +1332,7 @@
         if (s.cash) lines.push(t('Cash payment: {v}', { v: egp(s.payable) }));
         else {
           lines.push(t('Down payment: {v}', { v: egp(s.down) }));
+          if (down2Of(s)) lines.push(t('Then, after 3 months: {v}', { v: egp(down2Of(s).amount) }));
           lines.push(t('Quarterly instalment: {v} × {n}', { v: egp(s.each), n: s.count }));
         }
         lines.push('');
@@ -1015,7 +1346,8 @@
         var c = current, demo = demoPhone();
         var withPdf = !!(MM.offerPdf && MM.offerPdf.can(p, c.u));
         function makePdf() {
-          return MM.offerPdf.make({ project: p, unit: c.u, plan: c.pl, buildingName: c.b && c.b.name, buildingRows: c.b && c.b.rows });
+          var d = docOf(c.u, c.b);
+          return MM.offerPdf.make({ project: p, unit: c.u, plan: c.pl, buildingName: d.name, buildingRows: d.rows });
         }
         /* build 88, THE REAL PHONE does what the demo shows: the offer PDF goes
            into WhatsApp through the phone's own share sheet. The PDF is built
@@ -1033,7 +1365,7 @@
              caption, the Ayyam / Qomor way, for groups */
           if (who.format === 'post' && MM.post) {
             MM.post.open({
-              project: p, line: l, unit: c.u, plan: c.pl, buildingName: c.b && c.b.name, who: who,
+              project: p, line: l, unit: c.u, plan: c.pl, buildingName: docOf(c.u, c.b).name, who: who,
               session: session, demo: demo, onSent: sent(who, 'post', c.u, offerKey([{ code: c.u.code, plan: c.pl && c.pl.id }])),
               kit: { handheld: handheld, canShare: canShare, shareOrTimeOut: shareOrTimeOut, saveFile: saveFile, sentWords: sentWords }
             });
@@ -1221,6 +1553,10 @@
       }
       var newNote = el('p', 'q-who-note'); newNote.hidden = true;
       co.appendChild(newNote);
+      /* build 149: a company the admin gave to a colleague. The offer is still sent and saved; he is told
+         before the send that the admin is asked to let him serve it (or that she kept it with the colleague). */
+      var askNote = el('p', 'q-who-note'); askNote.hidden = true;
+      co.appendChild(askNote);
       card.appendChild(co);
 
       /* build 90: SEND IT AS the offer PDF or a WhatsApp post (Muhanad,
@@ -1446,6 +1782,13 @@
         check();
       }
       function check() {
+        var ask = STORE && audience === 'broker' && MM.auth.companyAsk ? MM.auth.companyAsk(listed(inp.value)) : null;
+        askNote.hidden = !ask;
+        if (ask) askNote.textContent = ask === 'blocked'
+          ? t('The admin kept this company with a colleague. Your offer is still sent and saved under your name.')
+          : ask === 'waiting'
+            ? t('Your request to serve this company is with the admin. Your offer is sent and saved.')
+            : t('This company is served by a colleague. Your offer is sent and saved, and the admin is asked to let you serve it.');
         var waitPdf = pending && format === 'pdf';
         go2.textContent = waitPdf ? t('Preparing the offer PDF…') : format === 'post' ? t('Make the post') : t('Continue to WhatsApp');
         go2.disabled = waitPdf || !audience || !format || (audience === 'broker' && !inp.value.trim()) ||
@@ -1498,6 +1841,8 @@
     }
 
     var FIRST_YEARS = 3;
+    /* the second part of a split down payment (config plans: a `down` milestone, 2026-11-05), or null */
+    function down2Of(s) { return (s.rows || []).filter(function (r) { return r.kind === 'milestone' && r.down; })[0] || null; }
     function table(s) {
       var wrap = el('div', 'q-sched-wrap');
       var yearly = {};
@@ -1539,11 +1884,11 @@
       var seenYear = {};
       rows.forEach(function (r) {
         var tr = el('tr');
-        if (r.kind === 'down') {
+        if (r.kind === 'down' || r.kind === 'milestone') {
           if (!r.amount) return;                       /* 0% down: no row */
           tr.className = 'is-dp';
           tr.appendChild(el('td', null, t('DP')));
-          tr.appendChild(el('td', null, t('Down payment')));
+          tr.appendChild(el('td', null, r.kind === 'down' ? t('Down payment') : t('Down payment, 2nd part')));
           tr.appendChild(el('td', null, tday(r.due)));
           tr.appendChild(el('td', 'num', money(r.amount)));
           tr.appendChild(el('td', 'num', pct(r.amount / s.payable, 2)));

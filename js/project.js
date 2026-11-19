@@ -265,6 +265,45 @@
         fOf[i] = v;
         if (v === null) c.style.removeProperty('--f'); else c.style.setProperty('--f', v);
       });
+      /* BUILD 169 (Muhanad, 17 Nov 2026: "make the transition in the app from one card to the other more smooth"):
+         on the phone the LIGHT follows the finger too. Each card's lit picture is as bright as its card is
+         centred (1 - --f, eased), so swiping from one card to the next fades one card's buildings down and the
+         next one's up in step with the swipe, instead of switching at the half-way point and fading after. */
+      /* BUILD 174 (Muhanad, 18 Nov 2026: "the building should light up only when the user select or touch the
+         card"): the picture is DARK at rest. It follows the finger only while a finger (or a mouse button) is
+         down on the cards, fades out when it lifts, and a tapped card stays lit while it opens. */
+      /* BUILD 175 (Muhanad, 18 Nov 2026: "make the swipe between card show the building light up smoothly"):
+         the whole light is multiplied by `gain` (0 to 1), which EASES in when the finger lands (it popped on in
+         174), stays up while the finger is down AND while the row is still gliding or snapping to the next card
+         (174 faded it as the finger lifted, so the next card's buildings never lit), then holds a moment once
+         the row is still and eases out. See `active` below. */
+      if (on && litLayers && !held) {
+        stage.classList.add('a-follow');
+        /* By how far the row has travelled between two cards' RESTING places (where the row stops for each:
+           the first and last cards cannot reach the exact centre): a card at rest is fully lit and its
+           neighbours dark, and in a hand-over the two lights always add up to one, so the picture never
+           dips mid-swipe. Works left-to-right and right-to-left (Arabic: scrollLeft runs negative). */
+        var sc = row.scrollLeft, span = row.scrollWidth - row.clientWidth;
+        var rtl = getComputedStyle(row).direction === 'rtl', lo = rtl ? -span : 0, hi = rtl ? 0 : span;
+        var rest = rects.map(function (r) { return Math.min(hi, Math.max(lo, sc + (r.left + r.width / 2 - mid))); });
+        var w = rest.map(function () { return 0; }), found = false;
+        for (var k = 0; k < rest.length - 1; k++) {
+          var a = rest[k], b = rest[k + 1], gap = Math.abs(b - a);
+          if (gap < 1 || sc < Math.min(a, b) - 0.5 || sc > Math.max(a, b) + 0.5) continue;
+          var tt = Math.min(1, Math.max(0, Math.abs(sc - a) / gap));
+          w[k] = Math.max(w[k], 1 - tt); w[k + 1] = Math.max(w[k + 1], tt); found = true;
+        }
+        if (!found) { var near = 0; rest.forEach(function (v, i) { if (Math.abs(v - sc) < Math.abs(rest[near] - sc)) near = i; }); w[near] = 1; }
+        cards.forEach(function (c, i) {
+          var im = litLayers[c.getAttribute('data-line')];
+          if (!im) return;
+          var o = (w[i] * eased()).toFixed(3);
+          if (im.style.opacity !== o) im.style.opacity = o;
+        });
+      } else if (stage.classList.contains('a-follow')) {
+        stage.classList.remove('a-follow');
+        Object.keys(litLayers || {}).forEach(function (k) { litLayers[k].style.removeProperty('opacity'); });
+      }
       if (!st) return;
 
       var hit = null;
@@ -285,12 +324,79 @@
           if (seen > most) { most = seen; hit = c.getAttribute('data-line'); }
         });
       }
+      /* the dots still follow the card in the middle: they say where the row is, not what is lit */
       if (hit !== last) {
         last = hit;
         dots.forEach(function (d) { d.classList.toggle('is-on', d.getAttribute('data-line') === hit); });
-        lightLine(hit);
       }
+      /* build 174: what is lit. A tapped card; else, while a finger is down, on the phone the card in the
+         middle (the swipe above sets the actual brightness; this names it on the picture) and on a tablet
+         the card under the finger */
+      /* build 176: once the cards have been touched, the card in the middle (tablet: the one filling the screen)
+         stays lit */
+      var want = held || (on ? (gain > 0.02 ? hit : null) : (touching ? touchedLine : (engaged ? hit : null)));
+      if (want !== lastLit) { lastLit = want; lightLine(want); }
     }
+    var touching = false, touchedLine = null, held = null, lastLit, letGo;
+
+    /* build 175: the swipe's light as one number. In 0.3 s, out 0.6 s after a 0.5 s hold, eased both ways. */
+    var gain = 0, gainTo = 0, gainAt = 0, gainRun = false, moving = false, moveT, fadeT;
+    var IN_MS = 300, OUT_MS = 600, HOLD_MS = 500, STILL_MS = 180;
+    function eased() { return gain * gain * (3 - 2 * gain); }
+    function gainStep(now) {
+      /* at most two frames' worth per frame: after the phone stalls, the light carries on rising instead of jumping */
+      var dt = Math.min(34, now - (gainAt || now)); gainAt = now;
+      gain = gainTo > gain ? Math.min(gainTo, gain + dt / IN_MS) : Math.max(gainTo, gain - dt / OUT_MS);
+      pick();
+      if (gain !== gainTo) requestAnimationFrame(gainStep); else gainRun = false;
+    }
+    function aim(v) {
+      gainTo = v;
+      if (gain !== gainTo && !gainRun) { gainRun = true; gainAt = 0; requestAnimationFrame(gainStep); }
+    }
+    /* lit while the finger is down or the row is still moving. BUILD 176 (Muhanad, 18 Nov 2026: "if the card
+       in the middle it should keep the building light up"): once the cards have been touched (`engaged`), the
+       light no longer fades out: the card that comes to rest in the middle keeps its buildings lit. Before the
+       first touch the picture stays dark (build 174). */
+    var engaged = false;
+    function active() {
+      clearTimeout(fadeT);
+      if (touching || moving || engaged) aim(1);
+      else fadeT = setTimeout(function () { aim(0); }, HOLD_MS);
+    }
+    row.addEventListener('scroll', function () {
+      if (!touching && !moving && !engaged && gainTo === 0 && !gainRun) return;   /* moved by nobody: stays dark */
+      moving = true; active();
+      clearTimeout(moveT); moveT = setTimeout(function () { moving = false; active(); }, STILL_MS);
+    }, { passive: true });
+    function down(e) {
+      var c = e.target.closest && e.target.closest('.l-card');
+      clearTimeout(letGo);
+      touching = true; engaged = true; touchedLine = c ? c.getAttribute('data-line') : null; active(); soon();
+    }
+    /* a short wait before the light goes, so a tap's click arrives first and the card it opens stays lit */
+    function up() { clearTimeout(letGo); letGo = setTimeout(function () { touching = false; active(); soon(); }, 250); }
+    row.addEventListener('touchstart', down, { passive: true });
+    row.addEventListener('mousedown', down);
+    /* BUILD 178 (Muhanad, 19 Nov 2026, testing on the link: "the building light up [only] when i click on the
+       card"): on a computer the cards are moved with a trackpad or mouse wheel, never a touch, so the light
+       waited for a click. Pointing at the cards, a wheel / trackpad swipe, the keyboard, or a dot under the row
+       now count as touching them: the light comes on and follows the row, and the middle card stays lit. */
+    function engage() { if (!engaged) { engaged = true; active(); soon(); } }
+    row.addEventListener('wheel', engage, { passive: true });
+    row.addEventListener('mouseenter', engage);
+    row.addEventListener('keydown', engage);
+    row.addEventListener('focusin', engage);
+    dots.forEach(function (d) { d.addEventListener('click', engage); });
+    window.addEventListener('touchend', up, { passive: true });
+    window.addEventListener('touchcancel', up, { passive: true });
+    window.addEventListener('mouseup', up);
+    row.addEventListener('click', function (e) {
+      var c = e.target.closest && e.target.closest('.l-card');
+      if (c) { held = c.getAttribute('data-line'); soon(); }
+    }, true);
+    /* back from the card's page: the picture is dark again */
+    window.addEventListener('pageshow', function (e) { if (e.persisted) { held = null; touching = false; moving = false; engaged = false; gain = 0; aim(0); lastLit = undefined; soon(); } });
     function soon() { if (!queued) { queued = true; requestAnimationFrame(pick); } }
     window.addEventListener('scroll', soon, { passive: true });
     row.addEventListener('scroll', soon, { passive: true });
@@ -528,33 +634,105 @@
       d.type = 'button';
       d.setAttribute('data-line', l.id);
       d.setAttribute('aria-label', t('Show {name}', { name: t(l.name) }));
-      d.style.setProperty('--l-accent', l.accent);
+      d.style.setProperty('--l-accent', (l.card && l.card.accent) || l.accent);
       dots.appendChild(d);
     });
     s.appendChild(dots);
     s.appendChild(el('p', 'src', t('Pictures and figures: {list}', { list: lines.map(function (l) {
       return l.name + ' — ' + l.factsSource;
     }).join('; ') })));
+    s.appendChild(inventoryExport());
     return s;
+  }
+
+  /* ---- THE INVENTORY, AS THE APP READS IT (build 155) --------------------------------------------------
+     Main Marks Development, 11 Nov 2026: "Add a feature to extract the inventory periodically for
+     validation." One Excel file, every row of the sheet the moment it is pressed: what the app read
+     (code, building, floor, type, size, price, status) and what it makes of it (its block, whether it is
+     offered, whether its outline is traced, whether it gets the offer PDF, its delivery). For the people
+     who check the data: a sales manager, a director, the CCO and the admin. Nothing is written anywhere. */
+  function inventoryExport() {
+    var role = CONFIG.roles[session.role] || {};
+    var box = el('div', 'inv-export');
+    if (!(role.canSeeTeam || session.role === 'admin') || !p.inventory || !MM.xlsx) return box;
+    var btn = el('button', 'inv-export-btn', t('Download the inventory (Excel)'));
+    btn.type = 'button';
+    box.appendChild(btn);
+    box.appendChild(el('p', 'inv-export-note', t('Every unit as the app reads it now, to check the data.')));
+    btn.addEventListener('click', function () {
+      if (btn.disabled) return;
+      btn.disabled = true;
+      MM.inventory.load(p.inventory).then(function (res) {
+        var B = p.buildings || [];
+        var rows = res.all.map(function (u) {
+          var x = Object.assign({}, u);
+          x.fid = MM.inventory.floorId(u.floor);
+          /* placed as the line page places it: a street shop in the block above it, a "B" unit in its block */
+          var k = MM.plans.blockOf(p, u);
+          if (k) {
+            var shared = B.filter(function (y) { return (y.sheet || []).indexOf(u.building) !== -1; }).length;
+            if (shared > 1) x.building = k.id;
+            else if (!B.some(function (y) { return (y.sheet || []).indexOf(u.building) !== -1 || y.id === u.building; })) x.building = (k.sheet || [])[0] || k.id;
+          }
+          var line = MM.pdf ? MM.pdf.lineOf(p, x) : null, dm = MM.plans.termsFor(p, u).deliveryMonths;
+          return [u.code, u.building, k ? k.id : '', u.floor, u.type, line ? line.name : '', u.area, u.areaFrom === 'plan' ? t('The floor plan') : t('The inventory'),
+                  u.listPrice, u.status, u.sellable ? t('Yes') : t('No'),
+                  (p.unitShapes || {})[u.code] ? t('Yes') : t('No'),
+                  u.sellable && MM.pdf && MM.pdf.can(p, x) ? t('Yes') : t('No'),
+                  dm ? dm / 12 : ''];
+        });
+        var n = function (f) { return rows.filter(f).length; };
+        var now = new Date();
+        var report = {
+          title: t('{name} inventory, as the app reads it', { name: p.name }),
+          subtitle: t('Read {when}', { when: now.toLocaleString('en-GB') }),
+          rtl: !!MM.isArabic,
+          summary: [[t('Units in the inventory'), rows.length], [t('Offered (available)'), n(function (r) { return r[10] === t('Yes'); })],
+                    [t('Not for sale'), n(function (r) { return r[10] !== t('Yes'); })], [t('With an outline on the drawing'), n(function (r) { return r[11] === t('Yes'); })],
+                    [t('With the offer PDF'), n(function (r) { return r[12] === t('Yes'); })]],
+          notes: res.problems || [],
+          tables: [{ title: t('Units'), cols: [
+            { h: t('Unit'), w: 10 }, { h: t('Building (inventory)'), w: 12 }, { h: t('Block'), w: 9 }, { h: t('Floor'), w: 10 }, { h: t('Type'), w: 11 },
+            { h: t('Line'), w: 18 }, { h: t('Area m²'), type: 'int', w: 9 }, { h: t('Area from'), w: 13 }, { h: t('Price'), type: 'money', w: 14 },
+            { h: t('Status'), w: 12 }, { h: t('Offered'), w: 9 }, { h: t('Outline'), w: 9 }, { h: t('Offer PDF'), w: 10 }, { h: t('Delivery, years'), type: 'int', w: 10 }],
+            rows: rows }]
+        };
+        var file = p.name + ' inventory - ' + now.toISOString().slice(0, 10) + '.xlsx';
+        var blob = new Blob([MM.xlsx.workbook(report)], { type: MM.xlsx.type });
+        var w = window.parent, hook = null;
+        try { hook = w && w !== window && w.MMsave; } catch (e) { hook = null; }
+        if (!(typeof hook === 'function' && hook(blob, file) === true)) {
+          var a = document.createElement('a'), url = URL.createObjectURL(blob);
+          a.href = url; a.download = file; document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+        }
+      }).catch(function () {
+        box.appendChild(el('p', 'inv-export-note', t('The inventory could not be read. Try again.')));
+      }).then(function () { btn.disabled = false; });
+    });
+    return box;
   }
 
   function lineCard(l) {
     var a = el('a', 'l-card');
     a.href = 'project.html?p=' + encodeURIComponent(p.id) + '&line=' + encodeURIComponent(l.id);
     a.setAttribute('aria-label', t('Open {name}', { name: t(l.name) }));
-    a.style.setProperty('--l-accent', l.accent);
+    a.style.setProperty('--l-accent', (l.card && l.card.accent) || l.accent);
     a.style.setProperty('--l-ground', l.ground);
     a.style.setProperty('--l-ink', l.ink);
 
-    a.appendChild(lineVisual(l, false));
+    a.appendChild(l.card ? cardTop(l) : lineVisual(l, false));
 
     /* its buildings light on the aerial while the card is pointed at or
        focused — a keyboard user gets it too */
     a.setAttribute('data-line', l.id);          /* read by scrollLights */
-    a.addEventListener('mouseenter', function () { lightLine(l.id); });
-    a.addEventListener('mouseleave', function () { lightLine(null); });
-    a.addEventListener('focus', function () { lightLine(l.id); });
-    a.addEventListener('blur', function () { lightLine(null); });
+    /* build 178: only where the cards stand side by side; on a phone-width row (the swipe row, up to 760 px)
+       js `scrollLights` alone decides what is lit, and a mouse leaving a card switched the name off under it */
+    var sideBySide = function () { return !window.matchMedia('(max-width: 760px)').matches; };
+    a.addEventListener('mouseenter', function () { if (sideBySide()) lightLine(l.id); });
+    a.addEventListener('mouseleave', function () { if (sideBySide()) lightLine(null); });
+    a.addEventListener('focus', function () { if (sideBySide()) lightLine(l.id); });
+    a.addEventListener('blur', function () { if (sideBySide()) lightLine(null); });
 
     /* A line with its own logo build opens through it, exactly as the
        project card does on the projects page (js/app.js): the build is
@@ -582,7 +760,10 @@
     meta.appendChild(el('p', 'l-kind', t(l.badge)));
     meta.appendChild(el('p', 'l-line', t(l.line)));
     var dl = el('dl', 'c-facts');
+    /* build 156: a card may show only some of the line's facts (config card.facts); the line page shows all */
+    var only = l.card && l.card.facts;
     (l.facts || []).forEach(function (f) {
+      if (only && only.indexOf(f.k) < 0) return;
       var w = el('div');
       w.appendChild(el('dt', null, t(f.k)));
       w.appendChild(el('dd', null, t(f.v)));
@@ -591,10 +772,66 @@
     meta.appendChild(dl);
     var go = el('div', 'l-go');
     go.appendChild(el('span', null, t('Open {name}', { name: t(l.name) })));
-    go.appendChild(arrow());
+    go.appendChild(longArrow());
     meta.appendChild(go);
     a.appendChild(meta);
     return a;
+  }
+
+  /* BUILD 155, THE CARD AS MAIN MARKS DREW IT (their design notes, 11 Nov 2026: "Please use every section with
+     its identity"): their picture, with the bars of the line's template at its sides and its logo over it
+     where they set one, then a band in the line's colour carrying the MORAY wordmark, or the line's own
+     logo, and the line's name centred under it ("Commercial Units", "Premium Offices With View"...).
+     Config "card" per line. The line's own page keeps its own top (lineVisual). */
+  function cardTop(l) {
+    var c = l.card, top = el('div', 'l-top l-top-card');
+    var shot = el('div', 'l-shot');
+    var im = new Image();
+    im.src = c.photo;
+    im.alt = '';
+    im.setAttribute('aria-hidden', 'true');
+    /* build 157: where their mock frames the picture (config card.frame): `inset` holds it between a
+       left and a right edge on the frame's ground (Wellness: white, the photo, the teal panels); `foot`
+       holds it whole at the box's foot, its top fading into the frame's ground (R Residence: their
+       picture came cut at the top, and its lockup runs the full width, so it may not be cropped). */
+    var fr = c.frame;
+    if (fr) {
+      if (fr.ground) shot.style.background = fr.ground;
+      if (fr.inset) {
+        im.className = 'lc-inset';
+        im.style.left = fr.inset.left;
+        im.style.width = fr.inset.width;
+      }
+      if (fr.foot) im.className = 'lc-foot';
+      if (fr.position) im.style.objectPosition = fr.position;
+    }
+    shot.appendChild(im);
+    /* a bar is a colour, or [colour, stop %] pairs from the top (their two-tone panels); its width is
+       the CI template's 6% unless card.barWidth[side] says otherwise */
+    ['left', 'right'].forEach(function (side) {
+      if (!c.bars || !c.bars[side]) return;
+      var b = el('span', 'lc-bar lc-bar-' + side), v = c.bars[side];
+      if (Array.isArray(v)) {
+        var from = 0;
+        b.style.background = 'linear-gradient(to bottom,' + v.map(function (s) {
+          var part = s[0] + ' ' + from + '% ' + s[1] + '%';
+          from = s[1];
+          return part;
+        }).join(',') + ')';
+      } else b.style.background = v;
+      if (c.barWidth && c.barWidth[side]) b.style.width = c.barWidth[side];
+      shot.appendChild(b);
+    });
+    if (c.overlay) shot.appendChild(MM.logo(c.overlay, t(l.name), 'lc-overlay'));
+    if (c.script) shot.appendChild(MM.logo(c.script, 'Same place, One Address', 'lc-overlay lc-script'));
+    top.appendChild(shot);
+    var band = el('div', 'l-band lc-band');
+    band.style.background = c.ground;
+    band.style.color = c.ink;
+    band.appendChild(MM.logo(c.logo, t(l.name), 'lc-logo' + (c.logoInk === 'black' ? ' is-black' : '') + (c.logoTall ? ' is-tall' : '')));
+    band.appendChild(el('span', 'lc-sub', t(c.sub)));
+    top.appendChild(band);
+    return top;
   }
 
   /* The top of a card — and of a line page — as the line's OWN material
@@ -777,6 +1014,27 @@
     var mark = (!(l.visual && l.visual.logo) && l.mark) ? lineMark(l) : null;
     if (mark) mark.classList.add('q-mark');
     MM.lineFlow({ page: page, project: p, line: l, session: session, mark: mark });
+  }
+
+  /* build 156: the line cards' arrow as Main Marks drew it (sales app.pdf p.3-4): a long hairline, a small
+     open head */
+  function longArrow() {
+    var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    s.setAttribute('viewBox', '0 0 64 12');
+    s.setAttribute('width', '64');
+    s.setAttribute('height', '12');
+    s.setAttribute('aria-hidden', 'true');
+    s.setAttribute('class', 'l-go-arrow');
+    s.setAttribute('preserveAspectRatio', 'xMaxYMid slice');
+    var d = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    d.setAttribute('d', 'M1 6h61M56.5 1.5L62 6l-5.5 4.5');
+    d.setAttribute('fill', 'none');
+    d.setAttribute('stroke', 'currentColor');
+    d.setAttribute('stroke-width', '1');
+    d.setAttribute('stroke-linecap', 'round');
+    d.setAttribute('stroke-linejoin', 'round');
+    s.appendChild(d);
+    return s;
   }
 
   function arrow() {

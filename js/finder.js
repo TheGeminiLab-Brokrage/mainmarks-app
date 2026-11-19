@@ -63,6 +63,11 @@
   /* A fixed round ladder trimmed to the rows — quartiles gave odd
      ceilings on CCR because one type dominated the sheet. */
   var LADDER = [10, 12, 15, 20, 25, 30, 50, 75, 100].map(function (m) { return m * 1e6; });
+  /* BUILD 155: A PRICE BAND, NOT A CEILING (Main Marks, 11 Nov 2026: "The unit price search function is not
+     showing the requested price range accurately"). "Up to 20M" listed the cheapest unit first, a 9.7M
+     one, for a broker asking about 20M. Each chip is now the stretch between two steps of the ladder:
+     "15–20M" holds units over 15M and up to 20M; the first is "Up to 10M", the last "Over 100M". */
+  var PRICE_BANDS = [0].concat(LADDER).map(function (lo, i, a) { return { lo: lo, hi: i + 1 < a.length ? a[i + 1] : null }; });
 
   var ORDER = ['street', 'ground', 'first', 'second', 'third', 'fourth', 'fifth'];
   /* "add this much and N more units come into reach", one whole sentence each */
@@ -155,7 +160,7 @@
     body.appendChild(result);
     paneUnit.appendChild(el('p', 'fd-wait', t('Loading units…')));
 
-    var S = { sizes: [], floors: [], facets: {}, max: null, hold: false, cash: null, quarter: null };
+    var S = { sizes: [], floors: [], facets: {}, min: null, max: null, hold: false, cash: null, quarter: null };
     var units = [], listeners = [], chips = [];
     var pickBuilding = null, showUnit = null, showAll = false, sendOptions = null;
     var has = function (a, v) { return a.indexOf(v) >= 0; };
@@ -173,7 +178,8 @@
            instalment (the last absorbs the rounding), so a fit is never off
            by a few pounds. `each` is what is SHOWN: the regular instalment,
            the figure step 4 shows, so the two screens never disagree. */
-        return { id: pl.id, label: pl.label, cash: !!s.cash, down: s.down, payable: s.payable,
+        /* `down` is the WHOLE down payment, both parts of a split one (2026-11-05): the client needs it as cash */
+        return { id: pl.id, label: pl.label, cash: !!s.cash, down: s.downTotal, payable: s.payable,
                  quarter: s.cash ? 0 : Math.max(s.each, s.lastInstalment), each: s.cash ? 0 : s.each };
       }).filter(Boolean);
       return fitCache[u.code];
@@ -214,7 +220,7 @@
     /* "Active" = the salesperson asked for something. Available-only is
        the default, not a question, so on its own it lights nothing. */
     function active() {
-      return !!(S.sizes.length || S.floors.length || S.max || S.hold || budgetOn() ||
+      return !!(S.sizes.length || S.floors.length || S.max || S.min || S.hold || budgetOn() ||
         facets.some(function (f) { return chosen(f).length; }));
     }
 
@@ -271,7 +277,7 @@
         return skip === 'facet:' + f.id || !c.length || has(c, facetOf(u, f));
       });
     }
-    function priceOk(u) { return !S.max || u.listPrice <= S.max; }
+    function priceOk(u) { return (!S.min || u.listPrice > S.min) && (!S.max || u.listPrice <= S.max); }
 
     /* everything but one test, so that test's chips can be offered from it */
     function rest(u, skip) {
@@ -505,7 +511,7 @@
         }));
       });
       sizeRow = row(paneUnit, t('Size'), []);          /* filled on every change, from what is left */
-      priceRow = row(paneUnit, t('Price up to'), []);
+      priceRow = row(paneUnit, t('Price'), []);
       var fp = floorPicker();
       row(paneUnit, t('Floor'), [fp.btn]);
       paneUnit.appendChild(fp.menu);
@@ -528,7 +534,7 @@
       var areas = [];
       units.forEach(function (u) { if (rest(u, 'size') && !has(areas, u.area)) areas.push(u.area); });
       areas.sort(function (a, b) { return a - b; });
-      var narrowed = S.floors.length || S.max || budgetOn();
+      var narrowed = S.floors.length || S.max || S.min || budgetOn();
       /* the product's own bands (config) are ALWAYS all on show; one with nothing in it is dimmed */
       var fixed = !!F.sizes;
       var live = function (b) { return areas.some(function (a) { return a > b.lo && a <= b.hi; }); };
@@ -562,22 +568,32 @@
        ceiling the salesperson CHOSE stays on show while it is still true —
        picking 61-80 m² (all under 15M) must not make their 15M vanish.
        It is dropped only when it would match nothing. */
+    /* build 155: the bands with a unit in them, under every other filter; a chosen band stays while it
+       still holds one, and is dropped when it would match nothing. One band at a time. */
+    function bandOn(b) { return S.min === (b.lo || null) && S.max === b.hi; }
+    function bandHas(b, u) { return u.listPrice > b.lo && (b.hi === null || u.listPrice <= b.hi); }
     function renderPrices() {
-      var lo = Infinity, hi = 0;
-      units.forEach(function (u) {
-        if (!rest(u, 'price')) return;
-        lo = Math.min(lo, u.listPrice); hi = Math.max(hi, u.listPrice);
-      });
-      if (S.max && !(S.max >= lo)) S.max = null;
-      var offer = LADDER.filter(function (r) { return r >= lo && (r < hi || r === S.max); });
+      var prices = [];
+      units.forEach(function (u) { if (rest(u, 'price')) prices.push(u.listPrice); });
+      var live = PRICE_BANDS.filter(function (b) { return prices.some(function (v) { return bandHas(b, { listPrice: v }); }); });
+      if ((S.min || S.max) && !live.some(bandOn)) { S.min = null; S.max = null; }
       chips = chips.filter(function (c) { return !c.__price; });
       priceRow.wrap.textContent = '';
-      offer.forEach(function (r) {
-        var c = chip(millions(r), function () { return S.max === r; }, function () { S.max = S.max === r ? null : r; });
+      /* one band holding everything narrows nothing: not offered, unless it is the one chosen */
+      var offer = live.length > 1 ? live : live.filter(bandOn);
+      offer.forEach(function (b) {
+        var c = chip(bandWord(b), function () { return bandOn(b); }, function () {
+          if (bandOn(b)) { S.min = null; S.max = null; } else { S.min = b.lo || null; S.max = b.hi; }
+        });
         c.__price = true;
         priceRow.wrap.appendChild(c);
       });
       if (!offer.length) priceRow.wrap.appendChild(el('span', 'fd-none', t('One price band left')));
+    }
+    function bandWord(b) {
+      if (!b.lo) return t('Up to {v}', { v: millions(b.hi) });
+      if (b.hi === null) return t('Over {v}', { v: millions(b.lo) });
+      return millions(b.lo).replace(/M$/, '') + '–' + millions(b.hi);
     }
     function floorWords() {
       return t('{floors} floor', { floors: join(floorList.filter(function (f) { return has(S.floors, f); }).map(fl)) });
@@ -595,7 +611,7 @@
       });
       if (S.sizes.length) bits.push(S.sizes.map(sizeWord).join(t(' or ')));
       if (S.floors.length) bits.push(floorWords());
-      if (S.max) bits.push(t('up to {v}', { v: millions(S.max) }));
+      if (S.min || S.max) bits.push(bandWord({ lo: S.min || 0, hi: S.max }));
       if (S.cash !== null) bits.push(t('cash {v}', { v: short(S.cash) }));
       if (S.quarter !== null) bits.push(t('{v} a quarter', { v: short(S.quarter) }));
       if (S.hold) bits.push(t('+ on hold'));
@@ -884,7 +900,7 @@
     }
     toggle.addEventListener('click', function () { setOpen(body.hidden); });
     clear.addEventListener('click', function () {
-      S.sizes = []; S.floors = []; S.facets = {}; S.max = null; S.hold = false; S.cash = null; S.quarter = null;
+      S.sizes = []; S.floors = []; S.facets = {}; S.min = null; S.max = null; S.hold = false; S.cash = null; S.quarter = null;
       boxes.forEach(function (b) { b.input.value = ''; });
       showAll = false;
       changed();

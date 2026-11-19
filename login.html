@@ -9,27 +9,29 @@
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=148">
+<link href="https://fonts.googleapis.com/css2?family=Gilda+Display&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css?v=184">
 </head>
 <body class="is-login">
 
 <main class="gate">
 
-  <!-- the picture, with the brand lockup over it -->
+  <!-- build 155 (Main Marks Marketing, 11 Nov 2026, their "Sign in page"): the lockup above the picture,
+       the picture of the Main Marks CI p.38 ("Lifestyle") at its own proportions, the headline in capitals
+       in the Main Marks headline face, centred, MAIN MARKS in orange -->
+  <div class="gate-lockup" data-in="1">
+    <img src="img/mainmarks-wordmark.svg" alt="Main Marks" class="logo-jpg gate-mark">
+    <span class="gate-sub" data-t="Projects">Projects</span>
+  </div>
   <div class="gate-art">
-    <img src="img/mm-hero-steps.jpg" alt="" aria-hidden="true">
+    <img src="img/mm-signin-basalt.jpg" alt="" aria-hidden="true">
     <span class="gate-sweep" aria-hidden="true"></span>
-    <div class="gate-lockup" data-in="1">
-      <img src="img/mainmarks-wordmark.svg" alt="Main Marks" class="logo-jpg gate-mark">
-      <span class="gate-sub" data-t="Projects">Projects</span>
-    </div>
   </div>
 
   <!-- the form -->
   <div class="gate-body">
 
-    <h1 class="gate-head" data-in="2" data-t-html="Your next chapter&lt;br&gt;starts with&lt;br&gt;Main&amp;nbsp;Marks&lt;span class=&quot;dot&quot; id=&quot;dot&quot;&gt;.&lt;/span&gt;">Your next chapter<br>starts with<br>Main&nbsp;Marks<span class="dot" id="dot">.</span></h1>
+    <h1 class="gate-head" data-in="2" data-t-html="Your next chapter&lt;br&gt;starts with &lt;span class=&quot;gold&quot;&gt;Main&amp;nbsp;Marks&lt;/span&gt;">Your next chapter<br>starts with <span class="gold">Main&nbsp;Marks</span></h1>
 
     <!-- method and onsubmit are ON THE TAG on purpose (build 130). The fields are named, so that the
          phone can offer the saved password; a form with named fields and nothing on its own tag sends
@@ -89,13 +91,10 @@
 
     </form>
 
-    <footer class="gate-foot" data-in="6">
-      <div class="marks"><img src="img/mainmarks-signature.svg" alt="Main Marks"></div>
-      <div class="gate-priv">
-        <span data-t="Privileged access to">Privileged access to</span>
-        <span data-t="Main Marks projects">Main Marks projects</span>
-        <span id="buildstamp"></span>
-      </div>
+    <footer class="gate-foot mm-foot" data-in="6">
+      <!-- build 155: Main Marks' new footer (their design, 11 Nov 2026): MAIN MARKS : BESPOKE EXPERIENCES; the build stays, small -->
+      <div class="mm-sig"><img src="img/mainmarks-name-colon.svg" alt="Main Marks"><span class="mm-tag"><span>Bespoke</span><span>Experiences</span></span></div>
+      <div class="gate-priv"><span id="buildstamp"></span></div>
     </footer>
 
   </div>
@@ -117,10 +116,11 @@
   </div>
 </div>
 
-<script src="js/config.js?v=148"></script>
-<script src="js/i18n.js?v=148"></script>
-<script src="js/brand.js?v=148"></script>
-<script src="js/auth.js?v=148"></script>
-<script src="js/login.js?v=148"></script>
+<script src="js/config.js?v=184"></script>
+<script src="js/planbook.js?v=184"></script>
+<script src="js/i18n.js?v=184"></script>
+<script src="js/brand.js?v=184"></script>
+<script src="js/auth.js?v=184"></script>
+<script src="js/login.js?v=184"></script>
 </body>
 </html>

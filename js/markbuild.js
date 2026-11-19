@@ -793,8 +793,13 @@
 
       /* the lockup line: the brochure's (PDF p.9), or the template's, or
          Offices' section heading (one line: the slash and the heading) */
-      var heading = mark.heading || '';
-      var tag = el('div', 'mb-tag' + (two ? ' mb-tag2' : '') + (heading ? ' mb-tag-h' : ''));
+      /* build 155 (Main Marks' design notes, 11 Nov 2026: "Please write on the opening page under the logo,
+         aligned center: Commercial Units", and the same for every line): `sub` is that line, centred under
+         the logo with no slash, in place of the brochure's heading or the template's line. For R- Residence
+         it goes under the whole lockup. */
+      var sub = mark.sub || '';
+      var heading = (sub && !over) ? sub : (mark.heading || '');
+      var tag = el('div', 'mb-tag' + (two ? ' mb-tag2' : '') + (heading ? ' mb-tag-h' : '') + (sub && !over ? ' mb-tag-sub' : ''));
       var slash = el('span', 'mb-slash');
       var lead = el('span', 'mb-tw');
       var rule = el('span', 'mb-rule');
@@ -823,11 +828,17 @@
       lock.appendChild(stage);
       if (over) { lock.appendChild(slash); lock.appendChild(overNode); }
       else lock.appendChild(tag);
+      var subNode = null;
+      if (over && sub) {
+        subNode = el('div', 'mb-subline mb-subline-r');
+        subNode.textContent = sub;
+        lock.appendChild(subNode);
+      }
       var frame = lock.getBoundingClientRect().width || 0;
       if (frame) lock.style.fontSize = (frame * 0.028).toFixed(2) + 'px';
 
       if (reduced) {
-        [slash, lead, rule, tail, overNode].forEach(function (x) { if (x) x.style.opacity = 1; });
+        [slash, lead, rule, tail, overNode, subNode].forEach(function (x) { if (x) x.style.opacity = 1; });
         n.animate([{ opacity: 1 }, { opacity: 1, offset: 0.5 }, { opacity: 0 }],
                   { duration: 360, easing: 'ease-out', fill: 'forwards' })
           .finished.then(done, done);
@@ -874,6 +885,7 @@
       add(slash, [{ opacity: 0, transform: 'scaleY(0)' }, { opacity: 1, transform: 'none' }], span(tl.slash));
       if (over) {
         add(overNode, [{ opacity: 0, transform: 'translateY(.5em)' }, { opacity: 1, transform: 'none' }], span(tl.over));
+        if (subNode) add(subNode, [{ opacity: 0, transform: 'translateY(.4em)' }, { opacity: 1, transform: 'none' }], span(tl.over, 160));
       } else {
         add(lead, [{ opacity: 0, transform: 'translateX(-.4em)' }, { opacity: 1, transform: 'none' }], span(tl.lead));
       }
@@ -1084,10 +1096,13 @@
       ['1ST MARK /', 'NEW CAIRO'].forEach(function (w) { var sp = el('span'); sp.textContent = w; mk.appendChild(sp); });
       lock.appendChild(by);
       lock.appendChild(mk);
+      /* build 155: the line Main Marks asked for under the logo, centred ("Premium offices with view") */
+      var f4sub = null;
+      if (mark.sub) { f4sub = el('div', 'mb-subline mb-subline-f4'); f4sub.textContent = mark.sub; lock.appendChild(f4sub); }
       lock.style.fontSize = (L.width * 0.028).toFixed(2) + 'px';
 
       if (reduced) {
-        [stubL, stubR, sqs[0], sqs[1], by, mk].forEach(function (x) { x.style.opacity = 1; });
+        [stubL, stubR, sqs[0], sqs[1], by, mk, f4sub].forEach(function (x) { if (x) x.style.opacity = 1; });
         full.style.opacity = 0;
         n.animate([{ opacity: 1 }, { opacity: 1, offset: 0.5 }, { opacity: 0 }],
                   { duration: 360, easing: 'ease-out', fill: 'forwards' }).finished.then(done, done);
@@ -1125,6 +1140,7 @@
       [by, mk].forEach(function (x, i) {
         add(x, [{ opacity: 0, transform: 'translateY(.4em)' }, { opacity: 1, transform: 'none' }], at(TF.foot, i * 80));
       });
+      if (f4sub) add(f4sub, [{ opacity: 0, transform: 'translateY(.4em)' }, { opacity: 1, transform: 'none' }], at(TF.lob, 200));
 
       /* the lockup goes first, then the black dissolves — see h:rs */
       add(lock, [{ opacity: 1 }, { opacity: 0 }], at(TF.markOut, 0, 'ease-out'));

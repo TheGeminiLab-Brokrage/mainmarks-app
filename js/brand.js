@@ -80,6 +80,16 @@
   function stamp() {
     var n = document.getElementById('buildstamp');
     if (n && typeof CONFIG !== 'undefined') n.textContent = t('build {n}', { n: CONFIG.build });
+    /* build 171: the sales view shows no build number (CONFIG.demoMarks false). It is still in the
+       page for a check to read, and five taps on the footer's signature show it on the phone. */
+    if (n && typeof CONFIG !== 'undefined' && CONFIG.demoMarks === false) {
+      n.hidden = true;
+      var sig = document.querySelector('.mm-foot .mm-sig'), taps = 0, last = 0;
+      if (sig) sig.addEventListener('click', function () {
+        var now = Date.now(); taps = (now - last < 600) ? taps + 1 : 1; last = now;
+        if (taps >= 5) { n.hidden = !n.hidden; taps = 0; }
+      });
+    }
   }
 
   /* The logo assets Main Marks has supplied are black-background JPEGs cut
@@ -353,7 +363,8 @@
     var bar = el('nav', 'sp-bar');
     bar.setAttribute('aria-label', t('Sections'));
     [['index.html', '<path d="M21 3L10 14M21 3l-6.5 18-4.5-7-7-4.5z"/>', t('Quick Offer'), true],
-      ['my.html', '<path d="M3 12h4l2.5-7 4 14 2.5-7h5"/>', t('My activity')],
+      /* build 155: Main Marks' new My activity icon (their activity icon.svg, a bar chart on its axis), redrawn on this 24 grid */
+      ['my.html', '<path d="M3.9 4.5v14h16.2"/><path d="M7.4 18.5V13M12.4 18.5V9.4M17.5 18.5V6.8"/>', t('My activity')],
       ['my.html#profile', '<circle cx="12" cy="8.5" r="3.6"/><path d="M4.5 20c0-4 3.4-6.5 7.5-6.5s7.5 2.5 7.5 6.5"/>', t('Profile')]].forEach(function (x) {
       var a = el('a');
       a.href = x[0];

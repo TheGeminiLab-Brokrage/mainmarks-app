@@ -311,8 +311,42 @@
     };
     return next(0).then(function (whole) {
       if (!whole) return;
-      try { localStorage.setItem(CO_KEY, JSON.stringify(all)); } catch (e) { /* this visit only */ }
+      return given(access, all).then(function () {
+        try { localStorage.setItem(CO_KEY, JSON.stringify(all)); } catch (e) { /* this visit only */ }
+      });
     });
+  }
+  /* WHO SERVES A COMPANY (build 149; Muhanad, 2026-10-30). The admin may give a company to some sales
+     agents. Another sales agent may still send it an offer: it is saved, and the admin is asked to let him
+     serve the company. The list marks each company the admin gave to others, so "Who is this offer for?"
+     can say so before the send:  ask: 'given' (to a colleague), 'waiting' (he asked, she has not ruled),
+     'blocked' (she kept it with the colleague). A company open to him carries nothing.
+     Asked apart from the list, and never in its way: a store without these tables answers with an error,
+     and the list is kept as it came. */
+  function given(access, all) {
+    var me = (current() || {}).id;
+    if (!me || (current() || {}).role !== 'sales') return Promise.resolve();
+    return Promise.all([
+      api('/rest/v1/mm_companies?select=id&assigned=eq.true&limit=1000', null, access),
+      api('/rest/v1/mm_company_agents?select=company_id&person_id=eq.' + me + '&limit=1000', null, access),
+      api('/rest/v1/mm_company_asks?select=company_id,status&person_id=eq.' + me + '&limit=1000', null, access)
+    ]).then(function (r) {
+      if (r.some(function (x) { return x.status !== 200 || !Array.isArray(x.body); })) return;
+      var mine = {}, asks = {}, gone = {};
+      r[0].body.forEach(function (x) { gone[x.id] = 1; });
+      r[1].body.forEach(function (x) { mine[x.company_id] = 1; });
+      r[2].body.forEach(function (x) { asks[x.company_id] = x.status; });
+      all.forEach(function (c) {
+        if (!gone[c.id] || mine[c.id]) return;
+        c.ask = asks[c.id] === 'blocked' ? 'blocked' : asks[c.id] === 'waiting' ? 'waiting' : 'given';
+      });
+    }, function () { /* no signal: the list as it came */ });
+  }
+  /* 'given' | 'waiting' | 'blocked' | null for the company of that name (see given) */
+  function companyAsk(name) {
+    var list = companyList() || [], want = String(name || '').trim().toLowerCase(), i;
+    for (i = 0; i < list.length; i++) if (String(list[i].name).trim().toLowerCase() === want) return list[i].ask || null;
+    return null;
   }
   /* [{ id, name }] from the store, or null when this is the demo or nothing has been fetched yet */
   function companyList() {
@@ -619,7 +653,12 @@
     for (i = 0; i < list.length; i++) if (list[i].id === 'moray') return list[i].plans || [];
     return [];
   }
-  function planNumbers(pl) { return pl.cash ? { down: 100, years: 0 } : { down: Math.round(pl.down * 10000) / 100, years: pl.years }; }
+  /* the down payment in per cent: both parts of a split one (2.5% + 2.5% = 5, 2026-11-05) */
+  function planNumbers(pl) {
+    if (pl.cash) return { down: 100, years: 0 };
+    var d = (pl.milestones || []).filter(function (m) { return m.down; }).reduce(function (t, m) { return t + m.pct; }, pl.down);
+    return { down: Math.round(d * 10000) / 100, years: pl.years };
+  }
   function planFits(down, years) { return down >= 0 && down <= 100 && years >= 0 && years <= 30 && (years > 0 || down === 100); }
   /* the plans a contract on this unit type can be signed on: [{ id, group, label, down, years }].
      `product` is the book's word for the unit ('Clinics', 'Commercial'); not known yet: every plan. */
@@ -629,6 +668,8 @@
       var n = planNumbers(pl);
       if (!pl.id || pl.id === 'other' || !/^[a-z0-9][a-z0-9-]{0,39}$/.test(pl.id) || !planFits(n.down, n.years)) return;
       if (type && pl.notFor && pl.notFor.indexOf(type) !== -1) return;
+      /* build 154: a plan the admin set to start later is not signed on before its day (an ended one stays) */
+      if (pl.from && MM.planBook && MM.planBook.stateOf(pl) === 'soon') return;
       out.push({ id: pl.id, group: pl.group || '', label: pl.label, down: n.down, years: n.years });
     });
     return out;
@@ -701,6 +742,7 @@
     token: token,
     call: call,
     companyList: companyList,
+    companyAsk: companyAsk,
     loadCompanies: loadCompanies,
     logOffer: logOffer,
     wrongNames: wrongNames,

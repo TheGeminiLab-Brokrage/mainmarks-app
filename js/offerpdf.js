@@ -9,7 +9,8 @@
    comes from the sheet, the schedule from MM.plans inside js/pdf.js.
 
    Fails closed exactly as js/pdf.js does: a unit outside the offer's scope
-   (config `offer.scope`: today the 1st-floor clinics of E02) gets no PDF.
+   (config `offer.scope`), or missing anything its offer needs (js/pdf.js can()),
+   gets no PDF. 2026-11-04: every line, each in its own CI.
 
      MM.offerPdf.can(project, unit)      -> true if an offer PDF exists for it
      MM.offerPdf.make({ project, unit, plan, buildingName, buildingRows, lang })
@@ -103,21 +104,24 @@
   }
 
   /* js/pdf.js is loaded with the page (52 KB); only jsPDF waits to be asked for */
-  function can(project, unit) { return !!(MM.pdf && MM.pdf.inScope(project, unit)); }
+  function can(project, unit) { return !!(MM.pdf && MM.pdf.can(project, unit)); }
 
   function make(o) {
     var lang = (o.lang || MM.lang) === 'ar' ? 'ar' : 'en';
     return script('vendor/jspdf.umd.min.js').then(function () {
-      var want = MM.pdf.artwork(o.project, o.unit), keys = Object.keys(want).filter(function (k) { return want[k]; });
+      /* build 179: only file paths are fetched; a setting such as `coverFy` (a number) is handed over as it is */
+      var want = MM.pdf.artwork(o.project, o.unit), keys = Object.keys(want).filter(function (k) { return typeof want[k] === 'string' && want[k]; });
       return Promise.all([fonts(lang), Promise.all(keys.map(function (k) { return picture(want[k]); }))]).then(function (got) {
         var art = {};
         keys.forEach(function (k, i) { art[k] = got[1][i]; });
+        Object.keys(want).forEach(function (k) { if (typeof want[k] === 'number') art[k] = want[k]; });
         var doc = MM.pdf.offer({
           jsPDF: root.jspdf.jsPDF, plans: MM.plans, project: o.project, unit: o.unit, plan: o.plan,
           buildingName: o.buildingName, buildingRows: o.buildingRows, floorId: MM.inventory.floorId,
           art: art, fonts: got[0], date: new Date(), lang: lang, arabic: MM.arabic
         });
-        var name = 'Moray Wellness - Clinic ' + o.unit.code + ' - offer' + (lang === 'ar' ? ' - Arabic' : '') + ' (SAMPLE).pdf';
+        var L = MM.pdf.lineOffer(o.project, o.unit), K = { Clinic: 'Clinic', Admin: 'Office', Commercial: 'Shop' }[o.unit.type];
+        var name = L.name + ' - ' + K + ' ' + o.unit.code + ' - offer' + (lang === 'ar' ? ' - Arabic' : '') + (o.project.post && o.project.post.sample ? ' (SAMPLE)' : '') + '.pdf';
         return { blob: doc.output('blob'), name: name, pages: doc.getNumberOfPages() };
       });
     });

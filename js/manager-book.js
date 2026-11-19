@@ -394,6 +394,16 @@
     var companies = [], ids = [], open = [], waits = [], cAt = {}, used = {};
     if (lead) got.events.forEach(function (r) { if (r.company_id) used[r.company_id] = 1; });
     got.companies.filter(function (c) { return !c.merged_into && (!lead || c.active || used[c.id]); }).forEach(function (c, i) { companies.push(c.name); ids.push(c.id); open.push(!!c.active); waits.push(!!c.pending); cAt[c.id] = i; });
+    /* WHO SERVES A COMPANY (build 149). A company the admin gave to some sales agents takes entries for
+       them only (the store refuses anyone else: MM_NOT_THEIR_COMPANY). A sales agent's form offers it
+       only when it is his; a manager's, when it is given to one of his team (the store then checks the
+       sales agent he records for). What reaches the page is already cut by the store's rules: a sales
+       agent reads his own lines only, a manager those of the people he leads.
+       asks: a sales agent's own requests to serve a company given to others: waiting | blocked. */
+    var given = {}, serve = {}, asks = {};
+    (got.given || []).forEach(function (x) { given[x.id] = 1; });
+    (got.agents || []).forEach(function (x) { serve[x.company_id] = 1; });
+    (got.asks || []).forEach(function (x) { if (x.person_id === me.id && x.status !== 'allowed') asks[x.company_id] = x.status; });
 
     /* A moment the store gives (with its time zone) as the day and minute IN CAIRO, which is how every
        row's own day and minute are kept. Nothing when the browser cannot say: the page then leaves the
@@ -482,7 +492,9 @@
       unit: function (code) { return byCode[String(code || '').trim().toUpperCase()] || null; },
       available: function (code) { return !!free[String(code || '').trim().toUpperCase()]; },
       /* a company the admin switched off keeps its history and is not offered for a new entry */
-      pickable: function (i) { return !!open[i]; },
+      pickable: function (i) { return !!open[i] && (!given[ids[i]] || !!serve[ids[i]]); },
+      /* build 149: his request to serve a company the admin gave to others: 'waiting' | 'blocked' | null */
+      asked: function (i) { return asks[ids[i]] || null; },
       /* proposed by an agent, not yet ruled on by the admin */
       waiting: function (i) { return !!waits[i]; },
       productOf: productOf,
@@ -593,6 +605,7 @@
        again only when a page came back full; a manager's until a page comes back empty, so that a
        smaller page size set on the store one day cannot cut his team's figures short either. */
     var whole = s.role !== 'sales';
+    var soft = function (path) { return pages(path, true).catch(function () { return []; }); };
     var pages = function (path, toTheEnd) {
       var size = 1000, out = [];
       var next = function (from) {
@@ -612,9 +625,14 @@
          silence: every company from the middle of the alphabet on would have had no page. */
       pages('/rest/v1/mm_companies?select=id,name,active,pending,merged_into&order=name.asc,id.asc', true),
       pages('/rest/v1/mm_events?select=*&on_date=gte.' + since + '&order=on_date.asc,at_min.asc,id.asc'),
-      s.role === 'sales' ? get('/rest/v1/rpc/mm_team_followups', { method: 'POST', body: {} }) : Promise.resolve([])
+      s.role === 'sales' ? get('/rest/v1/rpc/mm_team_followups', { method: 'POST', body: {} }) : Promise.resolve([]),
+      /* build 149: who serves a company. Three small questions, each answered with nothing when the store
+         does not have them yet, so the page works the same on a database before that paste. */
+      soft('/rest/v1/mm_companies?select=id&assigned=eq.true'),
+      soft('/rest/v1/mm_company_agents?select=company_id,person_id'),
+      soft('/rest/v1/mm_company_asks?select=company_id,person_id,status')
     ]).then(function (a) {
-      var make = function () { return buildStore(a[0], { people: a[1], teams: a[2], companies: a[3], events: a[4], follow: a[5] }, s); };
+      var make = function () { return buildStore(a[0], { people: a[1], teams: a[2], companies: a[3], events: a[4], follow: a[5], given: a[6], agents: a[7], asks: a[8] }, s); };
       /* build 132: making the book out of the answers is real work, and on My activity they can arrive
          while the pulse is drawing its lines. Then it waits for the lines to rest (MM.entry.calm, js/manager.js). */
       var e = MM.entry;

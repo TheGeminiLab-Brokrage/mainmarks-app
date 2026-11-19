@@ -42,6 +42,10 @@
      salesperson are worked out by the same lines, so the two pages cannot disagree. `MY` is true on
      my.html; `ME` (set in start) is the salesperson's place in the team. */
   var MY = document.documentElement.getAttribute('data-view') === 'my';
+  /* build 171: the sales agent's "My activity" says nothing about a demo when CONFIG.demoMarks is false
+     (Muhanad: "finalize the sales view, remove anything that says this is a demo"). The manager view keeps
+     its "demo figures", and so do the printed reports, which only the manager view makes. */
+  function sayDemo(B) { return !!B.demo && !(MY && CONFIG.demoMarks === false); }
   /* ---- THE PULSE (build 132) -----------------------------------------------------------------
      Muhanad, 2026-10-09, "Look 1" of the mock he tapped: when a sales agent taps the heartbeat to see
      his activity, the manager start page's dial sweeps in and the orange heartbeat draws through it,
@@ -236,7 +240,7 @@
     salesperson: ['sales agent', 'sales agents', 'سيلز واحد', '2 سيلز', 'سيلز', 'سيلز'],
     meeting: ['meeting', 'meetings', 'ميتنج واحد', '2 ميتنج', 'ميتنج', 'ميتنج'],
     deal: ['deal', 'deals', 'بيعة واحدة', 'بيعتان', 'بيعات', 'بيعة'],
-    offer: ['offer', 'offers', 'عرض واحد', 'عرضان', 'عروض', 'عرضاً'],
+    offer: ['offer', 'offers', 'اوفر واحد', 'اوفرين', 'اوفرات', 'اوفر'],
     request: ['request', 'requests', 'طلب واحد', 'طلبان', 'طلبات', 'طلباً'],
     broadcast: ['broadcast', 'broadcasts', 'برودكاست واحد', '2 برودكاست', 'برودكاست', 'برودكاست'],
     contract: ['contract', 'contracts', 'عقد واحد', 'عقدان', 'عقود', 'عقداً'],
@@ -282,7 +286,7 @@
     send: '<path d="M21 3L10 14M21 3l-6.5 18-4.5-7-7-4.5z"/>'
   };
   ICON.offer = ICON.send;
-  ICON.my = '<path d="M3 12h4l2.5-7 4 14 2.5-7h5"/>';
+  ICON.my = '<path d="M3.9 4.5v14h16.2"/><path d="M7.4 18.5V13M12.4 18.5V9.4M17.5 18.5V6.8"/>';   /* build 155: Main Marks' new My activity icon (js/brand.js) */
   var svg = function (k) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[k] + '</svg>'; };
 
   /* a salesperson's bar is three: the sales app (another page), his own activity, his profile */
@@ -332,7 +336,14 @@
     }
     load();
     /* a company an agent proposed and the admin has not ruled on yet says so beside its name */
-    var book = B.companies.map(function (name, id) { return { id: id, name: B.waiting && B.waiting(id) ? name + ' · ' + t('waiting for approval') : name }; });
+    /* build 149: on a sales agent's own page, a company the admin gave to a colleague says where his request
+       to serve it stands: waiting for her, or kept with the colleague (his offers there stay counted) */
+    var book = B.companies.map(function (name, id) {
+      var ask = MY && B.asked ? B.asked(id) : null;
+      return { id: id, name: B.waiting && B.waiting(id) ? name + ' · ' + t('waiting for approval')
+        : ask === 'waiting' ? name + ' · ' + t('waiting for approval')
+        : ask === 'blocked' ? name + ' · ' + t('kept with a colleague by the admin') : name };
+    });
     var count4 = {};
 
     /* ---- the state of each company with this team ---------------------
@@ -832,7 +843,7 @@
       return '<div class="hd' + (MY ? ' my' : '') + '"><p class="eyebrow">' + nm(WHO.name) + ' · ' + title(WHO.title) + '</p>' + (MY ? '' : swap()) + '<h1>' + heading + '</h1><button class="when" id="when" type="button" aria-expanded="' + menuOpen + '">' + svg('cal') + periodName() + '</button></div>' +
         (menuOpen ? '<div class="menu"><div class="chips">' + PERIODS.map(function (p) { return '<button class="chip" type="button" data-r="' + p[0] + '" aria-pressed="' + (period.key === p[0]) + '">' + p[1] + '</button>'; }).join('') + '</div>' +
           (period.key === 'c' ? '<div class="range"><label class="fld">' + t('From') + '<input type="date" id="dFrom" min="' + iso(SPAN) + '" max="' + iso(0) + '" value="' + iso(period.from) + '"></label><label class="fld">' + t('To') + '<input type="date" id="dTo" min="' + iso(SPAN) + '" max="' + iso(0) + '" value="' + iso(period.to) + '"></label></div>' : '') + '</div>' : '') +
-        '<p class="showing">' + (MY ? t(B.demo ? 'Showing {dates} · your own activity · demo figures' : 'Showing {dates} · your own activity', { dates: '<b>' + rangeText() + '</b>' }) : t(B.demo ? 'Showing {dates} · your team only · demo figures' : 'Showing {dates} · your team only', { dates: '<b>' + rangeText() + '</b>' })) + '</p>';
+        '<p class="showing">' + (MY ? t(sayDemo(B) ? 'Showing {dates} · your own activity · demo figures' : 'Showing {dates} · your own activity', { dates: '<b>' + rangeText() + '</b>' }) : t(B.demo ? 'Showing {dates} · your team only · demo figures' : 'Showing {dates} · your team only', { dates: '<b>' + rangeText() + '</b>' })) + '</p>';
     }
     /* the way across to the sales app, on every tab: he is a seller too */
     function swap() { return '<a class="swap" href="index.html">' + svg('send') + t('Quick Offer') + '</a>'; }
@@ -1925,7 +1936,7 @@
         if (!e) return bad(t('This could not be saved. Try again.'));
         myRec.company = -1;
         load(); refresh(); compute(); closeSheet(); draw(true);
-        toast(t(B.demo ? 'Saved in this demo: {what}' : 'Saved: {what}', { what: KIND[e.k] + ' · ' + book[e.c].name }));
+        toast(t(sayDemo(B) ? 'Saved in this demo: {what}' : 'Saved: {what}', { what: KIND[e.k] + ' · ' + book[e.c].name }));
       };
       e = B.add(r);
       /* the store answers later, and may refuse (build 127): the button waits, and a refusal is said in words */
@@ -1958,6 +1969,8 @@
       if (m === 'MM_BAD_DATE') return t('Choose a date in the last 12 weeks.');
       if (m === 'MM_NO_TEAM') return t('Your account is not in a team yet. Ask the admin to add you to one.');
       if (m === 'MM_NO_COMPANY') return t('This company is no longer on the list. Choose another.');
+      /* build 149: a company the admin gave to other sales agents */
+      if (m === 'MM_NOT_THEIR_COMPANY') return MY ? t('The admin gave this company to a colleague. Ask the admin to add you to it.') : t('The admin gave this company to other sales agents. Choose one of them, or ask the admin to add this one.');
       if (m === 'MM_TOO_LATE') return t('You can correct an entry on the day you made it. After that, your manager corrects it.');
       if (m === 'MM_NOT_SIGNED_IN') return t('You are signed out. Sign in again.');
       return t('This could not be saved. Try again.');
@@ -1975,10 +1988,10 @@
             ['active', STATE.active, t('Asked you for an offer in the last two weeks.')], ['quiet', STATE.quiet, t('Was asking you, then nothing for two weeks.')], ['inactive', STATE.inactive, t('No request to you for a month.')],
             ['ink', t('Effective'), t('Brought at least one meeting in the dates shown.')]].map(function (d) { return '<div><i class="s-' + d[0] + '"></i><dt>' + d[1] + '</dt><dd>' + d[2] + '</dd></div>'; }).join('') + '</dl></section>' +
         '<section class="card"><h2>' + t('Settings') + '</h2><div class="facts"><div><span>' + t('Language') + '</span><b><span class="chips"><button class="chip" type="button" data-lang="en" lang="en" aria-pressed="' + !AR + '">English</button><button class="chip" type="button" data-lang="ar" lang="ar" aria-pressed="' + AR + '">العربية</button></span></b></div>' + fact([t('Opens on'), t('Last 30 days')]) + '</div>' +
-          (B.recorded() ? '<button class="btn ghost" type="button" id="wipe">' + t('Clear what was recorded in this demo') + '</button>' : '') +
+          (B.recorded() ? '<button class="btn ghost" type="button" id="wipe">' + t(sayDemo(B) ? 'Clear what was recorded in this demo' : 'Clear what I recorded on this phone') + '</button>' : '') +
           (B.demo ? '' : '<a class="btn ghost" href="login.html?change=1">' + t('Change password') + '</a>') +
           '<button class="btn ghost" type="button" id="out">' + t('Sign out') + '</button></section>' +
-        '<p class="note center">' + t(B.demo ? 'Main Marks · My activity · demo figures' : 'Main Marks · My activity') + '</p>';
+        '<p class="note center">' + t(sayDemo(B) ? 'Main Marks · My activity · demo figures' : 'Main Marks · My activity') + '</p>';
     }
 
     var SCREENS = {
@@ -2361,11 +2374,25 @@
         rows: list.map(function (c, i) { return [i + 1, c.name, STATE[c.state], c.days === null ? '' : B.dateOf(c.days), n(c).special, c.total, n(c).meeting, n(c).reservation, n(c).cancel, n(c).contract, n(c).value, whoOn(c)]; }),
         total: list.length ? ['', count(list.length, 'company'), '', '', sum(list, function (c) { return n(c).special; }), sum(list, function (c) { return c.total; }), sum(list, function (c) { return n(c).meeting; }), sum(list, function (c) { return n(c).reservation; }), sum(list, function (c) { return n(c).cancel; }), sum(list, function (c) { return n(c).contract; }), sum(list, function (c) { return n(c).value; }), ''] : null });
     }
-    function peopleTable() {
-      var n = A.tot;
-      return { title: t('Sales agents'), cols: [{ h: '#', w: 5, type: 'int' }, { h: t('Sales agent'), w: 22 }, { h: t('Title'), w: 24 }, { h: t('Code'), w: 10 }, { h: t('Offers sent'), w: 10, type: 'int' }, { h: t('Special requests'), w: 10, type: 'int' }, { h: t('Broadcasts'), w: 10, type: 'int' }, { h: t('Companies'), w: 10, type: 'int' }, { h: t('Meetings'), w: 10, type: 'int' }, { h: t('Reservations'), w: 11, type: 'int' }, { h: t('Cancelled reservations'), w: 11, type: 'int' }, { h: t('Contracts'), w: 10, type: 'int' }, { h: t('Sales, EGP'), w: 16, type: 'money' }],
-        rows: A.people.map(function (p, i) { return [i + 1, p.name, title(p.title), p.code, p.n.offers, p.n.special, p.n.broadcast, p.companies, p.n.meeting, p.n.reservation, p.n.cancel, p.n.contract, p.n.value]; }),
-        total: ['', t('The team together'), '', '', n.offers, n.special, n.broadcast, A.asked.length, n.meeting, n.reservation, n.cancel, n.contract, n.value] };
+    /* SALES AGENT PERFORMANCE (Muhanad, 2026-10-30: a better name than "Who did what", and it should show the
+       orientations, the workshops and the new companies each sales agent added or opened).
+       OPENED: the first request a company sent this team is the new company of the sales agent on that row. A
+       name he added goes out with his offer, so "added" is that same row and counts once. These are the
+       companies of the New chip (A.fresh), less any whose only request is a manager's waiting offer, which is
+       in no team figure until it is handed over (build 140). */
+    function opened() {
+      var by = {};
+      A.fresh.forEach(function (c) { var r = c.reqs.filter(function (e) { return !e.wait; })[0]; if (r && r.d >= period.to) (by[r.m] || (by[r.m] = [])).push(c); });
+      return by;
+    }
+    /* one table for the Excel file; on the upright page it is two, or sixteen columns would not fit */
+    function peopleTables() {
+      var n = A.tot, by = opened(), fresh = function (p) { return (by[p.id] || []).length; };
+      var all = { excelOnly: true, title: t('Sales agents'), cols: [{ h: '#', w: 5, type: 'int' }, { h: t('Sales agent'), w: 22 }, { h: t('Title'), w: 28 }, { h: t('Code'), w: 12 }, { h: t('Offers sent'), w: 10, type: 'int' }, { h: t('Special requests'), w: 10, type: 'int' }, { h: t('Broadcasts'), w: 12, type: 'int' }, { h: t('Companies'), w: 12, type: 'int' }, { h: t('New companies'), w: 12, type: 'int' }, { h: t('Orientations'), w: 13, type: 'int' }, { h: t('Workshops'), w: 12, type: 'int' }, { h: t('Meetings'), w: 12, type: 'int' }, { h: t('Reservations'), w: 14, type: 'int' }, { h: t('Cancelled reservations'), w: 14, type: 'int' }, { h: t('Contracts'), w: 12, type: 'int' }, { h: t('Sales, EGP'), w: 18, type: 'money' }],
+        rows: A.people.map(function (p, i) { return [i + 1, p.name, title(p.title), p.code, p.n.offers, p.n.special, p.n.broadcast, p.companies, fresh(p), p.n.orientation, p.n.workshop, p.n.meeting, p.n.reservation, p.n.cancel, p.n.contract, p.n.value]; }),
+        total: ['', t('The team together'), '', '', n.offers, n.special, n.broadcast, A.asked.length, sum(A.people, fresh), n.orientation, n.workshop, n.meeting, n.reservation, n.cancel, n.contract, n.value] };
+      var part = function (name, at) { var cut = function (r) { return at.map(function (j) { return r[j]; }); }; return { pdfOnly: true, title: name, cols: cut(all.cols), rows: all.rows.map(cut), total: cut(all.total) }; };
+      return [part(t('Activity, by sales agent'), [0, 1, 4, 5, 6, 7, 8, 9, 10]), part(t('Results, by sales agent'), [0, 1, 2, 3, 11, 12, 13, 14, 15]), all];
     }
     function tilesOf(n, first) {
       return (first || []).concat([[t('Special requests'), n.special], [t('Meetings'), n.meeting], [t('Reservations'), n.reservation], [t('Contracts'), n.contract], [t('Sales, EGP'), n.value, 'money'], [t('Broadcasts'), n.broadcast], [t('Cancelled reservations'), n.cancel]]);
@@ -2456,9 +2483,16 @@
       var notes = [t('{x} sales agents sent an offer.', { x: t('{a} of {b}', { a: A.sending, b: OWN }) })];
       if (idle.length) notes.push(t('Nothing sent in these dates: {names}.', { names: idle.join(', ') }));
       notes.push(t('Special requests are counted apart from broadcasts: a broadcast goes to no company in particular.'));
-      return { where: [TABN.team, t('Your sales agents')], kicker: t('The team'), title: t('Who did what'), text: [t('Each sales agent’s offers in these dates, split into special requests and broadcasts.')], notes: notes,
-        charts: [{ type: 'stacked', title: t('Offers sent, by sales agent'), series: [{ name: t('Special requests'), color: PAL.black }, { name: t('Broadcasts'), color: PAL.light, ink: '#141210' }], rows: A.people.map(function (p) { return [p.name, [p.n.special, p.n.broadcast]]; }) }],
-        tables: [peopleTable()] };
+      var n = A.tot, by = opened(), fresh = [], wait = 0;
+      A.people.forEach(function (p) { (by[p.id] || []).forEach(function (c) { fresh.push(c); if (B.waiting && B.waiting(c.id)) wait++; }); });
+      notes.push(t('{a} and {b} in these dates.', { a: count(n.orientation, 'orientation'), b: count(n.workshop, 'workshop') }));
+      notes.push(t('New companies in these dates: {n}.', { n: fresh.length }) + (wait ? ' ' + t('{n} of them waiting for approval.', { n: wait }) : ''));
+      var charts = [{ type: 'stacked', title: t('Offers sent, by sales agent'), series: [{ name: t('Special requests'), color: PAL.black }, { name: t('Broadcasts'), color: PAL.light, ink: '#141210' }], rows: A.people.map(function (p) { return [p.name, [p.n.special, p.n.broadcast]]; }) }];
+      if (n.orientation || n.workshop) charts.push({ type: 'stacked', title: t('Orientations and workshops, by sales agent'), series: [{ name: t('Orientations'), color: PAL.black }, { name: t('Workshops'), color: PAL.light, ink: '#141210' }], rows: A.people.map(function (p) { return [p.name, [p.n.orientation, p.n.workshop]]; }) });
+      if (fresh.length) charts.push({ type: 'hbar', keepZero: true, title: t('New companies, by sales agent'), rows: A.people.map(function (p) { return [p.name, (by[p.id] || []).length, '', PAL.black]; }) });
+      return { where: [TABN.team, t('Your sales agents')], kicker: t('The team'), title: t('Sales agent performance'), text: [t('What each sales agent did in these dates, and what it brought.'), t('A new company is one that sent your team its first request in these dates. It counts once, for the sales agent who answered that request, whether the name was on the list or that agent added it. The app looks back 12 weeks. A visit made by two counts for each of them.')], notes: notes,
+        charts: charts,
+        tables: peopleTables() };
     }
     function secDeals(list, heading, chartless) {
       return { where: [TABN.team, t('Reservations, contracts, cancellations')], kicker: t('Results'), title: heading,
@@ -2490,7 +2524,7 @@
         labels: { summary: t('In these dates'), summarySheet: t('Summary'), analysis: t('What it shows'), demoFoot: t('DEMO FIGURES'), page: t('Page {n} of {m}'), continued: t('continued'), none: t('Nothing in these dates.'),
           /* build 145, look B */ where: t('Where it is in the app'), how: t('How it is counted'), sentence: t('In one sentence'), contents: t('In this report'), andMore: t('{n} more inside') },
         tables: [], notes: answer ? [answer] : [] };
-      sections.forEach(function (s) { (s.notes || []).forEach(function (n) { rep.notes.push(n); }); (s.tables || []).forEach(function (tb) { rep.tables.push(tb); }); });
+      sections.forEach(function (s) { (s.notes || []).forEach(function (n) { rep.notes.push(n); }); (s.tables || []).forEach(function (tb) { if (!tb.pdfOnly) rep.tables.push(tb); }); });
       return rep;
     }
     var STATE_TEXT = { active: t('Asked your team for an offer in the last two weeks.'), quiet: t('Was asking, then nothing for two weeks. The early warning.'), inactive: t('No request to your team for a month.'), never: t('Has not asked your team for an offer yet.') };
@@ -2635,10 +2669,21 @@
         return MM.report.build({ jsPDF: window.jspdf.jsPDF, arabic: MM.arabic, disarm: MM.pdf && MM.pdf.disarm, fonts: fonts, report: rep, hasArabicText: arabic, logo: logo }).output('blob');
       });
     }
+    /* build 153: inside the demo's phone frame (the claude.ai link, where a plain download does nothing)
+       a PDF opens in the frame's own viewer and any other file is saved through it (demo.html MMview,
+       MMsave). True when the frame took it. */
+    function viaFrame(blob, file) {
+      try {
+        var w = window.parent, hook = w && w !== window && w[/\.pdf$/i.test(file) ? 'MMview' : 'MMsave'];
+        return typeof hook === 'function' && hook(blob, file) === true;
+      } catch (e) { return false; }
+    }
     function save(blob, file) {
+      if (viaFrame(blob, file)) return true;
       var a = document.createElement('a'), url = URL.createObjectURL(blob);
       a.href = url; a.download = file; document.body.appendChild(a); a.click(); a.remove();
       setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+      return false;
     }
     function download(key, as, btn) {
       var rep = describe(key);
@@ -2646,12 +2691,12 @@
       var file = 'Main Marks - Team Pulse - ' + String(rep.title).replace(/[\\\/:*?"<>|]/g, ' ').trim() + ' - ' + iso(period.from) + (period.from === period.to ? '' : ' to ' + iso(period.to)) + (B.demo ? ' - DEMO.' : '.');
       var failed = function () { toast(t('The file could not be made. Try again.')); };
       if (as === 'xlsx') {
-        try { save(new Blob([MM.xlsx.workbook(rep)], { type: MM.xlsx.type }), file + 'xlsx'); toast(t('Downloaded as Excel: {name}', { name: rep.title })); } catch (e) { failed(); }
+        try { if (!save(new Blob([MM.xlsx.workbook(rep)], { type: MM.xlsx.type }), file + 'xlsx')) toast(t('Downloaded as Excel: {name}', { name: rep.title })); } catch (e) { failed(); }
         return;
       }
       if (btn) { if (btn.disabled) return; btn.disabled = true; btn.classList.add('busy'); }
       toast(t('Preparing the PDF…'));
-      pdfBlob(rep).then(function (blob) { save(blob, file + 'pdf'); toast(t('Downloaded as PDF: {name}', { name: rep.title })); }, function (e) { if (window.console) console.error(e); failed(); })
+      pdfBlob(rep).then(function (blob) { if (!save(blob, file + 'pdf')) toast(t('Downloaded as PDF: {name}', { name: rep.title })); }, function (e) { if (window.console) console.error(e); failed(); })
         .then(function () { if (btn) { btn.disabled = false; btn.classList.remove('busy'); } });
     }
     /* for checks: the description and the file, without a click */

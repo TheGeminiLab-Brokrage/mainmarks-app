@@ -1,3 +1,7 @@
+/* build 156: Manrope from the file Main Marks gave us (Manrope 2.zip, 12 Nov 2026; SIL OFL, vendor/fonts/OFL-Manrope.txt),
+   served with the app instead of Google Fonts; the offer PDF embeds the same release (its static weights) */
+@font-face { font-family: "Manrope"; src: url("../vendor/fonts/Manrope-VariableFont_wght.ttf") format("truetype"); font-weight: 200 800; font-style: normal; font-display: swap; }
+
 /* ------------------------------------------------------------------
    Main Marks — the sales app.
 
@@ -32,6 +36,10 @@
   --font-corporate: 'Manrope', system-ui, sans-serif;
   --font-project: 'Manrope', system-ui, sans-serif;
   --font-utility: 'Manrope', system-ui, sans-serif;
+  /* build 155: Main Marks' headline face is Gold Lines Serif (CI p.29), asked for by their Marketing on 11 Nov 2026.
+     Its web licence and file are not with us (their own file embeds a TRIAL copy), so Gilda Display, a free
+     light display serif of the same kind, stands in. Swapping is this one line once they send it. */
+  --font-headline: 'Gilda Display', 'IBM Plex Sans Arabic', Georgia, serif;
 
   --rule: rgba(255, 255, 255, .15);
   --rule-soft: rgba(255, 255, 255, .08);
@@ -1266,6 +1274,9 @@ body.is-login { min-height: 100svh; }
 }
 .a-lit { opacity: 0; transition: opacity .45s ease; }
 .a-lit.is-on { opacity: 1; }
+/* build 169: on the phone the swipe sets each light's opacity frame by frame (js/project.js scrollLights);
+   a transition on top of that would lag behind the finger */
+.a-follow .a-lit { transition: none; will-change: opacity; }
 /* the lockup sits under the picture: the picture's foot is the front
    row of buildings, which have to be seen when they light */
 .a-lock {
@@ -2064,6 +2075,7 @@ body.is-login { min-height: 100svh; }
    while the logo plays over it. Nobody can see it under the black, and each of its frames is drawn by
    the page, which is busy enough then. It goes on from where it stopped when the black has gone. */
 .mb-running .lp-roof,
+.mb-running .lp-roof-glow,
 .mb-running .q-u,
 .mb-running .q-u-glow { animation-play-state: paused; }
 
@@ -2622,6 +2634,7 @@ body.is-ready .mv-hint { opacity: 1; }
 .q-dot { width: 9px; height: 9px; border-radius: 50%; background: #6b6b6b; flex: none; }
 .q-dot.is-live { background: #3DD68C; box-shadow: 0 0 10px rgba(61, 214, 140, .6); }
 .q-dot.is-bad { background: #E5484D; }
+.q-dot.is-changed { background: #F5A524; box-shadow: 0 0 10px rgba(245, 165, 36, .6); }   /* 18 Nov 2026: the list changed while a unit is chosen */
 .q-spacer { flex: 1 1 auto; }
 .q-counts { color: var(--q-faint); }
 .q-warn {
@@ -2670,22 +2683,32 @@ body.is-ready .mv-hint { opacity: 1; }
   vector-effect: non-scaling-stroke; cursor: pointer; outline: none;
   transition: fill .18s ease, stroke-opacity .18s ease;
 }
-.lp-roof:hover, .lp-roof:focus-visible { fill: rgba(137, 207, 240, .3); stroke-opacity: 1; }
-/* chosen: a glowing white outline over a baby-blue roof (Muhanad, 2026-09-30) */
-.lp-roof.is-on { fill: rgba(137, 207, 240, .42); stroke: #fff; stroke-width: 2.5; stroke-opacity: 1; }
-.lp-roof-glow { fill: none; stroke: #fff; stroke-width: 5; opacity: 0; pointer-events: none; transition: opacity .3s ease; }
-.lp-roof-glow.is-on { opacity: 1; }
+.lp-roof:hover, .lp-roof:focus-visible { fill: rgba(137, 207, 240, .12); stroke-opacity: 1; }
+/* BUILD 165 (Muhanad, 16 Nov 2026): the buildings stay dark and only their TRACED OUTLINE glows; the
+   chosen one lights up from inside (its own lit picture, js/lineflow.js lightOn), so nothing is laid over
+   it: a clear white outline and its glow. Until 164 the chosen roof was filled baby blue. */
+.lp-roof.is-on { fill: transparent; stroke: #fff; stroke-width: 1; stroke-opacity: 1; }
+.lp-roof-glow { fill: none; stroke: #bfe6ff; stroke-width: 2; opacity: 0; pointer-events: none; transition: opacity .3s ease; }
+.lp-roof-glow.is-on { opacity: .7; stroke: #fff; }
+/* build 166 (Muhanad, 17 Nov 2026): "i want the line to be thinner" — every outline is a hairline, its glow
+   a narrow halo (it was 1.5 / 2 px with a 4 px halo) */
+.lp-roofs .lp-roof { stroke-width: .75; }
+.lp-roofs .lp-roof.is-on { stroke-width: 1; }
 /* BUILD 108: only a building with something AVAILABLE is outlined. One with nothing to sell today is not
    drawn at all (unless it is the one open, reached from the list). */
 .lp-roofs .lp-roof.is-none:not(.is-on) { display: none; }
-/* before any pick, the roofs breathe baby blue: this is where to tap */
-.lp-roofs.is-idle .lp-roof { animation: lp-breathe 2.4s ease-in-out infinite; stroke-opacity: 1; }
+/* before any pick, the outline of every building with something available glows and breathes: this is
+   where to tap. The building itself stays dark. */
+.lp-roofs.is-idle .lp-roof:not(.is-none) { animation: lp-breathe 2.4s ease-in-out infinite; stroke: #d6efff; }
+.lp-roofs.is-idle .lp-roof-glow.is-avail { animation: lp-glow 2.4s ease-in-out infinite; }
 @keyframes lp-breathe {
-  0%, 100% { fill: rgba(137, 207, 240, .10); }
-  50%      { fill: rgba(137, 207, 240, .46); }
+  0%, 100% { fill: rgba(137, 207, 240, 0);   stroke-opacity: .55; }
+  50%      { fill: rgba(137, 207, 240, .07); stroke-opacity: 1; }
 }
+@keyframes lp-glow { 0%, 100% { opacity: .15; } 50% { opacity: .75; } }
 @media (prefers-reduced-motion: reduce) {
-  .lp-roofs.is-idle .lp-roof { animation: none; fill: rgba(137, 207, 240, .3); }
+  .lp-roofs.is-idle .lp-roof:not(.is-none) { animation: none; stroke-opacity: 1; }
+  .lp-roofs.is-idle .lp-roof-glow.is-avail { animation: none; opacity: .5; }
 }
 
 /* ---- 2 · floors (Qomor .grid / .card) ---- */
@@ -2772,6 +2795,12 @@ body.is-ready .mv-hint { opacity: 1; }
 .q-sched-hint { margin: 8px 2px 0; font-size: 11px; letter-spacing: .06em; color: var(--q-faint); }
 .q-sched-scroll thead th { position: sticky; top: 0; z-index: 1; }
 .q-sched-scroll:focus-visible { outline: 2px solid var(--orange); outline-offset: -2px; }
+/* build 149: the rows are shaded, one lighter, the next a bit darker, no hairlines
+   (his rule since build 143, as on the manager pages); the down payment keeps its orange */
+.q-sched td, .q-sched tr.is-year td { border-top: 0; }
+.q-sched tbody tr:nth-child(odd) td { background: rgba(255, 255, 255, .03); }
+.q-sched tbody tr:nth-child(even) td { background: rgba(255, 255, 255, .075); }
+.q-sched tbody tr.is-dp td { background: color-mix(in srgb, var(--orange) 14%, transparent); }
 .q-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
 .q-cta {
   font: inherit; font-size: 15px; font-weight: 700; color: #000; cursor: pointer;
@@ -3118,8 +3147,14 @@ body.is-ready .mv-hint { opacity: 1; }
 .q-u.is-avail:hover { fill: rgba(126, 200, 255, .26); }
 .q-u.is-avail:focus-visible { stroke: #fff; stroke-width: 2.4; }
 .q-u.is-held { fill: color-mix(in srgb, var(--q-held) 40%, transparent); stroke: var(--q-held); stroke-width: 1.6; cursor: not-allowed; }
-.q-plate-key { margin: 8px 2px 0; font-size: 11.5px; font-weight: 600; color: var(--q-held); display: flex; align-items: center; gap: 7px; }
-.q-plate-key::before { content: ''; width: 10px; height: 10px; border-radius: 3px; flex: none; background: color-mix(in srgb, var(--q-held) 40%, transparent); border: 1.5px solid var(--q-held); }
+/* build 182: the key holds one square per colour on the drawing: Available (the outline's baby blue) and On hold */
+.q-plate-key { margin: 8px 2px 0; font-size: 11.5px; font-weight: 600; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; }
+.q-key { display: inline-flex; align-items: center; gap: 7px; }
+.q-key::before { content: ''; width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.q-key.is-avail { color: rgb(126, 200, 255); }
+.q-key.is-avail::before { background: rgba(126, 200, 255, .12); border: 1.5px solid rgba(126, 200, 255, .95); }
+.q-key.is-held { color: var(--q-held); }
+.q-key.is-held::before { background: color-mix(in srgb, var(--q-held) 40%, transparent); border: 1.5px solid var(--q-held); }
 .q-u.is-on { fill: rgba(247, 149, 30, .38); stroke: var(--orange); stroke-width: 2.6; }
 .q-u.is-nomatch { opacity: .25; }
 
@@ -3359,3 +3394,151 @@ body.has-sp-bar { padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px))
 
 /* build 127: "not on the list? send it to the admin" in the company list */
 .q-who-item.q-who-new { color: var(--orange); font-weight: 600; border-top: 1px solid rgba(255, 255, 255, .14); }
+
+/* build 155 (Main Marks Marketing, 11 Nov 2026): the floor's key plan, small and sharp, in the corner of the
+   building's drawing (js/lineflow.js floorPlate); the building is framed on it in the app's orange */
+.q-plate-back { filter: none; }
+.q-plate-mini { position: absolute; right: 10px; bottom: 10px; border-radius: 6px; overflow: hidden; opacity: 0;
+  background: #f4f3f1; box-shadow: 0 0 0 1px rgba(255, 255, 255, .16), 0 6px 16px rgba(0, 0, 0, .5); transition: opacity .5s ease .5s; }
+.q-plate.is-ready .q-plate-mini { opacity: 1; }
+.q-plate-mini img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.q-plate-mini-box { position: absolute; border: 1.5px solid #F7951E; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0, 0, 0, .35);
+  background: color-mix(in srgb, #F7951E 18%, transparent); }
+
+/* build 155: a unit not for sale opens for checking its layout (js/lineflow.js selectUnit) */
+.q-unit.is-held, .q-u.is-held { cursor: pointer; }
+.q-unit.is-held.is-on { border-color: var(--q-held); }
+.q-notsale { color: var(--q-held); }
+
+/* build 155: the inventory download on the Moray page, for managers and the admin (js/project.js) */
+.inv-export { margin: 18px 0 0; }
+.inv-export-btn { font: inherit; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--orange, #F7951E);
+  background: none; border: 1px solid color-mix(in srgb, #F7951E 45%, transparent); border-radius: 999px; padding: 9px 16px; cursor: pointer; }
+.inv-export-btn:disabled { opacity: .5; cursor: progress; }
+.inv-export-note { margin: 8px 2px 0; font-size: 11.5px; color: var(--muted, #8B8989); }
+
+/* ---- build 155: THE SIGN-IN PAGE, as Main Marks' Marketing drew it (11 Nov 2026) ----------------------
+   MAIN MARKS / PROJECTS on top (PROJECTS in Manrope capitals, plain), the CI's lifestyle photograph
+   (p.38) under it at its own proportions with the page's margins, then the headline in capitals in the
+   headline face, centred, MAIN MARKS in orange. The light sweep belonged to the old photograph. */
+.is-login .gate { display: block; padding-bottom: max(24px, env(safe-area-inset-bottom)); }
+.is-login .gate-lockup { position: static; padding: max(26px, env(safe-area-inset-top)) var(--gutter) 22px; gap: 18px; }
+.is-login .gate-sub { font-size: 20px; font-weight: 400; letter-spacing: .02em; gap: 18px; }
+.is-login .gate-art { margin: 0 var(--gutter); aspect-ratio: 775 / 859; max-height: 62svh; }
+.is-login .gate-art::after { display: none; }
+.is-login .gate-art > img { object-position: 50% 50%; }
+.is-login .gate-sweep { display: none; }
+.is-login .gate-body { margin-top: 0; padding-top: 30px; }
+.is-login .gate-head { font-family: var(--font-headline); font-weight: 400; text-transform: uppercase; text-align: center;
+  font-size: clamp(22px, 6.4vw, 32px); line-height: 1.22; letter-spacing: .01em; }
+.is-login .gate-head .gold { color: var(--orange); }
+@media (min-width: 900px) {
+  .is-login .gate { display: grid; grid-template-columns: 1fr minmax(420px, 42%); grid-template-rows: auto 1fr; }
+  .is-login .gate-lockup { grid-column: 1 / -1; }
+  .is-login .gate-art { max-height: 78svh; justify-self: center; }
+}
+/* the language button sits on the photograph's lower right corner, as it did on the old one */
+.is-login .gate-body { position: relative; }
+.is-login .lang-switch.is-gate { position: absolute; top: -50px; right: calc(var(--gutter) + 12px); margin: 0; }
+@media (min-width: 900px) { .is-login .lang-switch.is-gate { position: static; align-self: flex-end; } }
+
+/* ---- build 155: THE NEW FOOTER, as Main Marks drew it (11 Nov 2026) -------------------------------------
+   MAIN MARKS : (the CI signature without its slash) then BESPOKE / EXPERIENCES on two lines in the
+   headline face. The build number stays, small, at the far end: it says which build a phone runs. */
+.mm-foot { flex-wrap: nowrap; align-items: center; }
+.mm-sig { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.mm-sig > img { height: 18px; width: auto; display: block; flex: none; }
+.mm-tag { display: grid; font-family: var(--font-headline); font-size: 10.5px; line-height: 1.2; letter-spacing: .06em;
+  text-transform: uppercase; color: #fff; white-space: nowrap; }
+.mm-foot .gate-priv { text-align: right; font-size: 8.5px; letter-spacing: .14em; }
+.is-chooser .mm-foot .mm-sig > img { height: 14px; }
+.is-chooser .mm-foot .mm-tag { font-size: 8.5px; }
+@media (max-width: 600px) { .pick-foot.mm-foot .gate-priv { text-align: right; } }
+
+/* ---- build 155: THE PROJECTS PAGE, as Main Marks' design notes ask (11 Nov 2026) ---------------------
+   "MARKS OF / DISTINCTION" in the headline face, in capitals, the slash in orange; and the live card's
+   outer glow ONLY while it is pointed at or touched ("Please remove the outer glow, only when u hover"):
+   at rest it keeps a plain hairline like every other card. */
+.pick-intro h1.pick-title { font-family: var(--font-headline); font-weight: 400; text-transform: uppercase;
+  font-size: clamp(24px, 6.6vw, 46px); line-height: 1.15; letter-spacing: .01em; }
+.pick-title .slash { color: var(--orange); padding: 0 .28em; }
+.mm-card.feature { border-color: var(--card-line); box-shadow: none; }
+.mm-card.feature:hover, .mm-card.feature:active, .mm-card.feature:focus-visible {
+  border-color: var(--orange); box-shadow: 0 0 0 1px rgba(247, 149, 30, .10), 0 22px 60px -34px rgba(247, 149, 30, .45); }
+/* build 155: the h:rs card shows its new render in colour, as Main Marks placed it on their page; the
+   Coming soon badge and the foot still say it cannot be opened. A light dim keeps it behind Moray. */
+/* build 182 (Muhanad, 18 Nov 2026: "make the hrs card dimmed in black and white not colored like we did in
+   ayyam app in the other projects"): back to the drained picture, the CCR app's exact rule (its .card.soon). */
+.mm-card.soon .c-shot > img { filter: grayscale(.85) brightness(.62); }
+
+/* ---- build 155: the line under each product's logo on its opening (Main Marks' design notes) ----------
+   Centred, no slash, in the lockup's own type; R- Residence's and The Fourth's sit under their lockups. */
+.mb-tag.mb-tag-sub { gap: 0; letter-spacing: .22em; font-weight: 400; }
+.mb-tag.mb-tag-sub .mb-slash { display: none; }
+.mb-subline { position: absolute; left: 0; right: 0; text-align: center; font-family: var(--font-corporate); font-weight: 400;
+  letter-spacing: .22em; text-transform: uppercase; color: #fff; white-space: nowrap; opacity: 0; }
+.mb-subline-r { top: 53.4%; }
+.mb-subline-f4 { top: 55.5%; }
+
+/* ---- build 155: THE MORAY PAGE CARDS, each in its line's identity (Main Marks' design notes) ----------
+   js/project.js cardTop: the picture (the template's bars at its sides, a logo over it where set), then
+   the band in the line's colour: MORAY (or the line's own logo) with the line's name centred under it. */
+.l-top-card { display: flex; flex-direction: column; }
+.l-top-card .l-shot { position: relative; }
+.lc-bar { position: absolute; top: 0; bottom: 0; width: 6%; z-index: 1; }
+.lc-bar-left { left: 0; }
+.lc-bar-right { right: 0; }
+.lc-overlay { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 52%; height: auto; z-index: 1;
+  filter: drop-shadow(0 1px 6px rgba(0, 0, 0, .35)); }
+.l-band.lc-band { flex-direction: column; justify-content: center; align-items: center; gap: 7px; height: 92px; padding: 0 14px; text-align: center; }
+.lc-logo { display: block; height: 24px; width: auto; max-width: 80%; }
+.lc-logo.is-black { filter: brightness(0); }
+.lc-logo.is-tall { height: 40px; }
+.lc-sub { font-family: var(--font-corporate); font-size: 10.5px; font-weight: 500; letter-spacing: .16em; text-transform: uppercase; line-height: 1.2; }
+@media (max-width: 700px) {
+  .chooser .l-band.lc-band { height: 70px; gap: 5px; }
+  .chooser .lc-logo { height: 19px; }
+  .chooser .lc-logo.is-tall { height: 30px; }
+  .chooser .lc-sub { font-size: 9px; }
+}
+/* the logo over a card's picture is not the picture: `.l-shot > img` (cover, the whole box) must not reach it */
+.l-shot > img.lc-overlay, .chooser .l-shot > img.lc-overlay { position: absolute; inset: auto; left: 50%; top: 50%; width: 62%; height: auto;
+  object-fit: contain; transform: translate(-50%, -50%); }
+.l-card:hover .l-shot > img.lc-overlay { transform: translate(-50%, -50%); }
+/* build 156: Commercial's "Same place / One Address" across the sketch, as in their mock (sales app.pdf p.3) */
+.l-shot > img.lc-script, .chooser .l-shot > img.lc-script { width: 74%; top: 46%; filter: drop-shadow(0 1px 4px rgba(0, 0, 0, .3)); }
+/* build 157: their mock's frames (js/project.js cardTop, config card.frame). `inset`: the photo between two
+   edges, the frame's ground showing either side. `foot`: the picture whole at the foot, its top fading out. */
+.l-shot > img.lc-inset, .chooser .l-shot > img.lc-inset { position: absolute; top: 0; bottom: 0; right: auto; height: 100%; }
+.l-shot > img.lc-foot, .chooser .l-shot > img.lc-foot { position: absolute; inset: auto 0 0 0; width: 100%; height: auto;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 24%); mask-image: linear-gradient(to bottom, transparent, #000 24%); }
+/* build 156: the line card's "Open ..." in Manrope capitals with the long hairline arrow (their mock) */
+.l-card .l-go { text-transform: uppercase; letter-spacing: .1em; font-size: 11.5px; }
+.l-card .l-go > span { white-space: nowrap; }
+.chooser .l-card .l-go { font-size: 10px; letter-spacing: .07em; }
+/* the label stays on one line; where room is short the arrow gives way from its tail (the svg's
+   preserveAspectRatio keeps the head whole) */
+.l-card .l-go .l-go-arrow { flex: 0 1 64px; min-width: 22px; height: 12px; }
+html[lang="ar"] .l-card .l-go { letter-spacing: 0; font-size: 13px; }
+
+/* ---- BUILD 183: Commercial's tabs (Street level / Ground floor) and the street level's zones ----------
+   Muhanad chose "option B with Way 2" (18 Nov 2026): a switch on the picture, the chosen side in the one
+   accent. The zones sit on the LIGHT street-level drawing, so they are drawn in the available colour at a
+   readable width, not the aerial's white hairline; a zone with nothing for sale is a faint dashed line. */
+.q-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-bottom: 12px;
+  border: 1px solid var(--q-edge); border-radius: 999px; max-width: 420px; }
+.q-tab { font: inherit; font-size: 13px; font-weight: 600; color: var(--q-dim); background: transparent; border: 0;
+  border-radius: 999px; padding: 9px 10px; cursor: pointer; }
+.q-tab:hover { color: var(--white); }
+.q-tab.is-on { background: var(--orange); color: #000; }
+.q-tab:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+.q-street { background: #000; }
+.lp-zones .lp-roof, .lp-roofs.lp-zones .lp-roof { stroke: rgb(126, 200, 255); stroke-width: 2; stroke-opacity: 1; fill: rgba(126, 200, 255, .16); }
+.lp-zones.is-idle .lp-roof:not(.is-none) { animation: lp-zone 2.4s ease-in-out infinite; stroke: rgb(126, 200, 255); }
+@keyframes lp-zone { 0%, 100% { fill: rgba(126, 200, 255, .1); } 50% { fill: rgba(126, 200, 255, .34); } }
+.lp-zones .lp-roof:hover, .lp-zones .lp-roof:focus-visible { fill: rgba(126, 200, 255, .34); }
+.lp-roofs.lp-zones .lp-roof.is-on { stroke: var(--orange); stroke-width: 2.5; fill: rgba(247, 149, 30, .2); animation: none; }
+.lp-roofs.lp-zones .lp-roof.is-none:not(.is-on) { display: inline; fill: rgba(0, 0, 0, .05); stroke: rgba(0, 0, 0, .4);
+  stroke-width: 1; stroke-dasharray: 5 4; pointer-events: none; animation: none; }
+.lp-zones.is-searching .lp-roof:not(.is-match):not(.is-on):not(.is-none) { animation: none; fill: rgba(126, 200, 255, .06); stroke-opacity: .4; }
+@media (prefers-reduced-motion: reduce) { .lp-zones.is-idle .lp-roof:not(.is-none) { animation: none; fill: rgba(126, 200, 255, .24); } }

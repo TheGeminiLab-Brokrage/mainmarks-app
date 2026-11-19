@@ -74,7 +74,7 @@
      Only while the team list in config is the placeholder one. It
      disappears on its own the moment the real list replaces it. */
   var note = document.getElementById('demonote');
-  if (note && CONFIG.usersDemo && !REAL) {
+  if (note && CONFIG.usersDemo && !REAL && CONFIG.demoMarks !== false) {   /* build 171: not in the final sales view */
     note.hidden = false;
     var list = el('div', 'demo-accounts');
     (CONFIG.users || []).forEach(function (u) {

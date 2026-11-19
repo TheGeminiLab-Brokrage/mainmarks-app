@@ -54,10 +54,12 @@
      escape can land in the file as the raw character. */
   var LRI = String.fromCharCode(0x2066), PDI = String.fromCharCode(0x2069);
   function isoPct(f) { return LRI + pctOf(f) + '%' + PDI; }
+  /* a plan's down payment as its parts: [0.1], or a split one [0.025, 0.025] (2026-11-05) */
+  function downParts(pl) { return [pl.down].concat((pl.milestones || []).filter(function (m) { return m.down; }).map(function (m) { return m.pct; })); }
 
   var MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
   var MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  var FLOOR_AR = { street: 'الدور الأرضي', ground: 'الدور الأرضي', first: 'الدور الأول', second: 'الدور الثاني',
+  var FLOOR_AR = { street: 'مستوى الشارع', ground: 'الدور الأرضي', first: 'الدور الأول', second: 'الدور الثاني',
     third: 'الدور الثالث', fourth: 'الدور الرابع', fifth: 'الدور الخامس' };
   var FLOOR_EN = { street: 'Street level', ground: 'Ground floor', first: '1st floor', second: '2nd floor',
     third: '3rd floor', fourth: '4th floor', fifth: '5th floor' };
@@ -73,7 +75,7 @@
       headline: function (s, pl) {
         var d = pctOf(s.discountPct);
         if (s.cash) return '🔥 ' + d + '% off · cash 🔥';
-        var down = pl.down ? pctOf(pl.down) + '% down' : 'No down payment';
+        var down = pl.down ? downParts(pl).map(function (f) { return pctOf(f) + '%'; }).join(' + ') + ' down' : 'No down payment';
         return '🔥 ' + (s.discount ? d + '% off · ' : '') + down + ' · ' + pl.years + ' years to pay 🔥';
       },
       size: function (u) { return '🔷 ' + (USE_EN[u.type] || u.type) + ' · ' + money(u.area) + ' m²'; },
@@ -83,6 +85,7 @@
       price: function (v) { return '👈 *Price EGP ' + v + '* 🔥'; },
       cash: '👈 *One payment, in cash* 🔥',
       down: function (v) { return '👈 *Down payment EGP ' + v + '* 🔥'; },
+      down2: function (v) { return '👈 *Then EGP ' + v + ' after 3 months* 🔥'; },
       noDown: '👈 *No down payment* 🔥',
       quarter: function (v) { return '👈 *Every 3 months EGP ' + v + '* 🔥'; },
       monthly: function (v) { return '👈 That is about EGP ' + v + ' a month'; },
@@ -94,7 +97,7 @@
       headline: function (s, pl) {
         if (s.cash) return '🔥خصم ' + isoPct(s.discountPct) + ' كاش🔥';
         var yrs = pl.years + (pl.years <= 10 ? ' سنين' : ' سنة');
-        var down = pl.down ? 'بمقدم ' + isoPct(pl.down) : 'بدون مقدم';
+        var down = pl.down ? 'بمقدم ' + downParts(pl).map(isoPct).join(' + ') : 'بدون مقدم';
         return '🔥' + (s.discount ? 'خصم ' + isoPct(s.discountPct) + ' و' : '') + 'تقسيط على ' + yrs + ' ' + down + '🔥';
       },
       size: function (u) { return '🔷 ' + (USE_AR[u.type] || u.type) + ' ' + money(u.area) + ' متر'; },
@@ -104,11 +107,58 @@
       price: function (v) { return '👈*السعر ' + v + '*🔥'; },
       cash: '👈*الدفع كاش مرة واحدة*🔥',
       down: function (v) { return '👈*مقدم ' + v + '*🔥'; },
+      down2: function (v) { return '👈*وبعد 3 شهور ' + v + '*🔥'; },
       noDown: '👈*بدون مقدم*🔥',
       quarter: function (v) { return '👈*قسط كل 3 شهور ' + v + '*🔥'; },
       monthly: function (v) { return '👈يعني حوالي ' + v + ' في الشهر'; },
       until: function (d) { return '⏳ العرض ساري حتى ' + d.getDate() + ' ' + MONTHS_AR[d.getMonth()] + ' ' + d.getFullYear(); },
       contact: function (name, phone) { return '📞 للتواصل: ' + [name, phone].filter(Boolean).join(' · '); }
+    }
+  };
+
+  /* BUILD 155: the single post's words in Main Marks' own layout (caption below). The orange square opens
+     every line; the line's name is its card's ("Commercial units", "Premium offices with view"...). */
+  var SQ = '🟧 ';
+  var LINE_AR = { 'Commercial units': 'الوحدات التجارية', 'Administrative units': 'الوحدات الإدارية', 'Premium offices with view': 'مكاتب مميزة بإطلالة',
+    'Clinical units': 'الوحدات الطبية', 'Serviced apartments': 'الشقق الفندقية' };
+  var NEW = {
+    en: {
+      line: function (n) { return String(n).toUpperCase(); },
+      size: function (u) { return (USE_EN[u.type] || u.type) + ' · ' + money(u.area) + ' m²'; },
+      where: function (u, b) { return (FLOOR_EN[u.fid] || u.floor) + ' · Building ' + b; },
+      plan: function (s, pl) {
+        if (s.cash) return pctOf(s.discountPct) + '% off · cash';
+        return (s.discount ? pctOf(s.discountPct) + '% off · ' : '') +
+          (pl.down ? downParts(pl).map(function (f) { return pctOf(f) + '%'; }).join(' + ') + ' down' : 'No down payment') + ' · ' + pl.years + ' years to pay';
+      },
+      before: function (v) { return 'Price before discount ~' + v + '~'; },
+      after: function (v) { return '*Price after discount EGP ' + v + '*'; },
+      price: function (v) { return '*Price EGP ' + v + '*'; },
+      cash: 'One payment, in cash',
+      down: function (v) { return 'Down payment EGP ' + v; },
+      down2: function (v) { return 'Then EGP ' + v + ' after 3 months'; },
+      noDown: 'No down payment',
+      quarter: function (v) { return 'Every 3 months EGP ' + v; },
+      monthly: function (v) { return 'About EGP ' + v + ' a month'; }
+    },
+    ar: {
+      line: function (n) { return LINE_AR[n] || n; },
+      size: function (u) { return (USE_AR[u.type] || u.type) + ' ' + money(u.area) + ' متر'; },
+      where: function (u, b) { return (FLOOR_AR[u.fid] || u.floor) + ' · مبنى ' + b; },
+      plan: function (s, pl) {
+        if (s.cash) return 'خصم ' + isoPct(s.discountPct) + ' كاش';
+        var yrs = pl.years + (pl.years <= 10 ? ' سنين' : ' سنة');
+        return (s.discount ? 'خصم ' + isoPct(s.discountPct) + ' و' : '') + 'تقسيط على ' + yrs + ' ' + (pl.down ? 'بمقدم ' + downParts(pl).map(isoPct).join(' + ') : 'بدون مقدم');
+      },
+      before: function (v) { return 'السعر قبل الخصم ~' + v + '~'; },
+      after: function (v) { return '*السعر بعد الخصم ' + v + '*'; },
+      price: function (v) { return '*السعر ' + v + '*'; },
+      cash: 'الدفع كاش مرة واحدة',
+      down: function (v) { return 'مقدم ' + v; },
+      down2: function (v) { return 'وبعد 3 شهور ' + v; },
+      noDown: 'بدون مقدم',
+      quarter: function (v) { return 'قسط كل 3 شهور ' + v; },
+      monthly: function (v) { return 'يعني حوالي ' + v + ' في الشهر'; }
     }
   };
 
@@ -127,21 +177,29 @@
 
     var lines = [];
     if (p.post && p.post.sample) lines.push(T.sample, '');
-    lines.push(T.headline(s, pl));
-    lines.push('✨ ' + ((o.line && o.line.name) || p.name) + ' ✨');
-    lines.push('📍' + u.code);
-    lines.push(T.size(u));
-    lines.push(T.where(u, bLetter(o.buildingName, u)));
-    if (s.discount) { lines.push(T.before(money(s.list))); lines.push(T.after(money(s.payable))); }
-    else lines.push(T.price(money(s.payable)));
+    /* BUILD 155: MAIN MARKS' OWN LAYOUT (their design notes of 11 Nov 2026, page "Whatsa App"): the code,
+       the line's name in capitals, then the unit and the plan, then the money, each after an orange square,
+       no fire. The figures are the schedule's, as before. */
+    var N = NEW[o.lang === 'en' ? 'en' : 'ar'];
+    var sub = (o.line && ((o.line.card && o.line.card.sub) || o.line.name)) || p.name;
+    lines.push(u.code);
+    lines.push(N.line(sub));
     lines.push('');
-    if (s.cash) lines.push(T.cash);
+    lines.push(SQ + N.size(u));
+    lines.push(SQ + N.where(u, bLetter(o.buildingName, u)));
+    lines.push(SQ + N.plan(s, pl));
+    lines.push('');
+    if (s.discount) { lines.push(SQ + N.before(money(s.list))); lines.push(SQ + N.after(money(s.payable))); }
+    else lines.push(SQ + N.price(money(s.payable)));
+    if (s.cash) lines.push(SQ + N.cash);
     else {
-      lines.push(s.down ? T.down(money(s.down)) : T.noDown);
-      lines.push(T.quarter(money(s.each)));
+      lines.push(SQ + (s.down ? N.down(money(s.down)) : N.noDown));
+      /* the second part of a split down payment (2026-11-05) */
+      s.milestones.filter(function (m) { return m.down; }).forEach(function (m) { lines.push(SQ + N.down2(money(m.amount))); });
+      lines.push(SQ + N.quarter(money(s.each)));
       /* "about": the posts quote a month, Main Marks bills a quarter */
       var inst = Math.max(s.each, s.lastInstalment || 0);
-      lines.push(T.monthly(money(Math.ceil(inst / (s.everyMonths || 3)))));
+      lines.push(SQ + N.monthly(money(Math.ceil(inst / (s.everyMonths || 3)))));
     }
     if (pl.until) lines.push('', T.until(new Date(pl.until + 'T12:00:00')));
     if (o.agent && (o.agent.name || o.agent.phone)) {
@@ -166,13 +224,12 @@
   }
 
   /* the drawing, the cut and the traced outline: all three, or no picture */
+  /* 2026-11-04: the PDF's own question (js/pdf.js can(): in scope, a line with its CI, the drawing, the
+     outline, its place on the master plan; not a unit whose drawing prints another size) */
   function canPicture(p, u) {
     var a = (p.offer && p.offer.art) || {};
-    return !!(u && p.offer && p.offer.masterFromFloor && a.master &&
-      a.plates && a.plates[u.building] && a.plates[u.building][u.fid] &&
-      a.floors && a.floors[u.fid] &&
-      p.plates && p.plates[u.building] && p.plates[u.building][u.fid] &&
-      p.unitShapes && p.unitShapes[u.code]);
+    return !!(u && MM.pdf && MM.pdf.can(p, u) && a.master &&
+      p.plates && p.plates[u.building] && p.plates[u.building][u.fid]);
   }
 
   /* the Ayyam pin (CCR js/units.js mapPin): a teardrop, its TIP on the spot */
@@ -199,13 +256,36 @@
     ctx.closePath();
   }
 
-  /* The Moray Wellness CI, as the PDF uses it (js/pdf.js) */
-  var TEAL = '#095569', ORANGE = '#FA6126', CHAR = '#191819', GREY = '#5B6670', RULE = '#DCE3E6';
+  /* THE LINE'S CI, as its PDF wears it (js/pdf.js THEMES, 2026-11-04): the unit's code in the primary, the
+     unit and its building in the accent, the line's own logo. A unit with no line offer has no picture
+     (canPicture), so the Wellness colours below are only ever a fallback. */
+  var WELLNESS = { primary: '#095569', accent: '#FA6126', text: '#191819', grey: '#5B6670', rule: '#DCE3E6' };
+  function palette(p, u) {
+    var L = MM.pdf && MM.pdf.lineOffer(p, u), C = L && MM.pdf.themes[L.brand];
+    return C ? { primary: C.primary, accent: C.accent, text: C.text, grey: C.grey, rule: C.rule } : WELLNESS;
+  }
+  function logoOf(p, u) { var L = MM.pdf && MM.pdf.lineOffer(p, u); return (L && L.logoPage) || null; }
+  /* '#FA6126', 0.42 -> 'rgba(250,97,38,0.42)' */
+  function tint(hex, a) {
+    var v = parseInt(String(hex).slice(1), 16);
+    return 'rgba(' + (v >> 16 & 255) + ',' + (v >> 8 & 255) + ',' + (v & 255) + ',' + a + ')';
+  }
+  /* a point on the unit's own floor drawing, carried onto the master plan: into the building's box there
+     (MM.pdf.onMaster: through its cut on the floor the fit was measured on, or its own floor's fit), then
+     scaled to the picture */
+  function masterPoint(p, building, fid, box, ms) {
+    var m = MM.pdf.onMaster(p, building, fid);
+    return function (x, y) {
+      return [(m[0] + (x - box[0]) * (m[2] - m[0]) / (box[2] - box[0])) * ms, (m[1] + (y - box[1]) * (m[3] - m[1]) / (box[3] - box[1])) * ms];
+    };
+  }
 
   var PIC = {
     en: { building: function (b) { return 'BUILDING ' + b; }, use: function (u) { return (USE_EN[u.type] || u.type).toUpperCase(); },
           area: function (u) { return money(u.area) + ' m²'; }, where: function (u, b) { return (FLOOR_EN[u.fid] || u.floor) + ' · Building ' + b; },
           sample: 'SAMPLE · terms to be confirmed',
+          /* build 155: the row under the logo (Main Marks' layout) */
+          mark1: '1ST MARK /', mark2: 'NEW CAIRO', street: 'NORTH 90',
           /* build 131, options on more than one floor (pictureFloors) */
           floorTag: function (f) { return (FLOOR_EN[f] || f).toUpperCase(); },
           floorName: function (u) { return FLOOR_EN[u.fid] || u.floor; },
@@ -214,6 +294,7 @@
     ar: { building: function (b) { return 'مبنى ' + b; }, use: function (u) { return USE_AR[u.type] || u.type; },
           area: function (u) { return money(u.area) + ' متر'; }   /* the posts' word; a canvas puts ² on the wrong side in Arabic */, where: function (u, b) { return (FLOOR_AR[u.fid] || u.floor) + ' · مبنى ' + b; },
           sample: 'عينة · الشروط قيد التأكيد',
+          mark1: 'العلامة الأولى /', mark2: 'القاهرة الجديدة', street: 'التسعين الشمالي',
           floorTag: function (f) { return FLOOR_AR[f] || f; },
           floorName: function (u) { return FLOOR_AR[u.fid] || u.floor; },
           floors: function (fids, b) { return fids.map(function (f) { return FLOOR_AR[f] || f; }).join(' و') + ' · مبنى ' + b; },
@@ -224,24 +305,33 @@
   function picture(o) {
     var p = o.project, u = o.unit, W8 = PIC[o.lang === 'ar' ? 'ar' : 'en'], AR_PIC = o.lang === 'ar';
     if (!canPicture(p, u)) return Promise.reject(new Error('Unit ' + u.code + ' has no drawing yet'));
-    var a = p.offer.art, box = p.plates[u.building][u.fid], shape = p.unitShapes[u.code], R = p.offer.masterFromFloor;
+    var a = p.offer.art, box = p.plates[u.building][u.fid], shape = p.unitShapes[u.code], logoSrc = logoOf(p, u);
+    var C = palette(p, u), PRIMARY = C.primary, ACCENT = C.accent, TEXT = C.text, GREY = C.grey, RULE = C.rule;
     var fontsReady = root.document && document.fonts && document.fonts.load
       ? Promise.all(['600 100px Manrope', '500 30px Manrope', '700 22px Manrope', '600 30px "IBM Plex Sans Arabic"', '500 30px "IBM Plex Sans Arabic"']
           .map(function (f) { return document.fonts.load(f, AR_PIC ? 'عيادة' : 'A'); })).catch(function () {})
       : Promise.resolve();
     return Promise.all([loadImage(a.master), loadImage(a.plates[u.building][u.fid]), loadImage(a.floors[u.fid]),
-      a.logoOrange ? loadImage(a.logoOrange) : Promise.resolve(null), fontsReady])
+      logoSrc ? loadImage(logoSrc) : Promise.resolve(null), fontsReady])
       .then(function (g) {
         var master = g[0], plate = g[1], plan = g[2], logo = g[3];
         var W = 1200, F = '"Manrope", "IBM Plex Sans Arabic", "Segoe UI", Arial, sans-serif';
         var letter = bLetter(o.buildingName, u);
-
-        /* ---- the master plan, whole (Ayyam: a broker who does not know
-           Moray needs to see where the building sits in all of it) ---- */
-        var ms = W / master.naturalWidth, MH = Math.round(master.naturalHeight * ms);
+        /* BUILD 155: MAIN MARKS' OWN LAYOUT (their design notes of 11 Nov 2026, page "Whatsa App"): the line's
+           logo centred on top; a row between two rules, 1ST MARK / NEW CAIRO and NORTH 90; the unit on its
+           floor, across the picture; the unit's facts; then the master plan with its building framed. The
+           facts, the outline and the frame come from the same places as before (config, the traced shapes,
+           the measured fit), so nothing is placed by eye. */
+        var PAD = 56, IW = W - 2 * PAD;
         var bw = box[2] - box[0], bh = box[3] - box[1];
-        var PAD = 44, GAP = 40, DH = 820, DW = Math.round(DH * bw / bh);
-        var H = MH + PAD + DH + PAD;
+        var DW = IW, DH = Math.round(DW * bh / bw);
+        if (DH > 860) { DH = 860; DW = Math.round(DH * bw / bh); }
+        var lgh = logo ? Math.min(84, 330 * logo.naturalHeight / logo.naturalWidth) : 0;
+        var lgw = logo ? lgh * logo.naturalWidth / logo.naturalHeight : 0;
+        var MW = Math.round(IW * 0.86), ms = MW / master.naturalWidth, MH = Math.round(master.naturalHeight * ms);
+        var yHead = PAD + (logo ? lgh + 36 : 0), HEADH = 116, yPlate = yHead + HEADH + 44;
+        var yText = yPlate + DH + 56, yRule = yText + 262, yMaster = yRule + 48;
+        var H = yMaster + MH + PAD;
         var cv = document.createElement('canvas');
         cv.width = W; cv.height = H;
         var ctx = cv.getContext('2d');
@@ -249,89 +339,79 @@
         /* Arabic words read right to left; the drawing itself is never mirrored */
         if (AR_PIC && 'direction' in ctx) ctx.direction = 'rtl';
         ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, W, H);
-        ctx.drawImage(master, 0, 0, W, MH);
 
-        /* the building lit, the rest veiled: its cut is found on the master
-           plan through the measured fit (config masterFromFloor), never by eye */
-        /* build 126: the fit is measured on one floor's drawing (R.floor). A point on another floor's
-           drawing is first carried into that floor's cut of the same building. */
-        var mb = (p.plates[u.building] || {})[R.floor || 'first'] || box;
-        var toM = function (x, y) {
-          x = mb[0] + (x - box[0]) * (mb[2] - mb[0]) / (box[2] - box[0]);
-          y = mb[1] + (y - box[1]) * (mb[3] - mb[1]) / (box[3] - box[1]);
-          return [(R.s * x + R.tx) * ms, (R.s * y + R.ty) * ms];
-        };
-        var e0 = toM(box[0], box[1]), e1 = toM(box[2], box[3]);
-        ctx.fillStyle = 'rgba(255,255,255,.55)';
-        ctx.fillRect(0, 0, W, e0[1]);
-        ctx.fillRect(0, e1[1], W, MH - e1[1]);
-        ctx.fillRect(0, e0[1], e0[0], e1[1] - e0[1]);
-        ctx.fillRect(e1[0], e0[1], W - e1[0], e1[1] - e0[1]);
-        ctx.strokeStyle = ORANGE; ctx.lineWidth = 5;
-        ctx.strokeRect(e0[0], e0[1], e1[0] - e0[0], e1[1] - e0[1]);
-        /* the building's tag, beside it (above would cover the top road) */
-        var tag = W8.building(letter);
-        ctx.font = '700 22px ' + F;
-        var tw = ctx.measureText(tag).width + 28, tx = e0[0] - tw - 12, ty = e0[1] + 6;
-        if (tx < 12) tx = e1[0] + 12;
-        ctx.fillStyle = ORANGE;
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(tx, ty, tw, 38, 19); else ctx.rect(tx, ty, tw, 38);
-        ctx.fill();
-        ctx.fillStyle = '#FFFFFF'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
-        ctx.fillText(tag, tx + 14, ty + 20);
-        /* the clinic itself, pinned where it sits in the building */
-        var cx = shape.reduce(function (s, q) { return s + q[0]; }, 0) / shape.length;
-        var cy = shape.reduce(function (s, q) { return s + q[1]; }, 0) / shape.length;
-        var pm = toM(cx, cy);
-        pin(ctx, pm[0], pm[1], 64, ORANGE);
-        ctx.fillStyle = RULE; ctx.fillRect(0, MH, W, 2);
+        /* the logo, centred */
+        if (logo) ctx.drawImage(logo, (W - lgw) / 2, PAD, lgw, lgh);
 
-        /* ---- under it: the clinic on its floor (right), the facts (left) ---- */
-        var top = MH + PAD, dx = W - PAD - DW;
-        ctx.drawImage(plate, dx, top, DW, DH);
-        ctx.strokeStyle = RULE; ctx.lineWidth = 2; ctx.strokeRect(dx, top, DW, DH);
-        var pts = shape.map(function (q) { return [dx + (q[0] - box[0]) / bw * DW, top + (q[1] - box[1]) / bh * DH]; });
-        poly(ctx, pts); ctx.fillStyle = 'rgba(250,97,38,.42)'; ctx.fill();
-        poly(ctx, pts); ctx.strokeStyle = ORANGE; ctx.lineWidth = 4; ctx.stroke();
+        /* the row: two rules, the project's mark on one side, the street on the other */
+        ctx.fillStyle = TEXT; ctx.fillRect(PAD, yHead, IW, 2); ctx.fillRect(PAD, yHead + HEADH, IW, 2);
+        ctx.font = (AR_PIC ? '600 27px ' : '600 25px ') + F; ctx.textBaseline = 'alphabetic';
+        ctx.textAlign = 'left';
+        ctx.fillText(W8.mark1, PAD, yHead + 50);
+        ctx.fillText(W8.mark2, PAD, yHead + 86);
+        ctx.textAlign = 'right';
+        ctx.fillText(W8.street, W - PAD, yHead + 68);
+        ctx.textAlign = 'left';
 
-        var lx = PAD, lw = dx - GAP - PAD, y = top;
-        if (logo) {
-          var lgw = Math.min(lw, 330), lgh = lgw * logo.naturalHeight / logo.naturalWidth;
-          ctx.drawImage(logo, lx, y, lgw, lgh);
-          y += lgh + 56;
-        }
-        ctx.textBaseline = 'alphabetic';
-        ctx.fillStyle = GREY; ctx.font = '700 22px ' + F;
-        var kicker = W8.use(u);
-        if (AR_PIC) ctx.font = '600 26px ' + F;
+        /* the unit on its floor */
+        var dx = Math.round((W - DW) / 2);
+        ctx.drawImage(plate, dx, yPlate, DW, DH);
+        ctx.strokeStyle = RULE; ctx.lineWidth = 2; ctx.strokeRect(dx, yPlate, DW, DH);
+        var pts = shape.map(function (q) { return [dx + (q[0] - box[0]) / bw * DW, yPlate + (q[1] - box[1]) / bh * DH]; });
+        poly(ctx, pts); ctx.fillStyle = tint(ACCENT, 0.42); ctx.fill();
+        poly(ctx, pts); ctx.strokeStyle = ACCENT; ctx.lineWidth = 4; ctx.stroke();
+
+        /* the facts */
+        var lx = PAD, y = yText;
+        ctx.fillStyle = GREY; ctx.font = (AR_PIC ? '600 26px ' : '700 22px ') + F;
         if ('letterSpacing' in ctx && !AR_PIC) ctx.letterSpacing = '4px';   /* Arabic is never letterspaced */
-        ctx.fillText(kicker, lx, y + 22);
+        ctx.fillText(W8.use(u), lx, y + 22);
         if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
-        ctx.fillStyle = TEAL; ctx.font = '600 104px ' + F;
+        ctx.fillStyle = PRIMARY; ctx.font = '600 104px ' + F;
         ctx.fillText(u.code, lx - 4, y + 128);
-        ctx.fillStyle = CHAR; ctx.font = '500 40px ' + F;
+        ctx.fillStyle = TEXT; ctx.font = '500 40px ' + F;
         ctx.fillText(W8.area(u), lx, y + 190);
         ctx.fillStyle = GREY; ctx.font = '500 30px ' + F;
         ctx.fillText(W8.where(u, letter), lx, y + 238);
-        y += 290;
+        ctx.fillStyle = RULE; ctx.fillRect(PAD, yRule, IW, 2);
 
-        /* the key plan: where this wing sits on the whole floor */
-        var kh = top + DH - y, kw = kh * plan.naturalWidth / plan.naturalHeight;
-        if (kw > lw) { kw = lw; kh = kw * plan.naturalHeight / plan.naturalWidth; }
-        var ky = top + DH - kh;
-        ctx.drawImage(plan, lx, ky, kw, kh);
-        var ks = kw / plan.naturalWidth;
-        ctx.strokeStyle = ORANGE; ctx.lineWidth = 3.5;
-        ctx.strokeRect(lx + box[0] * ks, ky + box[1] * ks, bw * ks, bh * ks);
-        ctx.fillStyle = ORANGE; ctx.beginPath(); ctx.arc(lx + cx * ks, ky + cy * ks, 7, 0, Math.PI * 2); ctx.fill();
+        /* the master plan, its building framed and the unit pinned (the measured fit, config masterFromFloor) */
+        var mx0 = Math.round((W - MW) / 2);
+        ctx.drawImage(master, mx0, yMaster, MW, MH);
+        var toM0 = masterPoint(p, u.building, u.fid, box, ms);
+        var toM = function (x, yy) { var q = toM0(x, yy); return [mx0 + q[0], yMaster + q[1]]; };
+        var e0 = toM(box[0], box[1]), e1 = toM(box[2], box[3]);
+        ctx.fillStyle = 'rgba(255,255,255,.55)';
+        ctx.fillRect(mx0, yMaster, MW, e0[1] - yMaster);
+        ctx.fillRect(mx0, e1[1], MW, yMaster + MH - e1[1]);
+        ctx.fillRect(mx0, e0[1], e0[0] - mx0, e1[1] - e0[1]);
+        ctx.fillRect(e1[0], e0[1], mx0 + MW - e1[0], e1[1] - e0[1]);
+        ctx.strokeStyle = ACCENT; ctx.lineWidth = 5;
+        ctx.strokeRect(e0[0], e0[1], e1[0] - e0[0], e1[1] - e0[1]);
+        /* the building's tag, above its frame where there is room, otherwise beside it */
+        var tag = W8.building(letter);
+        ctx.font = '700 22px ' + F;
+        var tw = ctx.measureText(tag).width + 28, tx = e0[0], ty = e0[1] - 48;
+        if (ty < yMaster - 6) { ty = e0[1] + 6; tx = e1[0] + 12; if (tx + tw > W - 8) tx = e0[0] - tw - 12; }
+        if (tx + tw > W - 8) tx = W - 8 - tw;
+        ctx.fillStyle = ACCENT;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(tx, ty, tw, 38, 4); else ctx.rect(tx, ty, tw, 38);
+        ctx.fill();
+        ctx.fillStyle = '#FFFFFF'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+        ctx.fillText(tag, tx + 14, ty + 20);
+        var cx = shape.reduce(function (s, q) { return s + q[0]; }, 0) / shape.length;
+        var cy = shape.reduce(function (s, q) { return s + q[1]; }, 0) / shape.length;
+        var pm = toM(cx, cy);
+        pin(ctx, pm[0], pm[1], 56, ACCENT);
+        ctx.textBaseline = 'alphabetic';
 
         if (p.post && p.post.sample) {
           /* the PDF's warning, on the picture itself: a caption can be deleted */
           ctx.font = '700 22px ' + F;
           var label = W8.sample;
           var sw = ctx.measureText(label).width + 32;
-          ctx.fillStyle = ORANGE;
+          ctx.fillStyle = ACCENT;
           ctx.beginPath();
           if (ctx.roundRect) ctx.roundRect(16, 16, sw, 40, 20); else ctx.rect(16, 16, sw, 40);
           ctx.fill();
@@ -370,7 +450,7 @@
       where: function (f, b) { return '🔷 ' + f + ' · Building ' + b; },
       planLine: function (s, pl) {
         if (s.cash) return '💰 ' + pctOf(s.discountPct) + '% off · cash';
-        return '💰 ' + (s.discount ? pctOf(s.discountPct) + '% off · ' : '') + (pl.down ? pctOf(pl.down) + '% down' : 'No down payment') + ' · ' + pl.years + ' years to pay';
+        return '💰 ' + (s.discount ? pctOf(s.discountPct) + '% off · ' : '') + (pl.down ? downParts(pl).map(function (f) { return pctOf(f) + '%'; }).join(' + ') + ' down' : 'No down payment') + ' · ' + pl.years + ' years to pay';
       },
       unit: function (i, u) { return KEYCAP[i] + ' 📍*' + u.code + '* · ' + (USE_EN[u.type] || u.type) + ' ' + money(u.area) + ' m²'; },
       role: { fit: '✅ Fits the budget', cheapest: '✅ Lowest price', value: '✅ Lowest price per m²', lower: '✅ Lower price', stretch: '⬆️ A step up' },
@@ -383,6 +463,7 @@
       after: function (v) { return '👈 Price after discount EGP ' + v; },
       cash: '👈 *One payment, in cash*',
       down: function (v) { return '👈 Down payment EGP ' + v; },
+      down2: function (v) { return '👈 Then EGP ' + v + ' after 3 months'; },
       quarter: function (v, m) { return '👈 *Every 3 months EGP ' + v + '* (about ' + m + ' a month)'; },
       picRole: { fit: 'Fits the budget', cheapest: 'Lowest price', value: 'Lowest price per m²', lower: 'Lower price', stretch: 'A step up in size' },
       picHead: function (n, u) { return n + ' ' + (USE_EN[u.type] || u.type).toUpperCase() + ' OPTIONS'; }
@@ -392,7 +473,7 @@
       where: function (f, b) { return '🔷 ' + f + ' · مبنى ' + b; },
       planLine: function (s, pl) {
         if (s.cash) return '💰 خصم ' + isoPct(s.discountPct) + ' كاش';
-        return '💰 ' + (s.discount ? 'خصم ' + isoPct(s.discountPct) + ' و' : '') + 'تقسيط على ' + pl.years + (pl.years <= 10 ? ' سنين ' : ' سنة ') + (pl.down ? 'بمقدم ' + isoPct(pl.down) : 'بدون مقدم');
+        return '💰 ' + (s.discount ? 'خصم ' + isoPct(s.discountPct) + ' و' : '') + 'تقسيط على ' + pl.years + (pl.years <= 10 ? ' سنين ' : ' سنة ') + (pl.down ? 'بمقدم ' + downParts(pl).map(isoPct).join(' + ') : 'بدون مقدم');
       },
       unit: function (i, u) { return KEYCAP[i] + ' 📍*' + u.code + '* · ' + (USE_AR[u.type] || u.type) + ' ' + money(u.area) + ' متر'; },
       role: { fit: '✅ الأنسب للميزانية', cheapest: '✅ أقل سعر', value: '✅ أقل سعر للمتر', lower: '✅ سعر أقل', stretch: '⬆️ فوق الميزانية بقليل' },
@@ -405,6 +486,7 @@
       after: function (v) { return '👈 السعر بعد الخصم ' + v; },
       cash: '👈 *الدفع كاش مرة واحدة*',
       down: function (v) { return '👈 مقدم ' + v; },
+      down2: function (v) { return '👈 وبعد 3 شهور ' + v; },
       quarter: function (v, m) { return '👈 *قسط كل 3 شهور ' + v + '* (حوالي ' + m + ' في الشهر)'; },
       picRole: { fit: 'الأنسب للميزانية', cheapest: 'أقل سعر', value: 'أقل سعر للمتر', lower: 'سعر أقل', stretch: 'مساحة أكبر' },
       /* several of them: the plural */
@@ -487,6 +569,7 @@
       if (s.cash) lines.push(X.cash);
       else {
         if (s.down) lines.push(X.down(money(s.down)));
+        s.milestones.filter(function (m) { return m.down; }).forEach(function (m) { lines.push(X.down2(money(m.amount))); });
         lines.push(X.quarter(money(s.each), money(Math.ceil(Math.max(s.each, s.lastInstalment || 0) / (s.everyMonths || 3)))));
       }
     });
@@ -507,14 +590,18 @@
   function pictureOptions(o) {
     var p = o.project, opts = o.options, AR_PIC = o.lang === 'ar', L = AR_PIC ? 'ar' : 'en', W8 = PIC[L], X = OPT[L];
     if (!canPictureOptions(p, opts)) return Promise.reject(new Error('One of these units has no traced drawing'));
-    if (!samePlace(opts)) return pictureFloors(o);
-    var u0 = opts[0].unit, a = p.offer.art, box = p.plates[u0.building][u0.fid], R = p.offer.masterFromFloor;
+    /* 2026-11-04: a wide cut (the street level under HA) leaves the list no room beside it: the several-floor
+       layout puts the drawing across the picture and the list under it */
+    var b0 = p.plates[opts[0].unit.building][opts[0].unit.fid];
+    if (!samePlace(opts) || 860 * (b0[2] - b0[0]) / (b0[3] - b0[1]) > 1200 - 2 * 44 - 40 - 460) return pictureFloors(o);
+    var u0 = opts[0].unit, a = p.offer.art, box = p.plates[u0.building][u0.fid], logoSrc = logoOf(p, u0);
+    var C = palette(p, u0), PRIMARY = C.primary, ACCENT = C.accent, TEXT = C.text, GREY = C.grey, RULE = C.rule;
     var fontsReady = root.document && document.fonts && document.fonts.load
       ? Promise.all(['600 100px Manrope', '500 30px Manrope', '700 22px Manrope', '600 30px "IBM Plex Sans Arabic"', '500 30px "IBM Plex Sans Arabic"']
           .map(function (f) { return document.fonts.load(f, AR_PIC ? 'عيادة' : 'A'); })).catch(function () {})
       : Promise.resolve();
     return Promise.all([loadImage(a.master), loadImage(a.plates[u0.building][u0.fid]), loadImage(a.floors[u0.fid]),
-      a.logoOrange ? loadImage(a.logoOrange) : Promise.resolve(null), fontsReady])
+      logoSrc ? loadImage(logoSrc) : Promise.resolve(null), fontsReady])
       .then(function (g) {
         var master = g[0], plate = g[1], plan = g[2], logo = g[3];
         var W = 1200, F = '"Manrope", "IBM Plex Sans Arabic", "Segoe UI", Arial, sans-serif';
@@ -534,37 +621,32 @@
         /* the building lit on the whole master plan, one pin on it */
         /* build 126: the fit is measured on one floor's drawing (R.floor). A point on another floor's
            drawing is first carried into that floor's cut of the same building. */
-        var mb = (p.plates[u0.building] || {})[R.floor || 'first'] || box;
-        var toM = function (x, y) {
-          x = mb[0] + (x - box[0]) * (mb[2] - mb[0]) / (box[2] - box[0]);
-          y = mb[1] + (y - box[1]) * (mb[3] - mb[1]) / (box[3] - box[1]);
-          return [(R.s * x + R.tx) * ms, (R.s * y + R.ty) * ms];
-        };
+        var toM = masterPoint(p, u0.building, u0.fid, box, ms);
         var e0 = toM(box[0], box[1]), e1 = toM(box[2], box[3]);
         ctx.fillStyle = 'rgba(255,255,255,.55)';
         ctx.fillRect(0, 0, W, e0[1]);
         ctx.fillRect(0, e1[1], W, MH - e1[1]);
         ctx.fillRect(0, e0[1], e0[0], e1[1] - e0[1]);
         ctx.fillRect(e1[0], e0[1], W - e1[0], e1[1] - e0[1]);
-        ctx.strokeStyle = ORANGE; ctx.lineWidth = 5;
+        ctx.strokeStyle = ACCENT; ctx.lineWidth = 5;
         ctx.strokeRect(e0[0], e0[1], e1[0] - e0[0], e1[1] - e0[1]);
         var tag = W8.building(letter);
         ctx.font = '700 22px ' + F;
         var tw = ctx.measureText(tag).width + 28, tx = e0[0] - tw - 12, ty = e0[1] + 6;
         if (tx < 12) tx = e1[0] + 12;
-        ctx.fillStyle = ORANGE;
+        ctx.fillStyle = ACCENT;
         ctx.beginPath();
         if (ctx.roundRect) ctx.roundRect(tx, ty, tw, 38, 19); else ctx.rect(tx, ty, tw, 38);
         ctx.fill();
         ctx.fillStyle = '#FFFFFF'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
         ctx.fillText(tag, tx + 14, ty + 20);
-        pin(ctx, (e0[0] + e1[0]) / 2, (e0[1] + e1[1]) / 2, 64, ORANGE);
+        pin(ctx, (e0[0] + e1[0]) / 2, (e0[1] + e1[1]) / 2, 64, ACCENT);
         ctx.fillStyle = RULE; ctx.fillRect(0, MH, W, 2);
 
         function badge(x, y, r, n) {
           ctx.save();
           if ('direction' in ctx) ctx.direction = 'ltr';
-          ctx.fillStyle = ORANGE; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = ACCENT; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
           ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = r / 7; ctx.stroke();
           ctx.fillStyle = '#FFFFFF'; ctx.font = '700 ' + Math.round(r * 1.15) + 'px ' + F;
           ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -580,8 +662,8 @@
         opts.forEach(function (x, i) {
           var shape = p.unitShapes[x.unit.code];
           var pts = shape.map(function (q) { return [dx + (q[0] - box[0]) / bw * DW, top + (q[1] - box[1]) / bh * DH]; });
-          poly(ctx, pts); ctx.fillStyle = 'rgba(250,97,38,.42)'; ctx.fill();
-          poly(ctx, pts); ctx.strokeStyle = ORANGE; ctx.lineWidth = 4; ctx.stroke();
+          poly(ctx, pts); ctx.fillStyle = tint(ACCENT, 0.42); ctx.fill();
+          poly(ctx, pts); ctx.strokeStyle = ACCENT; ctx.lineWidth = 4; ctx.stroke();
           var cx = shape.reduce(function (s, q) { return s + q[0]; }, 0) / shape.length;
           var cy = shape.reduce(function (s, q) { return s + q[1]; }, 0) / shape.length;
           nums.push({ x: cx < (box[0] + box[2]) / 2 ? dx - 21 : dx + DW + 21, y: top + (cy - box[1]) / bh * DH, n: i + 1 });
@@ -610,11 +692,11 @@
           ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
           ctx.save();
           if ('direction' in ctx) ctx.direction = 'ltr';
-          ctx.fillStyle = TEAL; ctx.font = '600 62px ' + F;
+          ctx.fillStyle = PRIMARY; ctx.font = '600 62px ' + F;
           ctx.fillText(x.unit.code, lx + 82, y + 66);
           var cw = ctx.measureText(x.unit.code).width;
           ctx.restore();
-          ctx.fillStyle = CHAR; ctx.font = '500 34px ' + F;
+          ctx.fillStyle = TEXT; ctx.font = '500 34px ' + F;
           ctx.fillText(W8.area(x.unit), lx + 82 + cw + 22, y + 64);
           ctx.fillStyle = GREY; ctx.font = (AR_PIC ? '600 ' : '500 ') + '28px ' + F;
           ctx.fillText(X.picRole[roleOf(x, opts[0])], lx + 82, y + 108);
@@ -627,14 +709,14 @@
         if (kh >= 150) {
           var ky = top + DH - kh, ks = kw / plan.naturalWidth;
           ctx.drawImage(plan, lx, ky, kw, kh);
-          ctx.strokeStyle = ORANGE; ctx.lineWidth = 3.5;
+          ctx.strokeStyle = ACCENT; ctx.lineWidth = 3.5;
           ctx.strokeRect(lx + box[0] * ks, ky + box[1] * ks, bw * ks, bh * ks);
         }
 
         if (p.post && p.post.sample) {
           ctx.font = '700 22px ' + F;
           var label = W8.sample, sw = ctx.measureText(label).width + 32;
-          ctx.fillStyle = ORANGE;
+          ctx.fillStyle = ACCENT;
           ctx.beginPath();
           if (ctx.roundRect) ctx.roundRect(16, 16, sw, 40, 20); else ctx.rect(16, 16, sw, 40);
           ctx.fill();
@@ -667,13 +749,14 @@
   }
   function pictureFloors(o) {
     var p = o.project, opts = o.options, AR_PIC = o.lang === 'ar', L = AR_PIC ? 'ar' : 'en', W8 = PIC[L], X = OPT[L];
-    var u0 = opts[0].unit, a = p.offer.art, R = p.offer.masterFromFloor, places = placesOf(opts);
+    var u0 = opts[0].unit, a = p.offer.art, places = placesOf(opts), logoSrc = logoOf(p, u0);
+    var C = palette(p, u0), PRIMARY = C.primary, ACCENT = C.accent, TEXT = C.text, GREY = C.grey, RULE = C.rule;
     var oneBuilding = places.every(function (q) { return q.building === places[0].building; });
     var fontsReady = root.document && document.fonts && document.fonts.load
       ? Promise.all(['600 100px Manrope', '500 30px Manrope', '700 22px Manrope', '600 30px "IBM Plex Sans Arabic"', '500 30px "IBM Plex Sans Arabic"']
           .map(function (f) { return document.fonts.load(f, AR_PIC ? 'عيادة' : 'A'); })).catch(function () {})
       : Promise.resolve();
-    var loads = [loadImage(a.master), a.logoOrange ? loadImage(a.logoOrange) : Promise.resolve(null), fontsReady];
+    var loads = [loadImage(a.master), logoSrc ? loadImage(logoSrc) : Promise.resolve(null), fontsReady];
     places.forEach(function (q) { loads.push(loadImage(a.plates[q.building][q.fid])); });
     return Promise.all(loads).then(function (g) {
       var master = g[0], logo = g[1];
@@ -705,12 +788,7 @@
       var lit = {};
       places.forEach(function (q) {
         if (lit[q.building]) return;
-        var box = q.box, mb = (p.plates[q.building] || {})[R.floor || 'first'] || box;
-        var toM = function (x, y) {
-          x = mb[0] + (x - box[0]) * (mb[2] - mb[0]) / (box[2] - box[0]);
-          y = mb[1] + (y - box[1]) * (mb[3] - mb[1]) / (box[3] - box[1]);
-          return [(R.s * x + R.tx) * ms, (R.s * y + R.ty) * ms];
-        };
+        var box = q.box, toM = masterPoint(p, q.building, q.fid, box, ms);
         lit[q.building] = { e0: toM(box[0], box[1]), e1: toM(box[2], box[3]), letter: q.letter };
       });
       var keys = Object.keys(lit);
@@ -721,26 +799,26 @@
       ctx.fill('evenodd');
       keys.forEach(function (k) {
         var r = lit[k], e0 = r.e0, e1 = r.e1;
-        ctx.strokeStyle = ORANGE; ctx.lineWidth = 5;
+        ctx.strokeStyle = ACCENT; ctx.lineWidth = 5;
         ctx.strokeRect(e0[0], e0[1], e1[0] - e0[0], e1[1] - e0[1]);
         var tag = W8.building(r.letter);
         ctx.font = '700 22px ' + F;
         var tw = ctx.measureText(tag).width + 28, tx = e0[0] - tw - 12, ty = e0[1] + 6;
         if (tx < 12) tx = e1[0] + 12;
-        ctx.fillStyle = ORANGE;
+        ctx.fillStyle = ACCENT;
         ctx.beginPath();
         if (ctx.roundRect) ctx.roundRect(tx, ty, tw, 38, 19); else ctx.rect(tx, ty, tw, 38);
         ctx.fill();
         ctx.fillStyle = '#FFFFFF'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
         ctx.fillText(tag, tx + 14, ty + 20);
-        pin(ctx, (e0[0] + e1[0]) / 2, (e0[1] + e1[1]) / 2, 64, ORANGE);
+        pin(ctx, (e0[0] + e1[0]) / 2, (e0[1] + e1[1]) / 2, 64, ACCENT);
       });
       ctx.fillStyle = RULE; ctx.fillRect(0, MH, W, 2);
 
       function badge(x, y, r, n) {
         ctx.save();
         if ('direction' in ctx) ctx.direction = 'ltr';
-        ctx.fillStyle = ORANGE; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = ACCENT; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
         ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = r / 7; ctx.stroke();
         ctx.fillStyle = '#FFFFFF'; ctx.font = '700 ' + Math.round(r * 1.15) + 'px ' + F;
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -751,7 +829,7 @@
         ctx.font = (AR_PIC ? '600 24px ' : '700 22px ') + F;
         if ('letterSpacing' in ctx && !AR_PIC) ctx.letterSpacing = '3px';
         var w = ctx.measureText(text).width + 36;
-        ctx.fillStyle = ORANGE;
+        ctx.fillStyle = ACCENT;
         ctx.beginPath();
         if (ctx.roundRect) ctx.roundRect(cx - w / 2, y, w, 40, 20); else ctx.rect(cx - w / 2, y, w, 40);
         ctx.fill();
@@ -773,8 +851,8 @@
         q.items.forEach(function (it) {
           var shape = p.unitShapes[it.x.unit.code];
           var pts = shape.map(function (s) { return [dx + (s[0] - box[0]) / bw * q.dw, dtop + (s[1] - box[1]) / bh * DH]; });
-          poly(ctx, pts); ctx.fillStyle = 'rgba(250,97,38,.42)'; ctx.fill();
-          poly(ctx, pts); ctx.strokeStyle = ORANGE; ctx.lineWidth = 4; ctx.stroke();
+          poly(ctx, pts); ctx.fillStyle = tint(ACCENT, 0.42); ctx.fill();
+          poly(ctx, pts); ctx.strokeStyle = ACCENT; ctx.lineWidth = 4; ctx.stroke();
           var cx = shape.reduce(function (s, v) { return s + v[0]; }, 0) / shape.length;
           var cy = shape.reduce(function (s, v) { return s + v[1]; }, 0) / shape.length;
           nums.push({ x: cx < (box[0] + box[2]) / 2 ? dx - 21 : dx + q.dw + 21, y: dtop + (cy - box[1]) / bh * DH, n: it.n });
@@ -805,11 +883,11 @@
         ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
         ctx.save();
         if ('direction' in ctx) ctx.direction = 'ltr';
-        ctx.fillStyle = TEAL; ctx.font = '600 62px ' + F;
+        ctx.fillStyle = PRIMARY; ctx.font = '600 62px ' + F;
         ctx.fillText(u.code, lx + 82, y + 66);
         var cw = ctx.measureText(u.code).width;
         ctx.restore();
-        ctx.fillStyle = CHAR; ctx.font = '500 34px ' + F;
+        ctx.fillStyle = TEXT; ctx.font = '500 34px ' + F;
         ctx.fillText(W8.area(u), lx + 82 + cw + 22, y + 64);
         ctx.fillStyle = GREY; ctx.font = (AR_PIC ? '600 ' : '500 ') + '28px ' + F;
         ctx.fillText(X.picRole[roleOf(x, opts[0])] + ' · ' + (oneBuilding ? W8.floorName(u) : W8.where(u, place.letter)), lx + 82, y + 108);
@@ -820,7 +898,7 @@
       if (p.post && p.post.sample) {
         ctx.font = '700 22px ' + F;
         var label = W8.sample, sw = ctx.measureText(label).width + 32;
-        ctx.fillStyle = ORANGE;
+        ctx.fillStyle = ACCENT;
         ctx.beginPath();
         if (ctx.roundRect) ctx.roundRect(16, 16, sw, 40, 20); else ctx.rect(16, 16, sw, 40);
         ctx.fill();
@@ -1034,13 +1112,13 @@
       shot.appendChild(el('p', 'q-who-note', t('Making the picture…')));
       (many ? pictureOptions({ project: o.project, options: o.options, lang: lang })
             : picture({ project: o.project, unit: o.unit, buildingName: o.buildingName, lang: lang })).then(function (blob) {
-        file = new File([blob], 'Moray Wellness - ' + codes.join(' ') + '.jpg', { type: 'image/jpeg' });
+        file = new File([blob], ((MM.pdf && MM.pdf.lineOffer(o.project, many ? o.options[0].unit : o.unit)) || { name: 'Moray' }).name + ' - ' + codes.join(' ') + '.jpg', { type: 'image/jpeg' });
         fileUrl = URL.createObjectURL(blob);
         shot.textContent = '';
         var im = el('img');
         im.src = fileUrl;
         im.alt = many ? t('The picture that goes with the post: the master plan with the building lit, and the options numbered on their floor')
-          : t('The picture that goes with the post: the master plan with the building lit, and the clinic on its floor');
+          : t('The picture that goes with the post: the master plan with the building lit, and the unit on its floor');
         shot.appendChild(im);
         writeText();
       }, function (e) {
