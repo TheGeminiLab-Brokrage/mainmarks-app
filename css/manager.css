@@ -718,22 +718,3 @@ html[lang="ar"] .wk-m { grid-template-columns: minmax(0, 1fr) 30px; }
 .pulse-in.play.wait.rest .pi-icon .pi-bar { animation: none; stroke-dashoffset: 0; }
 @keyframes piDraw { to { stroke-dashoffset: 0; } }
 @keyframes piBarWait { 0%, 15% { stroke-dashoffset: 0; } 45%, 52% { stroke-dashoffset: 100; } 85%, 100% { stroke-dashoffset: 0; } }
-
-/* build 189: OPENED, who opened the agent's offer links (js/opened.js) */
-.op189-big { display: flex; align-items: baseline; gap: 8px; }
-.op189-big b { font-size: 34px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
-.op189-big span { color: rgba(255,255,255,.6); font-size: 13px; }
-.op189-rows { display: grid; border-radius: 14px; overflow: hidden; }
-.op189-r { display: grid; grid-template-columns: 10px 1fr auto; gap: 3px 10px; align-items: center; padding: 10px 12px; background: rgba(255,255,255,.04); font-size: 13.5px; }
-.op189-r:nth-child(even) { background: rgba(255,255,255,.08); }
-.op189-r i { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.35); }
-.op189-r.is-known i { background: #F7951E; }
-.op189-r.is-hot i { background: #F7951E; box-shadow: 0 0 0 4px rgba(247,149,30,.25); }
-.op189-r .nm { min-width: 0; overflow-wrap: anywhere; }
-.op189-r em { font-style: normal; font-weight: 800; font-variant-numeric: tabular-nums; }
-.op189-r small { grid-column: 2 / -1; color: rgba(255,255,255,.6); font-size: 12px; }
-.op189-tag { font-size: 11px; font-weight: 800; border-radius: 999px; padding: 3px 9px; background: rgba(247,149,30,.18); color: #F7951E; white-space: nowrap; }
-.op189-tag.g { background: rgba(52,211,153,.16); color: #34d399; }
-.op189-btns { grid-column: 2 / -1; display: flex; gap: 8px; margin-top: 4px; }
-.op189-b { font-size: 13px; font-weight: 800; border-radius: 999px; min-height: 36px; padding: 0 14px; display: inline-flex; align-items: center; border: 1px solid #F7951E; color: #F7951E; text-decoration: none; }
-.op189-b.fill { background: #F7951E; color: #111; }
