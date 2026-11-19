@@ -3557,3 +3557,6 @@ html[lang="ar"] .l-card .l-go { letter-spacing: 0; font-size: 13px; }
 .q-post-chip[aria-pressed="true"] { border-color: var(--white); background: var(--q-glass-hi); font-weight: 600; }
 .q-post-time { font-size: 16px; }
 .q-post-time[hidden] { display: none; }
+.q-post-when[hidden] { display: none; }
+.q-post-laterbox .q-cta[hidden] { display: none; }
+.q-post-laternote:empty { display: none; }

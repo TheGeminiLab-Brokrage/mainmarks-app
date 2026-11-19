@@ -1012,6 +1012,9 @@
       var laterBtn = el('button', 'q-ghost q-post-later', t('Send later: buzz my phone')); laterBtn.type = 'button';
       var laterBox = el('div', 'q-post-laterbox'); laterBox.hidden = true;
       laterBox.appendChild(el('p', 'q-k', t('When should your phone buzz?')));
+      /* build 188: the note sits at the top of the panel, so it is seen as the panel scrolls into view */
+      var laterNote = el('p', 'q-who-note q-post-laternote'); laterNote.setAttribute('aria-live', 'polite');
+      laterBox.appendChild(laterNote);
       var when = el('div', 'q-post-when');
       var chosen = null, timeIn = null;
       function at(dayAdd, h, m) { var d = new Date(); d.setDate(d.getDate() + dayAdd); d.setHours(h, m, 0, 0); return d; }
@@ -1044,16 +1047,19 @@
       laterBox.appendChild(timeIn);
       var go = el('button', 'q-cta', t('Buzz me then')); go.type = 'button';
       laterBox.appendChild(go);
-      var laterNote = el('p', 'q-who-note'); laterNote.setAttribute('aria-live', 'polite');
-      laterBox.appendChild(laterNote);
       card.appendChild(laterBtn);
       card.appendChild(laterBox);
 
       laterBtn.addEventListener('click', function () {
         laterBox.hidden = !laterBox.hidden;
         laterNote.textContent = '';
-        /* an iPhone in a Safari tab cannot be buzzed: say so at once, before he picks a time */
-        if (!laterBox.hidden && MM.buzz.state() === 'need-home') laterNote.textContent = t('On an iPhone the buzz works only from the Home Screen app. In Safari tap Share, then “Add to Home Screen”. Open Main Marks from the new icon, sign in, and plan it there.');
+        /* an iPhone in a Safari tab cannot be buzzed: say so at once, and offer no time to pick */
+        var home = MM.buzz.state() === 'need-home';
+        when.hidden = go.hidden = home;
+        if (timeIn && home) timeIn.hidden = true;
+        if (!laterBox.hidden && home) laterNote.textContent = t('On an iPhone the buzz works only from the Home Screen app. In Safari tap Share, then “Add to Home Screen”. Open Main Marks from the new icon, sign in, and plan it there.');
+        /* build 188: the panel opened below the fold on a phone and looked like nothing happened (Muhanad) */
+        if (!laterBox.hidden) setTimeout(function () { try { laterBox.scrollIntoView({ behavior: 'smooth', block: 'end' }); } catch (e) { laterBox.scrollIntoView(false); } }, 30);
       });
       go.addEventListener('click', function () {
         var d = chosen && chosen.d();
