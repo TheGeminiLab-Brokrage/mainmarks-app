@@ -1,0 +1,41 @@
+/* build 189: THE OFFER LINK, the broker's page (o.html). The sales pages' look: black, white, one orange. */
+@font-face { font-family: "Manrope"; src: url("../vendor/fonts/Manrope-VariableFont_wght.ttf") format("truetype"); font-weight: 200 800; font-style: normal; font-display: swap; }
+:root { --bg: #030303; --card: #121212; --row: #161616; --row2: #1d1d1d; --ink: #fff; --dim: rgba(255,255,255,.66); --edge: rgba(255,255,255,.13);
+  --orange: #F7951E; --good: #34d399; --bad: #ff7a6e; color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); }
+body { font-family: "Manrope", "IBM Plex Sans Arabic", system-ui, sans-serif; font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+html[dir="rtl"] body { font-family: "IBM Plex Sans Arabic", "Manrope", system-ui, sans-serif; }
+.o { max-width: 520px; margin: 0 auto; padding-block: max(16px, env(safe-area-inset-top, 0px)) 40px; display: grid; gap: 16px; }
+.o-top { display: flex; justify-content: space-between; align-items: center; }
+.o-mark { height: 22px; width: auto; }
+.o-lang { font: inherit; font-size: 13px; font-weight: 700; color: var(--ink); background: transparent; border: 1px solid var(--edge); border-radius: 999px; min-height: 36px; padding: 0 14px; cursor: pointer; }
+.o-wait, .o-note { color: var(--dim); font-size: 14px; }
+#view { display: grid; gap: 14px; }
+.o-k { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); font-weight: 700; margin: 0; }
+html[dir="rtl"] .o-k { letter-spacing: 0; }
+.o-h { font-size: 30px; font-weight: 800; letter-spacing: -.01em; margin: 0; line-height: 1.1; }
+.o-sub { color: var(--dim); font-size: 14px; margin: 0; }
+.o-live { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; }
+.o-live i { width: 9px; height: 9px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 4px rgba(52,211,153,.18); }
+.o-live.off { color: var(--bad); } .o-live.off i { background: var(--bad); box-shadow: 0 0 0 4px rgba(255,122,110,.18); }
+.o-figs { display: grid; border-radius: 14px; overflow: hidden; border: 1px solid var(--edge); }
+.o-fig { display: flex; justify-content: space-between; gap: 12px; padding: 12px 14px; background: var(--row); font-size: 14px; }
+.o-fig:nth-child(even) { background: var(--row2); }
+.o-fig b { font-variant-numeric: tabular-nums; }
+.o-fig.big b { font-size: 18px; }
+.o-cta { font: inherit; font-weight: 800; font-size: 15px; border: 0; border-radius: 14px; min-height: 52px; background: var(--orange); color: #111; cursor: pointer; width: 100%; padding: 8px 14px; }
+.o-cta small, .o-ghost small { display: block; font-weight: 600; font-size: 12px; opacity: .75; }
+.o-ghost { font: inherit; font-weight: 700; font-size: 15px; border: 1px solid var(--edge); border-radius: 14px; min-height: 52px; background: rgba(255,255,255,.06); color: var(--ink); cursor: pointer; width: 100%; padding: 8px 14px; text-decoration: none; display: grid; place-items: center; text-align: center; }
+.o-cta:disabled, .o-ghost:disabled { opacity: .5; cursor: default; }
+.o-cta:focus-visible, .o-ghost:focus-visible, .o-lang:focus-visible, .o-form input:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+.o-form { display: grid; gap: 10px; background: var(--card); border: 1px solid var(--edge); border-radius: 14px; padding: 14px; }
+.o-form label { display: grid; gap: 4px; font-size: 12px; color: var(--dim); font-weight: 700; }
+.o-form input { font: inherit; font-size: 16px; color: var(--ink); background: rgba(255,255,255,.06); border: 1px solid var(--edge); border-radius: 10px; min-height: 46px; padding: 0 12px; }
+.o-consent { font-size: 12px; color: var(--dim); margin: 0; }
+.o-err { color: var(--bad); font-size: 13px; margin: 0; }
+.o-sold { background: rgba(255,122,110,.1); border: 1px solid var(--bad); border-radius: 14px; padding: 12px 14px; font-size: 14px; }
+.o-text { white-space: pre-wrap; background: var(--card); border: 1px solid var(--edge); border-radius: 14px; padding: 14px; font-size: 14px; line-height: 1.7; margin: 0; }
+.o-foot { color: var(--dim); font-size: 12px; text-align: center; margin: 8px 0 0; }
+.o-ok { color: var(--good); font-weight: 700; font-size: 14px; margin: 0; }

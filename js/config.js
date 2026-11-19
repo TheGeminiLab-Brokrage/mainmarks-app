@@ -14,7 +14,7 @@ const CONFIG = {
   /* Bumped on every deploy, and matched by the ?v= on every script tag in
      the HTML. That pair is what stops a returning phone running yesterday's
      JavaScript. See README, "Deploying". */
-  build: 188,
+  build: 189,
 
   /* BUILD 171 (Muhanad, 17 Nov 2026: "finalize the sales view, remove anything that says this is a
      demo, for example the build number"). false = no demo marks on the screens a SALES AGENT sees:

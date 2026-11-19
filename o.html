@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Main Marks · Offer</title>
+<meta name="theme-color" content="#030303">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="img/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="img/icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/offer.css?v=189">
+</head>
+<body>
+<!-- BUILD 189: THE OFFER LINK, the broker's page (js/offerlink.js). Public: no sign-in. It shows ONE unit,
+     read live from Main Marks' sheet through the store's mm-offer function, never the price list. -->
+<main class="o" id="o" aria-live="polite">
+  <header class="o-top"><img src="img/mainmarks-wordmark.svg" alt="Main Marks" class="o-mark"><button class="o-lang" id="lang" type="button">العربية</button></header>
+  <section id="view"><p class="o-wait">Loading the unit…</p></section>
+</main>
+<script src="js/config.js?v=189"></script>
+<script src="js/inventory.js?v=189"></script>
+<script src="js/plans.js?v=189"></script>
+<script src="js/post.js?v=189"></script>
+<script src="js/offerlink.js?v=189"></script>
+</body>
+</html>

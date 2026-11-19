@@ -1090,12 +1090,27 @@
     box.appendChild(dim); box.appendChild(card);
 
     function flash(msg) { note.textContent = msg; }
+    /* build 189: THE OFFER LINK. On the real app, one unit's post carries a short link to that unit's live
+       page (o.html, js/offerlink.js), made for this post now (mm_link_make). A special request's link names
+       its company. If the link is not back yet when he sends, the post goes without it. */
+    var linkUrl = null;
+    if (!many && !o.demo && o.project && o.line && MM.auth && MM.auth.real && MM.auth.real() && MM.auth.call) {
+      MM.auth.call('/rest/v1/rpc/mm_link_make', { method: 'POST', body: {
+        p_project: o.project.id, p_line: o.line.id, p_unit: o.unit.code, p_plan: (o.plan && o.plan.id) || null,
+        p_company: (o.who && o.who.audience === 'broker' && o.who.company) || null } }).then(function (r) {
+        if (r.status !== 200 || typeof r.body !== 'string') return;
+        var b = bLetter(o.buildingName, o.unit);
+        linkUrl = location.origin + location.pathname.replace(/[^\/]*$/, '') + 'o.html?c=' + r.body + (b ? '&b=' + encodeURIComponent(b) : '');
+        writeText();
+      }, function () { /* no link: the post goes as before */ });
+    }
     function writeText() {
       try {
         var ag = agentOn.checked ? { name: nameIn.value, phone: phoneIn.value } : null;
         ta.value = many
           ? captionOptions({ project: o.project, line: o.line, options: o.options, all: o.all, lang: lang, agent: ag })
           : caption({ project: o.project, line: o.line, unit: o.unit, plan: o.plan, buildingName: o.buildingName, lang: lang, agent: ag });
+        if (linkUrl) ta.value += '\n\n' + (lang === 'ar' ? 'السعر والحالة لحظة بلحظة:' : 'Live price and availability:') + '\n' + linkUrl;
         copy.disabled = false;
       } catch (e) {
         ta.value = '';
