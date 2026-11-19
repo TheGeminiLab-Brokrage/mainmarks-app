@@ -718,3 +718,39 @@ html[lang="ar"] .wk-m { grid-template-columns: minmax(0, 1fr) 30px; }
 .pulse-in.play.wait.rest .pi-icon .pi-bar { animation: none; stroke-dashoffset: 0; }
 @keyframes piDraw { to { stroke-dashoffset: 0; } }
 @keyframes piBarWait { 0%, 15% { stroke-dashoffset: 0; } 45%, 52% { stroke-dashoffset: 100; } 85%, 100% { stroke-dashoffset: 0; } }
+
+/* build 190: THE GLASS CALENDAR of Custom dates (openCal, js/manager.js) */
+.cal190 { position: fixed; inset: 0; z-index: 90; }
+.cal190-dim { position: absolute; inset: 0; background: rgba(0,0,0,.45); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); opacity: 0; transition: opacity .22s; }
+.cal190-card { position: absolute; left: 50%; top: 50%; width: min(360px, calc(100vw - 32px)); transform: translate(-50%, -46%) scale(.97); opacity: 0;
+  transition: transform .26s cubic-bezier(.32,.72,0,1), opacity .22s; display: grid; gap: 12px; padding: 18px 16px 16px; border-radius: 26px;
+  background: rgba(34,34,37,.82); -webkit-backdrop-filter: blur(30px) saturate(150%); backdrop-filter: blur(30px) saturate(150%);
+  border: 1px solid rgba(255,255,255,.14); box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 30px 60px rgba(0,0,0,.5); color: #fff; }
+.cal190.in .cal190-dim { opacity: 1; }
+.cal190.in .cal190-card { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+@media (prefers-reduced-motion: reduce) { .cal190-dim, .cal190-card { transition: none; } }
+.cal190-k { margin: 0; font-size: 11.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.6); }
+html[dir="rtl"] .cal190-k { letter-spacing: 0; }
+.cal190-sel { margin: 0; font-size: 18px; font-weight: 800; min-height: 26px; }
+.cal190-mon { display: flex; align-items: center; justify-content: space-between; }
+.cal190-mon b { font-size: 15px; }
+.cal190-nav { width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.06); color: #fff; font: inherit; font-size: 22px; line-height: 1; cursor: pointer; }
+.cal190-nav:disabled { opacity: .3; cursor: default; }
+.cal190-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px 0; text-align: center; }
+.cal190-grid i { font-style: normal; font-size: 11px; font-weight: 700; color: rgba(255,255,255,.5); padding-bottom: 4px; }
+.cal190-d { height: 44px; border: 0; background: transparent; color: #fff; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; border-radius: 12px; font-variant-numeric: tabular-nums; }
+.cal190-d:disabled { color: rgba(255,255,255,.22); cursor: default; }
+.cal190-d.is-today { box-shadow: inset 0 0 0 1px rgba(255,255,255,.35); }
+.cal190-d.is-in { background: rgba(247,149,30,.2); border-radius: 0; }
+.cal190-d.is-end { background: #F7951E; color: #111; font-weight: 800; }
+.cal190-d:focus-visible, .cal190-nav:focus-visible, .cal190-acts button:focus-visible { outline: 2px solid #F7951E; outline-offset: 2px; }
+.cal190-acts { display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px; }
+.cal190-acts button { min-height: 48px; border-radius: 14px; font: inherit; font-size: 15px; font-weight: 800; cursor: pointer; }
+.cal190-no { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14); color: #fff; }
+.cal190-go { background: #F7951E; border: 0; color: #111; }
+.cal190-go:disabled { opacity: .4; cursor: default; }
+
+/* build 190: on an iPhone a date box would not shrink to its half of the row and ran into "Also went"
+   (Muhanad, 2026-11-20). The date box may shrink, and on a phone each field of a Record form has its own row. */
+.fld input[type="date"] { -webkit-appearance: none; appearance: none; display: block; min-width: 0; max-width: 100%; }
+@media (max-width: 520px) { #sheet .range { grid-template-columns: minmax(0, 1fr); } }

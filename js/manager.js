@@ -842,7 +842,8 @@
     function head(heading) {
       return '<div class="hd' + (MY ? ' my' : '') + '"><p class="eyebrow">' + nm(WHO.name) + ' · ' + title(WHO.title) + '</p>' + (MY ? '' : swap()) + '<h1>' + heading + '</h1><button class="when" id="when" type="button" aria-expanded="' + menuOpen + '">' + svg('cal') + periodName() + '</button></div>' +
         (menuOpen ? '<div class="menu"><div class="chips">' + PERIODS.map(function (p) { return '<button class="chip" type="button" data-r="' + p[0] + '" aria-pressed="' + (period.key === p[0]) + '">' + p[1] + '</button>'; }).join('') + '</div>' +
-          (period.key === 'c' ? '<div class="range"><label class="fld">' + t('From') + '<input type="date" id="dFrom" min="' + iso(SPAN) + '" max="' + iso(0) + '" value="' + iso(period.from) + '"></label><label class="fld">' + t('To') + '<input type="date" id="dTo" min="' + iso(SPAN) + '" max="' + iso(0) + '" value="' + iso(period.to) + '"></label></div>' : '') + '</div>' : '') +
+          /* build 190: "Custom dates" opens the glass calendar (openCal); the From / To boxes are gone */
+          '</div>' : '') +
         '<p class="showing">' + (MY ? t(sayDemo(B) ? 'Showing {dates} · your own activity · demo figures' : 'Showing {dates} · your own activity', { dates: '<b>' + rangeText() + '</b>' }) : t(B.demo ? 'Showing {dates} · your team only · demo figures' : 'Showing {dates} · your team only', { dates: '<b>' + rangeText() + '</b>' })) + '</p>';
     }
     /* the way across to the sales app, on every tab: he is a seller too */
@@ -2924,7 +2925,76 @@
     /* for checks: the description and the file, without a click */
     MM.managerReports = { describe: describe, pdfBlob: pdfBlob };
 
+    /* ---- CUSTOM DATES IN A GLASS CALENDAR (build 190; Muhanad, 2026-11-20: "when the user click on it a
+       glassy calender pop up opens and he can select the dates"). A month at a time, the week from Saturday
+       (his rule), only the days the figures reach (today back to SPAN days ago). First tap = one day, second
+       tap = the other end (either order); "Show these dates" applies them. Days are counted as "days ago",
+       as everywhere in this file. */
+    function openCal() {
+      var s1 = period.key === 'c' ? period.from : null, s2 = period.key === 'c' ? period.to : null;
+      var shown = B.dateOf(s2 !== null ? s2 : 0); shown = new Date(shown.getFullYear(), shown.getMonth(), 1);
+      var first = B.dateOf(SPAN), last = B.dateOf(0);
+      var DAYS = AR ? ['س', 'ح', 'ن', 'ث', 'ر', 'خ', 'ج'] : ['Sa', 'Su', 'Mo', 'Tu', 'We', 'Th', 'Fr'];
+      var box = document.createElement('div');
+      box.className = 'cal190';
+      box.innerHTML = '<div class="cal190-dim"></div><div class="cal190-card" role="dialog" aria-modal="true" aria-label="' + esc(t('Custom dates')) + '"></div>';
+      var card = box.querySelector('.cal190-card');
+      function lo() { return s2 === null ? s1 : Math.max(s1, s2); }
+      function hi() { return s2 === null ? s1 : Math.min(s1, s2); }
+      function paint() {
+        var y = shown.getFullYear(), m = shown.getMonth(), n = new Date(y, m + 1, 0).getDate();
+        var lead = (new Date(y, m, 1).getDay() + 1) % 7;          /* Saturday first */
+        var canBack = new Date(y, m, 1) > first, canOn = new Date(y, m + 1, 1) <= last;
+        var head = s1 === null ? t('Choose the first day') : s2 === null ? fmt(s1) + ' · ' + t('now choose the last day') : (lo() === hi() ? fmt(lo()) : fmt(lo()) + ' – ' + fmt(hi()));
+        var cells = '';
+        for (var i = 0; i < lead; i++) cells += '<span></span>';
+        for (var d = 1; d <= n; d++) {
+          var ago = B.agoOf(new Date(y, m, d)), off = ago < 0 || ago > SPAN;
+          var cls = 'cal190-d';
+          if (!off && s1 !== null) {
+            if (ago === lo() || ago === hi()) cls += ' is-end';
+            else if (s2 !== null && ago < lo() && ago > hi()) cls += ' is-in';
+          }
+          if (ago === 0) cls += ' is-today';
+          cells += '<button type="button" class="' + cls + '" data-ago="' + ago + '"' + (off ? ' disabled' : '') + '>' + (AR ? d.toLocaleString('ar-EG') : d) + '</button>';
+        }
+        card.innerHTML = '<p class="cal190-k">' + t('Custom dates') + '</p><p class="cal190-sel" aria-live="polite">' + head + '</p>' +
+          '<div class="cal190-mon"><button type="button" class="cal190-nav" data-nav="-1"' + (canBack ? '' : ' disabled') + ' aria-label="' + esc(t('Previous month')) + '">' + (AR ? '›' : '‹') + '</button>' +
+          '<b>' + shown.toLocaleDateString(AR ? 'ar-EG' : 'en-GB', { month: 'long', year: 'numeric' }) + '</b>' +
+          '<button type="button" class="cal190-nav" data-nav="1"' + (canOn ? '' : ' disabled') + ' aria-label="' + esc(t('Next month')) + '">' + (AR ? '‹' : '›') + '</button></div>' +
+          '<div class="cal190-grid">' + DAYS.map(function (x) { return '<i>' + x + '</i>'; }).join('') + cells + '</div>' +
+          '<div class="cal190-acts"><button type="button" class="cal190-no">' + t('Cancel') + '</button><button type="button" class="cal190-go"' + (s1 === null ? ' disabled' : '') + '>' + t('Show these dates') + '</button></div>';
+      }
+      function close() {
+        box.classList.remove('in');
+        document.removeEventListener('keydown', key);
+        setTimeout(function () { if (box.parentNode) box.parentNode.removeChild(box); }, 220);
+      }
+      function key(e) { if (e.key === 'Escape') close(); }
+      box.addEventListener('click', function (e) {
+        var el = e.target.closest('button');
+        if (e.target.classList.contains('cal190-dim')) return close();
+        if (!el || el.disabled) return;
+        if (el.dataset.nav) { shown = new Date(shown.getFullYear(), shown.getMonth() + (+el.dataset.nav), 1); return paint(); }
+        if (el.dataset.ago !== undefined) {
+          var a = +el.dataset.ago;
+          if (s1 === null || s2 !== null) { s1 = a; s2 = null; } else s2 = a;
+          return paint();
+        }
+        if (el.classList.contains('cal190-no')) return close();
+        if (el.classList.contains('cal190-go')) {
+          period.key = 'c'; period.from = lo(); period.to = hi(); menuOpen = false;
+          close(); compute(); draw();
+        }
+      });
+      document.addEventListener('keydown', key);
+      paint();
+      document.body.appendChild(box);
+      void box.offsetWidth;
+      box.classList.add('in');
+    }
     function setPeriod(key) {
+      if (key === 'c') { openCal(); return; }      /* build 190: the glass calendar */
       var P = PERIODS.filter(function (x) { return x[0] === key; })[0];
       period.key = key;
       if (key !== 'c') { period.from = P[2]; period.to = P[3]; menuOpen = false; }

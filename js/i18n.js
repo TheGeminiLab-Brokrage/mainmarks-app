@@ -652,6 +652,12 @@
     'Last 30 days': 'آخر 30 يوماً',
     'Last 12 weeks': 'آخر 12 أسبوعاً',
     'Custom dates': 'تواريخ محددة',
+    /* build 190: the glass calendar */
+    'Choose the first day': 'اختار أول يوم',
+    'now choose the last day': 'اختار آخر يوم',
+    'Show these dates': 'اعرض التواريخ دي',
+    'Previous month': 'الشهر اللي فات',
+    'Next month': 'الشهر الجاي',
     'Week of {date}': 'أسبوع {date}',
     'Requests in each of the last 12 weeks': 'الطلبات في كل أسبوع من آخر 12 أسبوعاً',
     'No request yet': 'لا توجد طلبات بعد',
