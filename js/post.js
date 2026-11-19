@@ -1002,6 +1002,85 @@
     var note = el('p', 'q-who-note q-post-note'); note.setAttribute('aria-live', 'polite');
     card.appendChild(note);
 
+    /* build 187: SEND LATER (Muhanad, 2026-11-20). A general broadcast of one unit can be planned for a
+       time: the phone buzzes then, and the buzz opens this unit's post sheet again, ready to send
+       (js/buzz.js, js/lineflow.js "?buzz="). Nothing is sent or counted now: the offer is counted when
+       it actually goes, from the sheet the buzz opens. Only on the real app. */
+    if (MM.buzz && MM.buzz.available() && !many && isBroadcast && !o.demo && o.project && o.line) {
+      var pad2 = function (n) { return (n < 10 ? '0' : '') + n; };
+      var hhmm = function (d) { return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); };
+      var laterBtn = el('button', 'q-ghost q-post-later', t('Send later: buzz my phone')); laterBtn.type = 'button';
+      var laterBox = el('div', 'q-post-laterbox'); laterBox.hidden = true;
+      laterBox.appendChild(el('p', 'q-k', t('When should your phone buzz?')));
+      var when = el('div', 'q-post-when');
+      var chosen = null, timeIn = null;
+      function at(dayAdd, h, m) { var d = new Date(); d.setDate(d.getDate() + dayAdd); d.setHours(h, m, 0, 0); return d; }
+      var now0 = new Date();
+      var choices = [{ k: 'try', label: t('In 2 minutes'), sub: t('To try it'), d: function () { return new Date(Date.now() + 2 * 60000); } }];
+      [[10, 0], [14, 0], [18, 0]].forEach(function (hm) {
+        if (at(0, hm[0], hm[1]) - now0 > 5 * 60000) choices.push({ label: t('Today {time}', { time: pad2(hm[0]) + ':00' }), d: function () { return at(0, hm[0], hm[1]); } });
+      });
+      choices.push({ label: t('Tomorrow {time}', { time: '10:00' }), d: function () { return at(1, 10, 0); } });
+      choices.push({ k: 'other', label: t('Another time'), d: function () {
+        var v = timeIn && /^(\d{2}):(\d{2})$/.exec(timeIn.value);
+        if (!v) return null;
+        var d = at(0, +v[1], +v[2]);
+        if (d - Date.now() < 60000) d.setDate(d.getDate() + 1);       /* a time already past today = tomorrow */
+        return d;
+      } });
+      choices.forEach(function (c) {
+        var b = el('button', 'q-post-chip', c.label); b.type = 'button'; b.setAttribute('aria-pressed', 'false');
+        if (c.sub) b.title = c.sub;
+        b.addEventListener('click', function () {
+          chosen = c;
+          [].forEach.call(when.children, function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+          if (timeIn) timeIn.hidden = c.k !== 'other';
+          if (c.k === 'other' && timeIn) timeIn.focus();
+        });
+        when.appendChild(b);
+      });
+      laterBox.appendChild(when);
+      timeIn = el('input', 'q-select q-post-time'); timeIn.type = 'time'; timeIn.hidden = true; timeIn.setAttribute('aria-label', t('Time'));
+      laterBox.appendChild(timeIn);
+      var go = el('button', 'q-cta', t('Buzz me then')); go.type = 'button';
+      laterBox.appendChild(go);
+      var laterNote = el('p', 'q-who-note'); laterNote.setAttribute('aria-live', 'polite');
+      laterBox.appendChild(laterNote);
+      card.appendChild(laterBtn);
+      card.appendChild(laterBox);
+
+      laterBtn.addEventListener('click', function () {
+        laterBox.hidden = !laterBox.hidden;
+        laterNote.textContent = '';
+        /* an iPhone in a Safari tab cannot be buzzed: say so at once, before he picks a time */
+        if (!laterBox.hidden && MM.buzz.state() === 'need-home') laterNote.textContent = t('On an iPhone the buzz works only from the Home Screen app. In Safari tap Share, then “Add to Home Screen”. Open Main Marks from the new icon, sign in, and plan it there.');
+      });
+      go.addEventListener('click', function () {
+        var d = chosen && chosen.d();
+        if (!d) { laterNote.textContent = t(chosen && chosen.k === 'other' ? 'Choose the time.' : 'Choose when.'); return; }
+        var tomorrow = d.toDateString() !== new Date().toDateString();
+        var time = hhmm(d) + (tomorrow ? ' ' + t('tomorrow') : '');
+        var url = 'project.html?p=' + encodeURIComponent(o.project.id) + '&line=' + encodeURIComponent(o.line.id) +
+                  '&buzz=' + encodeURIComponent(o.unit.code + (o.plan && o.plan.id ? ':' + o.plan.id : ''));
+        go.disabled = true;
+        laterNote.textContent = t('Planning…');
+        /* inside the tap: an iPhone asks for permission only from a tap */
+        MM.buzz.plan({ when: d, url: url, title: t('Your {time} offer is ready', { time: hhmm(d) }),
+                       body: String(o.unit.code) + ' · ' + t('Tap to open the post and send it.') }).then(function () {
+          go.disabled = false;
+          laterNote.textContent = t('Planned. Your phone will buzz at {time}. Tap the buzz to send this post.', { time: time });
+          laterBtn.textContent = t('Planned for {time} · plan another', { time: time });
+        }, function (e) {
+          go.disabled = false;
+          var c = e && e.code;
+          laterNote.textContent = c === 'need-home' ? t('On an iPhone the buzz works only from the Home Screen app. In Safari tap Share, then “Add to Home Screen”. Open Main Marks from the new icon, sign in, and plan it there.')
+            : c === 'blocked' ? t('Notifications are off for Main Marks. Turn them on in the phone’s Settings, then try again.')
+            : c === 'unsupported' ? t('This phone or browser cannot be buzzed. Use the Home Screen app on an iPhone (iOS 16.4 or newer), or Chrome on Android.')
+            : t('It could not be planned: {e}', { e: (e && e.message) || '' });
+        });
+      });
+    }
+
     box.appendChild(dim); box.appendChild(card);
 
     function flash(msg) { note.textContent = msg; }

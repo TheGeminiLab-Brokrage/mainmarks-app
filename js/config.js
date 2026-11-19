@@ -14,7 +14,7 @@ const CONFIG = {
   /* Bumped on every deploy, and matched by the ?v= on every script tag in
      the HTML. That pair is what stops a returning phone running yesterday's
      JavaScript. See README, "Deploying". */
-  build: 186,
+  build: 187,
 
   /* BUILD 171 (Muhanad, 17 Nov 2026: "finalize the sales view, remove anything that says this is a
      demo, for example the build number"). false = no demo marks on the screens a SALES AGENT sees:
@@ -53,6 +53,9 @@ const CONFIG = {
   store: {
     url: 'https://szoqzrnidwbqtwwvvxth.supabase.co',
     key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6b3F6cm5pZHdicXR3d3Z2eHRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzMTA1NzcsImV4cCI6MjEwNjg4NjU3N30.WxAqHKE4FThEkwz3nI_8boKrSa3nW0UyB-91W_GzSKI',
+    /* build 187: the PUBLIC key of the 'send later' buzz (js/buzz.js). Its private half is in the
+       store's vault only (Main Marks Store, sql/11_buzz.sql). Safe in a public file. */
+    buzzKey: 'BHN7TmZXmd9hafzfi2krSX0jxqssBnKOYnbzyDdeLJCSjIPXV902GSoui7hz1ibRmQ9rJJp4OI7I9Ux6r3R2qR0',
   },
   /* STORE:END */
 

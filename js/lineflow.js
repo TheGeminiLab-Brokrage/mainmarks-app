@@ -486,6 +486,35 @@
     /* ---- the data -------------------------------------------------------- */
     var rows = [], buildings = [], cur = { b: null, f: null, u: null };
 
+    /* build 187: THE BUZZ WAS TAPPED (js/buzz.js, sw.js). The address carries ?buzz=<unit>[:<plan>]: once
+       the units are read, that unit opens with its plan and its WhatsApp post sheet, as a general
+       broadcast, ready to send. Fail closed: a unit sold or held since it was planned is not offered;
+       he is told so instead. The ?buzz= is taken off the address so a reload does not open it again. */
+    var buzzAsk = (function () {
+      var q = null;
+      try { q = new URLSearchParams(location.search).get('buzz'); } catch (e) { q = null; }
+      var m = q && /^([A-Za-z0-9._-]{1,24})(?::([A-Za-z0-9._-]{1,48}))?$/.exec(q);
+      return m ? { code: m[1], plan: m[2] || null } : null;
+    }());
+    var buzzPost = null;
+    function openBuzz() {
+      var a = buzzAsk; buzzAsk = null;
+      try { history.replaceState(null, '', location.pathname + location.search.replace(/([?&])buzz=[^&]*&?/, '$1').replace(/[?&]$/, '')); } catch (e) { /* the address stays */ }
+      var u = rows.filter(function (x) { return x.code === a.code; })[0];
+      var b = u && homeOf(u);
+      if (!u || !b || !u.sellable) {
+        warn.hidden = false;
+        warn.textContent = t('Unit {code} is no longer available, so the planned post was not opened.', { code: a.code });
+        return;
+      }
+      if (tabbed && tab !== (u.fid === 'street' ? 'street' : 'ground')) setTab(u.fid === 'street' ? 'street' : 'ground');
+      selectBuilding(b.id, false);
+      selectFloor(u.fid);
+      if (a.plan) planId = a.plan;
+      buzzPost = u.code;
+      selectUnit(u.code, !!a.plan);
+    }
+
     function build(res) {
       rows = res.all.filter(inLine);
       rows.forEach(function (u) { u.fid = floorId(u.floor); });
@@ -709,6 +738,7 @@
         stampNow();
         ver.then(function (v) { seenVersion = v; });
         if (cur.b) selectBuilding(cur.b, false, true);
+        if (buzzAsk) openBuzz();                     /* build 187 */
       }).catch(function (err) {
         loading = false;
         /* fail closed: nothing is offered from a sheet we could not read */
@@ -1364,11 +1394,7 @@
           /* build 90: or as a WhatsApp POST (js/post.js): a picture and a
              caption, the Ayyam / Qomor way, for groups */
           if (who.format === 'post' && MM.post) {
-            MM.post.open({
-              project: p, line: l, unit: c.u, plan: c.pl, buildingName: docOf(c.u, c.b).name, who: who,
-              session: session, demo: demo, onSent: sent(who, 'post', c.u, offerKey([{ code: c.u.code, plan: c.pl && c.pl.id }])),
-              kit: { handheld: handheld, canShare: canShare, shareOrTimeOut: shareOrTimeOut, saveFile: saveFile, sentWords: sentWords }
-            });
+            postOf(c, who, demo);
             return;
           }
           /* build 83: inside the demo's phone (demo.html), the demo's own
@@ -1423,10 +1449,23 @@
         var done = function () { note.textContent = t('Copied.'); setTimeout(function () { note.textContent = ''; }, 2200); };
         if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, function () { note.textContent = t('Could not copy.'); });
       });
+      /* the WhatsApp post sheet for this offer (build 90; build 187: also opened by a tapped buzz) */
+      function postOf(c, who, demo) {
+        MM.post.open({
+          project: p, line: l, unit: c.u, plan: c.pl, buildingName: docOf(c.u, c.b).name, who: who,
+          session: session, demo: demo, onSent: sent(who, 'post', c.u, offerKey([{ code: c.u.code, plan: c.pl && c.pl.id }])),
+          kit: { handheld: handheld, canShare: canShare, shareOrTimeOut: shareOrTimeOut, saveFile: saveFile, sentWords: sentWords }
+        });
+      }
       detail.appendChild(actions);
       detail.appendChild(assume);
       s4.hidden = false;
-      if (!keep) go(s4);
+      if (!keep || buzzPost === u.code) go(s4);
+      /* build 187: the buzz's unit, on a plan that works out: its post sheet opens, a general broadcast */
+      if (buzzPost === u.code) {
+        buzzPost = null;
+        if (current && MM.post) postOf(current, { audience: 'broadcast', company: null, format: 'post' }, null);
+      }
     }
 
     /* Qomor's schedule: year-grouped, the down payment first, each year's

@@ -3546,3 +3546,14 @@ html[lang="ar"] .l-card .l-go { letter-spacing: 0; font-size: 13px; }
   stroke-width: 1; stroke-dasharray: 5 4; pointer-events: none; animation: none; }
 .lp-zones.is-searching .lp-roof:not(.is-match):not(.is-on):not(.is-none) { animation: none; fill: rgba(126, 200, 255, .06); stroke-opacity: .4; }
 @media (prefers-reduced-motion: reduce) { .lp-zones.is-idle .lp-roof:not(.is-none) { animation: none; fill: rgba(126, 200, 255, .24); } }
+
+/* build 187: SEND LATER on the WhatsApp post sheet (js/post.js) */
+.q-post-later { width: 100%; margin-top: 10px; min-height: 48px; }
+.q-post-laterbox { display: grid; gap: 10px; margin-top: 10px; }
+.q-post-laterbox[hidden] { display: none; }
+.q-post-when { display: flex; flex-wrap: wrap; gap: 8px; }
+.q-post-chip { font: inherit; font-size: 14px; min-height: 44px; padding: 0 14px; border-radius: 999px;
+  border: 1px solid var(--q-edge); background: var(--q-glass); color: var(--white); cursor: pointer; }
+.q-post-chip[aria-pressed="true"] { border-color: var(--white); background: var(--q-glass-hi); font-weight: 600; }
+.q-post-time { font-size: 16px; }
+.q-post-time[hidden] { display: none; }
