@@ -48,13 +48,13 @@
     { ch: 'Your results', sel: '.curve186', demo: true, title: 'Read any day', text: 'Drag a finger across the graph to read any day. “Open this day” shows who asked.' },
 
     { ch: 'Your companies', sel: '.reach186 .big186', pad: 10, title: 'Active companies', text: function () { var n = txt('.reach186 .big186 b'), of = txt('.reach186 .big186 span').replace(/^of\s*/, ''); return (n && of ? n + ' of your ' + of + ' companies asked you ' + when() + '.' : 'How many of your companies asked you.') + ' More asking, more sales.'; } },
-    { ch: 'Your companies', sel: '.st186[data-g186="active"]', title: 'Active', text: 'Asked you for an offer in the last 2 weeks. Keep them warm with your offers.' },
-    { ch: 'Your companies', sel: '.st186[data-g186="quiet"]', title: 'Gone quiet', text: 'Asked before, then nothing for 2 weeks. The early warning: call them today.' },
-    { ch: 'Your companies', sel: '.st186[data-g186="inactive"]', title: 'Inactive', text: 'No request to you for a month. A visit to their office can wake them up.' },
+    { ch: 'Your companies', sel: '.st186[data-g186="active"]', title: 'Active', text: 'Asked you for an offer in the dates you picked. Keep them warm with your offers.' },
+    { ch: 'Your companies', sel: '.st186[data-g186="quiet"]', title: 'Gone quiet', text: 'Asked you just before your dates, then nothing in them. The early warning: call them today.' },
+    { ch: 'Your companies', sel: '.st186[data-g186="inactive"]', title: 'Inactive', text: 'Asked you once, long before your dates, nothing since. A visit to their office can wake them up.' },
     { ch: 'Your companies', sel: '.st186[data-g186="never"]', title: 'Never asked', text: 'Never asked you for an offer. An orientation at their office is the way in.' },
     { ch: 'Your companies', sel: '.states186', pad: 8, title: 'See the names', text: 'Tap any group to see its companies. The gone quiet ones also show below it.' },
 
-    { ch: 'Your day', sel: '.ring186', title: 'Today’s target', text: function () { return 'Send ' + goal() + ' offers a day to all your companies as General broadcast. Each counts once.'; } },
+    { ch: 'Your day', sel: '.ring186', title: 'Your broadcast target', text: function () { return 'Send ' + goal() + ' offers a day, every day, to all your companies as General broadcast. Each counts once. Pick more days and the target grows with them.'; } },
     { ch: 'Your day', sel: '.path186', title: 'From request to contract', text: 'How your requests became meetings, reservations and contracts. Tap a line for names.' },
 
     { ch: 'Record your work', sel: '#fab', round: true, pad: 6, title: 'The orange +', text: 'Offers count by themselves. Your visits, meetings and deals: record them with +.' },

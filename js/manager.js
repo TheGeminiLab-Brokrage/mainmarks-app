@@ -2020,7 +2020,11 @@
     }
     function base186() { return A.prevBase === 'lastweek' ? t('last week by this day') : t('the time before'); }
     function card186Sales() {
-      var n = A.tot, held = A.open.reduce(function (a, e) { return a + (e.m2 !== undefined ? e.v / 2 : e.v); }, 0);
+      /* build 191 (Muhanad, 2026-11-20: "all the dashboard to be interactive with the dates selected", the
+         sales view): the reserved figure is the reservations MADE IN THESE DATES that are still not signed.
+         Until 190 it was every reservation open today, whatever dates were chosen. */
+      var openIn = A.open.filter(function (e) { return e.d <= period.from && e.d >= period.to; });
+      var n = A.tot, held = openIn.reduce(function (a, e) { return a + (e.m2 !== undefined ? e.v / 2 : e.v); }, 0);
       var fig = '<span data-n="' + mil(n.value) + '" data-dec="1">' + mil(n.value) + '</span>', delta = '';
       if (A.prev) {
         var d = n.value - A.prev.value;
@@ -2030,7 +2034,7 @@
       return '<section class="card hero186"><h2>' + t('My sales') + '</h2>' +
         '<div class="sales"><b>' + (AR ? fig + ' <small>' + t('million EGP') + '</small>' : '<small>EGP</small>' + fig + 'M') + '</b></div>' + delta +
         '<p class="sub186">' + (n.contract ? '<b>' + count(n.contract, 'contract') + '</b> ' + t('signed') : t('No contract signed in these dates')) +
-        (A.open.length ? ' · <b>' + money(held) + '</b> ' + t('reserved, not signed yet') : '') + '</p></section>';
+        (openIn.length ? ' · <b>' + money(held) + '</b> ' + t('reserved, not signed yet') : '') + '</p></section>';
     }
     function smooth186(pts) {
       if (pts.length < 2) return '';
@@ -2044,7 +2048,9 @@
     function card186Curve() {
       var n = A.tot, len = period.from - period.to + 1, shift = A.prevBase === 'lastweek' ? 7 : len;
       var top = '<section class="card curve186"><h2>' + t('Special requests') + ' <em>' + (A.prev ? vs(n.special, A.prev.special, A.prevBase) : '') + '</em></h2>' +
-        '<button class="big186" type="button" data-s="offers"><b data-n="' + n.special + '">' + n.special + '</b><span>' + t('to companies, one by one') + '</span></button>';
+        '<button class="big186" type="button" data-s="offers"><b data-n="' + n.special + '">' + n.special + '</b><span>' + t('to {x}', { x: count(asked186(period.from, period.to), 'company') }) + '</span></button>';
+      /* build 191 (Muhanad, 2026-11-20): "to companies, one by one" said nothing; now: to how many DIFFERENT
+         companies. The same count, by the same rule, as the big number on Active companies. */
       if (len < 2) return top + '</section>';
       var by = {}, cur = [], was = [], run = 0, run2 = 0, i;
       events.forEach(function (e) { if (e.k === 'offer' && e.c !== null) by[e.d] = (by[e.d] || 0) + 1; });
@@ -2157,16 +2163,35 @@
        LAST day of the dates (stateAt), which is today for every choice but a custom range in the past. */
     function asked186(from, to) { var s = {}; events.forEach(function (e) { if (e.k === 'offer' && e.c !== null && e.d <= from && e.d >= to) s[e.c] = 1; }); return Object.keys(s).length; }
     function groups186() {
-      var g = { active: [], quiet: [], inactive: [], never: [] };
-      book.forEach(function (c) { g[period.to === 0 ? c.state : stateAt(c, period.to)].push(c); });
-      Object.keys(g).forEach(function (k) { g[k].sort(function (a, b) { return b.total - a.total || a.name.localeCompare(b.name); }); });
+      /* build 191 (Muhanad, 2026-11-20: "all the dashboard to be interactive with the dates selected"; the
+         sales view only, the manager's groups keep their fixed rules). Until 190 the four groups were the
+         fixed 14 / 28-day states, so "Active companies 7" sat above "Active 0". Now, for the chosen dates:
+           active   = asked you in these dates (always the big number above it)
+           quiet    = asked you in the days just before them (as many days, at least 14), not in them
+           inactive = asked you before that, nothing since
+           never    = no request to you up to the last day of the dates
+         Requests after the last day are not looked at: the groups read as they stood then. */
+      var back = BACK186(), g = { active: [], quiet: [], inactive: [], never: [] };
+      book.forEach(function (c) {
+        var inD = 0, before = 0, older = 0;
+        c.asked.forEach(function (d) { if (d < period.to) return; if (d <= period.from) inD++; else if (d <= period.from + back) before++; else older++; });
+        c.n186 = inD;
+        g[inD ? 'active' : before ? 'quiet' : older ? 'inactive' : 'never'].push(c);
+      });
+      g.active.sort(function (a, b) { return b.n186 - a.n186 || b.total - a.total || a.name.localeCompare(b.name); });
+      ['quiet', 'inactive', 'never'].forEach(function (k) { g[k].sort(function (a, b) { return b.total - a.total || a.name.localeCompare(b.name); }); });
       return g;
     }
+    function BACK186() { return Math.max(period.from - period.to + 1, 14); }
+    function rule186(key) {
+      return key === 'active' ? t('Asked you for an offer in these dates.')
+        : key === 'quiet' ? t('Asked you in the {n} days before these dates, not in them.', { n: BACK186() })
+        : key === 'inactive' ? t('Asked you before that, nothing since.') : t('Has not asked you for an offer yet.');
+    }
     function openGroup186(key) {
-      if (period.to === 0) return openMyList(key);
       var list = groups186()[key];
-      showSheet('<div><h3>' + STATE[key] + '</h3><p class="role">' + count(list.length, 'company') + ' · ' + t('on {date}', { date: fmt(period.to) }) + '</p></div><div class="rows">' + list.map(function (c, i) {
-        return '<button class="row rk" type="button" data-c="' + c.id + '"><span class="no">' + (i + 1) + '</span><span class="nm">' + esc(c.name) + '</span><span class="val">' + c.total + '</span><span class="sub">' + pill(key) + '</span></button>';
+      showSheet('<div><h3>' + STATE[key] + '</h3><p class="role">' + count(list.length, 'company') + ' · ' + rangeText() + '</p><p class="note">' + rule186(key) + '</p></div><div class="rows">' + list.map(function (c, i) {
+        return '<button class="row rk" type="button" data-c="' + c.id + '"><span class="no">' + (i + 1) + '</span><span class="nm">' + esc(c.name) + '</span><span class="val">' + (key === 'active' ? c.n186 : c.total) + '</span><span class="sub">' + pill(key) + '</span></button>';
       }).join('') + '</div>');
     }
     MM.openGroup186 = openGroup186;
@@ -2176,27 +2201,35 @@
       var tot = book.length, len = period.from - period.to + 1, shift = A.prevBase === 'lastweek' ? 7 : len, keys = ['active', 'quiet', 'inactive', 'never'];
       var n = asked186(period.from, period.to), pct = tot ? Math.round(n / tot * 100) : 0, g = groups186(), cmp = '';
       if (A.prev) { var was = asked186(period.from + shift, period.to + shift), d = n - was; cmp = d === 0 ? t('the same as {b}', { b: base186() }) : (d > 0 ? t('{n} more than', { n: d }) : t('{n} fewer than', { n: -d })) + ' ' + base186(); }
-      var quiet = period.to === 0 ? g.quiet : [];
+      var quiet = g.quiet;   /* build 191: for every choice of dates, not only dates that end today */
       var when = period.from === period.to ? (period.to === 0 ? t('today') : t('on {date}', { date: fmt(period.to) })) : t('in these dates');
       return '<section class="card reach186"><h2>' + t('Active companies') + ' <em>' + periodName() + '</em></h2>' +
         '<div class="big186 still"><b data-n="' + n + '">' + n + '</b><span>' + t('of {n}', { n: tot }) + '</span><i class="pct186">' + pct + '%</i></div>' +
         '<p class="sub186">' + t('asked you for an offer {when}', { when: when }) + (cmp ? ' · <b>' + cmp + '</b>' : '') + '</p>' +
-        '<p class="grp186">' + (period.to === 0 ? t('Where your {n} companies stand today', { n: tot }) : t('Where your {n} companies stood on {date}', { n: tot, date: fmt(period.to) })) + '</p>' +
+        '<p class="grp186">' + t('Your {n} companies in these dates', { n: tot }) + '</p>' +
         '<div class="stack186" aria-hidden="true">' + keys.map(function (k) { return g[k].length ? '<i style="flex:' + g[k].length + ';background:' + COL186[k] + '"></i>' : ''; }).join('') + '</div>' +
         '<div class="states186">' + keys.map(function (k) { return '<button type="button" class="st186" data-g186="' + k + '"><i style="background:' + COL186[k] + '"></i><span>' + STATE[k] + '</span><b>' + g[k].length + '</b></button>'; }).join('') + '</div>' +
         (quiet.length ? '<p class="call186">' + t('Gone quiet: worth a call today') + '</p><div class="rows">' + quiet.slice(0, 3).map(function (c) {
           return '<button class="row q186" type="button" data-c="' + c.id + '"><span class="nm">' + esc(c.name) + '</span><span class="val">' + c.total + '</span><span class="sub">' + ago(c) + '</span></button>';
-        }).join('') + '</div>' + (quiet.length > 3 ? '<button class="go" type="button" data-go="quiet"><span>' + t('See all gone quiet') + '</span><b>' + quiet.length + '</b></button>' : '') : '') + '</section>';
+        }).join('') + '</div>' + (quiet.length > 3 ? '<button class="go" type="button" data-g186="quiet"><span>' + t('See all gone quiet') + '</span><b>' + quiet.length + '</b></button>' : '') : '') + '</section>';
     }
     function card186Ring() {
       var goal = Number(((typeof CONFIG !== 'undefined' && CONFIG.salesDay) || {}).broadcasts) || 0;
       if (!MY || !goal) return '';
-      var done = events.filter(function (e) { return e.k === 'offer' && e.c === null && e.d === 0 && e.m === ME; }).length, C = 2 * Math.PI * 31, k = Math.min(1, done / goal);
+      /* build 191 (Muhanad, 2026-11-20): the ring follows the dates. The target is the daily number times
+         every day in the dates, Fridays and Saturdays included (his word: "it count friday and satarday"). */
+      var days = period.from - period.to + 1, target = goal * days, isToday = period.from === 0 && period.to === 0;
+      var done = events.filter(function (e) { return e.k === 'offer' && e.c === null && e.d <= period.from && e.d >= period.to && e.m === ME; }).length, C = 2 * Math.PI * 31, k = Math.min(1, done / target);
       var tip = t('The daily target is at least {b} offers sent as a general broadcast to all the companies. An offer sent again to more chats still counts as one.', { b: goal });
+      var label = done + '/' + target, fs = label.length <= 5 ? 18 : label.length <= 7 ? 14 : 12;
+      var title = isToday ? t('Today’s broadcasts') : days === 1 ? t('Broadcasts on {date}', { date: fmt(period.to) }) : t('Broadcasts in these dates');
+      var line = isToday ? (done >= goal ? t('Done for today: {x}.', { x: count(done, 'broadcast') }) : t('Send an offer to all your companies {b} times a day.', { b: goal }))
+        : done >= target ? t('Target reached: {x}.', { x: count(done, 'broadcast') })
+        : t('Target: {g} a day, every day: {b} for these dates.', { g: goal, b: target });
       return '<section class="card ring186"><svg viewBox="0 0 76 76" aria-hidden="true"><circle cx="38" cy="38" r="31" fill="none" stroke="rgba(247,149,30,.18)" stroke-width="10"/>' +
         '<circle cx="38" cy="38" r="31" fill="none" stroke="#F7951E" stroke-width="10" stroke-linecap="round" stroke-dasharray="' + Math.max(0.1, k * C).toFixed(1) + ' 400" transform="rotate(-90 38 38)"/>' +
-        '<text x="38" y="44" text-anchor="middle" fill="#fff" font-size="18" font-weight="800">' + done + '/' + goal + '</text></svg>' +
-        '<div><h3>' + t('Today’s broadcasts') + '</h3><p>' + (done >= goal ? t('Done for today: {x}.', { x: count(done, 'broadcast') }) : t('Send an offer to all your companies {b} times a day.', { b: goal })) + '</p>' +
+        '<text x="38" y="' + (38 + fs * .34).toFixed(1) + '" text-anchor="middle" fill="#fff" font-size="' + fs + '" font-weight="800">' + label + '</text></svg>' +
+        '<div><h3>' + title + '</h3><p>' + line + '</p>' +
         '<button class="why" type="button" aria-expanded="false">' + t('How it counts') + '</button><span class="why-tip" role="note">' + esc(tip) + '</span></div></section>';
     }
     function card186Path() {
