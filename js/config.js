@@ -14,7 +14,7 @@ const CONFIG = {
   /* Bumped on every deploy, and matched by the ?v= on every script tag in
      the HTML. That pair is what stops a returning phone running yesterday's
      JavaScript. See README, "Deploying". */
-  build: 202,
+  build: 204,
 
   /* BUILD 171 (Muhanad, 17 Nov 2026: "finalize the sales view, remove anything that says this is a
      demo, for example the build number"). false = no demo marks on the screens a SALES AGENT sees:
@@ -542,7 +542,7 @@ const CONFIG = {
           line:   'A lively, walkable hub of shops, cafés and dining.',   lineSource: 'Moray brochure, PDF p.28',
           facts:  [ { k: 'Unit sizes', v: '43 – 2,444 m²' }, { k: 'Where', v: 'Street level and ground floor' } ],
           factsSource: 'Moray brochure, PDF p.18, 19, 28',
-          lit:    'img/moray-night-168-commercial.webp', /* build 170: back to the 168 picture (his choice, 17 Nov 2026: the 169 pool and paving glow were too much; trees softly lit, pool dark). build 159: the traced shop fronts of the five front buildings and the light they throw on the terraces, the plaza pool, the roof seating decks */
+          lit:    'img/moray-night-204-commercial.webp', /* build 204 (Muhanad, 26 Nov 2026): ONLY the ground floors lit, every building where any ground floor shows (E2 from its right side); the light taken from his Nano Banana picture (Downloads Gemini_Generated_Image_a2ycpga2ycpga2yc.jpg) onto moray-night-161 by scripts/night-aerial/composite.js (k 0.3582, ox 0, oy -4; DETAIL=3 SOFT=3 DENSE=10 WARM=0.008 DMIN=0.006 GROW=24, all 14 ids): its warm light, our render's detail, the billboard and every typical floor untouched; roofs no longer lit. Before: build 170: back to the 168 picture (his choice, 17 Nov 2026: the 169 pool and paving glow were too much; trees softly lit, pool dark). build 159: the traced shop fronts of the five front buildings and the light they throw on the terraces, the plaza pool, the roof seating decks */
           floors: ['street', 'ground'],          /* Retail, Bank, Pharmacy / F&B, Retail, Showroom, Pharmacy in their legends, PDF p.18-19 */
 
           /* --- the line page: the same flow + Find a unit as every line (build 100).

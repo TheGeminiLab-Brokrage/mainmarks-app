@@ -959,12 +959,32 @@
     }
     function lineRows() { return rows; }           /* the line's rows; floorPlate's own `rows` is one building's */
 
+    /* build 203: a street zone's cut = its outline's box + ZONE_PAD, inside the drawing's frame.
+       scripts/make-zone-plates.js cuts its picture with the same numbers: change both together. */
+    var ZONE_PAD = 10;
+    function zoneBox(pts, f) {
+      var xs = pts.map(function (q) { return q[0]; }), ys = pts.map(function (q) { return q[1]; });
+      return [Math.max(0, Math.min.apply(null, xs) - ZONE_PAD), Math.max(0, Math.min.apply(null, ys) - ZONE_PAD),
+        Math.min(f.w || Infinity, Math.max.apply(null, xs) + ZONE_PAD), Math.min(f.h || Infinity, Math.max.apply(null, ys) + ZONE_PAD)];
+    }
+
     function floorPlate(b, fid, quiet, rows) {
       /* the cut Muhanad drew in tools/cut-buildings.html (config `plates`, by the
          sheet's building name). No cut, no drawing: a guessed box took part of
          the next building, so nothing is guessed */
       var box = p.plates && p.plates[b.key] && p.plates[b.key][fid];
       var f = (p.floors || []).filter(function (x) { return x.id === fid; })[0];
+      /* BUILD 203 (Muhanad, 26 Nov 2026: "the street level plan that is cut off ... i want the cut to be the
+         whole zone and the agent select the unit from the whole zone"): on the street level the cut is the
+         WHOLE zone he traced (config `zones`), shaped to its outline, never the older block box in `plates`
+         (HA lost its right wing and ST03G, A1 its bottom end, HD its left third). Its sharp picture is
+         img/moray-zone-<id>-street.webp (scripts/make-zone-plates.js, which cuts the same box). */
+      var zpts = null, zid = null;
+      if (fid === 'street' && tabbed && l.zones) {
+        zid = physOfBuilding(b.key).filter(function (id) { return l.zones[id] && l.zones[id].length > 2; })[0] || null;
+        zpts = zid ? l.zones[zid] : null;
+      }
+      if (zpts && f) box = zoneBox(zpts, f);
       /* build 155: a cut set to 'units' (Street level, which is no block) is drawn around the traced outlines
          of the building's own units on this floor, 40 px clear, inside the drawing's frame */
       if (box === 'units' && f) {
@@ -991,7 +1011,11 @@
       lift.setAttribute('role', 'img');
       lift.setAttribute('aria-label', b.label + ' · ' + floorName(fid) + ' · ' + t('layout'));
       /* a sharp picture of exactly this cut, when there is one (config `plateImgs`) */
-      var sharp = p.plateImgs && p.plateImgs[b.key] && p.plateImgs[b.key][fid];
+      var sharp = zpts ? 'img/moray-zone-' + zid + '-street.webp' : p.plateImgs && p.plateImgs[b.key] && p.plateImgs[b.key][fid];
+      /* the zone alone: what lies outside its outline is not shown */
+      if (zpts) lift.style.clipPath = 'polygon(' + zpts.map(function (q) {
+        return ((q[0] - box[0]) / bw * 100).toFixed(2) + '% ' + ((q[1] - box[1]) / bh * 100).toFixed(2) + '%';
+      }).join(',') + ')';
       lift.style.backgroundImage = 'url("' + (sharp || f.img) + '")';
       if (sharp) { lift.style.backgroundSize = '100% 100%'; lift.style.backgroundPosition = '0 0'; }
       plate.appendChild(back);
@@ -1003,7 +1027,18 @@
       lineRows().forEach(function (u) {
         var s = shapesAll[u.code];
         if (u.fid !== fid || inCut.indexOf(u) !== -1 || !s || s.length < 3) return;
-        if (s.every(function (q) { return q[0] >= box[0] && q[0] <= box[2] && q[1] >= box[1] && q[1] <= box[3]; })) inCut.push(u);
+        if (!s.every(function (q) { return q[0] >= box[0] && q[0] <= box[2] && q[1] >= box[1] && q[1] <= box[3]; })) return;
+        /* build 203: in a street zone, only a shop whose middle lies inside the zone's own outline */
+        if (zpts) {
+          var cx = 0, cy = 0, inside = false;
+          s.forEach(function (q) { cx += q[0] / s.length; cy += q[1] / s.length; });
+          for (var i = 0, j = zpts.length - 1; i < zpts.length; j = i++) {
+            var xi = zpts[i][0], yi = zpts[i][1], xj = zpts[j][0], yj = zpts[j][1];
+            if ((yi > cy) !== (yj > cy) && cx < (xj - xi) * (cy - yi) / (yj - yi) + xi) inside = !inside;
+          }
+          if (!inside) return;
+        }
+        inCut.push(u);
       });
       rows = inCut;
       var units = unitLayer(box, rows);
