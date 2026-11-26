@@ -337,7 +337,9 @@
   function floorId(raw) {
     var s = String(raw || '').trim().toLowerCase().replace(/\s+/g, ' ');
     if (/^s\.? ?level|^street/.test(s)) return 'street';
-    if (/^g(round)?$|^gf$/.test(s)) return 'ground';
+    /* build 208 (Muhanad, 26 Nov 2026: ground shops must open by themselves when the sheet gets them): every way the
+       team may write it — Ground, G, GF, G.F, Ground Floor, G.Floor, G. Floor, Ground-floor, GRD */
+    if (/^g(round|rd)?(\.? ?-?f(loor|l)?\.?)?$/.test(s)) return 'ground';
     var words = { first: 1, second: 2, third: 3, fourth: 4, fifth: 5, '1st': 1, '2nd': 2, '3rd': 3, '4th': 4, '5th': 5 };
     if (words[s]) return FLOOR_ORDER[words[s] + 1];
     return s || 'unknown';
