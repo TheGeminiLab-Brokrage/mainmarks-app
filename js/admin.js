@@ -346,7 +346,96 @@
         : '<p class="note">' + t('Nobody is in this team yet.') + '</p>') +
       '<button class="also adm-link" type="button" data-team="' + esc(tm.id) + '">' + t('Change the manager or director') + '</button></section>';
   }
+  /* ---- BUILD 209, THE PEOPLE TAB AS THE COMPANY'S TREE (Muhanad, 26 Nov 2026: "showing the cco name in a
+     card and under it to other tabs for each director then pressing on the director the manager names
+     appear and when the manager is clicked a glassy pop up with the team agents"). Only when nothing is
+     typed in the find box and the chip is Everyone; a search or another chip shows the full list as before. */
+  var dirPick = null, glassTeam = null, backTo = null;
+  var activeIn = function (tm) { return people.filter(function (p) { return p.active && (p.team_id === tm.id || p.id === tm.manager_id); }).filter(function (p, i, a) { return a.indexOf(p) === i; }).length; };
+  var initials = function (s) { return String(s || '').trim().split(/\s+/).slice(0, 2).map(function (w) { return w.charAt(0); }).join('').toUpperCase(); };
+  /* who in a team needs her: a first password not yet changed, or wrong company spellings */
+  var needsHer = function (p) { return p.active && (p.must_change_password || p.wrong_names > 0); };
+  function teamPeople(tm) {
+    var mgr = person(tm.manager_id);
+    var agents = people.filter(function (p) { return p.team_id === tm.id && p.id !== tm.manager_id; })
+      .sort(function (a, b) { return (b.active - a.active) || (b.role === 'sales_manager') - (a.role === 'sales_manager') || rankOf(a) - rankOf(b) || byName(a, b); });
+    return { mgr: mgr, agents: agents, all: (mgr ? [mgr] : []).concat(agents) };
+  }
+  function mgrCard(tm) {
+    var tp = teamPeople(tm), n = activeIn(tm), alert = tp.all.filter(needsHer).length, off = tp.all.filter(function (p) { return !p.active; }).length;
+    var who = tp.mgr ? tp.mgr.name : tm.name;
+    return '<button class="adm-mgr' + (tp.mgr && !tp.mgr.active ? ' gone' : '') + '" type="button" data-mt="' + esc(tm.id) + '">' +
+      '<span class="adm-av" aria-hidden="true">' + esc(initials(who)) + '</span>' +
+      '<span class="adm-mgr-nm">' + nm(who) + '</span>' +
+      '<span class="adm-mgr-sub">' + (tp.mgr ? t('Manager') : t('No manager yet')) + '</span>' +
+      '<span class="adm-mgr-n"><b>' + n + '</b> ' + t('active') + (off ? ' · ' + off + ' ' + t('off') : '') + '</span>' +
+      (alert ? '<span class="adm-dot" title="' + esc(t('Needs a look: {n}', { n: alert })) + '">' + alert + '</span>' : '') + '</button>';
+  }
+  function treePeople() {
+    var html = '';
+    var all = people.filter(function (p) { return p.active && p.role !== 'admin'; }).length;
+    var dirs = people.filter(function (p) { return p.role === 'director' && (p.active || teams.some(function (x) { return x.director_id === p.id; })); }).sort(bySeniority);
+    var free = teams.filter(function (x) { return !x.director_id || !person(x.director_id) || person(x.director_id).role !== 'director'; }).sort(byTeamOrder);
+    /* the CCO: the top card, with the size of the whole company */
+    var ccos = people.filter(function (p) { return p.role === 'cco' && p.active; }).sort(byName);
+    var stats = '<div class="adm-stats"><div><b>' + dirs.filter(function (d) { return d.active; }).length + '</b><span>' + t('Directors') + '</span></div><div><b>' + teams.length + '</b><span>' + t('Teams') + '</span></div><div><b>' + all + '</b><span>' + t('Active') + '</span></div></div>';
+    html += ccos.length ? ccos.map(function (c, i) {
+      return '<section class="adm-top"><button class="adm-top-hd" type="button" data-p="' + esc(c.id) + '"><span class="adm-av big" aria-hidden="true">' + esc(initials(c.name)) + '</span><span class="adm-top-tx"><span class="adm-k">' + t('CCO') + '</span><span class="adm-top-nm">' + nm(c.name) + '</span>' +
+        (c.title && c.title.toLowerCase() !== t('CCO').toLowerCase() && c.title.toLowerCase() !== 'cco' ? '<span class="adm-top-sub">' + esc(c.title) + '</span>' : '') + '</span></button>' + (i === ccos.length - 1 ? stats : '') + '</section>';
+    }).join('') : '<section class="adm-top">' + stats + '</section>';
+    /* a tab for each director, and one for the teams no director leads yet */
+    var tabs = dirs.map(function (d) { return { id: d.id, name: d.name, d: d, teams: teams.filter(function (x) { return x.director_id === d.id; }).sort(byTeamOrder) }; });
+    if (free.length) tabs.push({ id: 'free', name: t('No director yet'), d: null, teams: free });
+    if (!tabs.some(function (x) { return x.id === dirPick; })) dirPick = tabs.length ? tabs[0].id : null;
+    if (tabs.length) {
+      html += '<div class="adm-dtabs" role="tablist" aria-label="' + esc(t('Sales director')) + '">' + tabs.map(function (x) {
+        var n = x.teams.reduce(function (s, tm) { return s + activeIn(tm); }, 0);
+        return '<button type="button" role="tab" data-dir="' + esc(x.id) + '" aria-selected="' + (x.id === dirPick) + '"' + (x.d && !x.d.active ? ' class="gone"' : '') + '><span>' + nm(x.name) + '</span><small>' + t(x.teams.length === 1 ? '1 team · {n} people' : '{t} teams · {n} people', { t: x.teams.length, n: n }) + '</small></button>';
+      }).join('') + '</div>';
+      var cur = tabs.filter(function (x) { return x.id === dirPick; })[0];
+      html += '<section class="adm-dpane" role="tabpanel">';
+      if (cur.d) html += '<button class="adm-dline' + (cur.d.active ? '' : ' gone') + '" type="button" data-p="' + esc(cur.d.id) + '"><span class="adm-k">' + t('Sales director') + '</span><span class="adm-dline-nm">' + nm(cur.d.name) + '</span>' + (cur.d.active ? '' : '<span class="adm-flag off">' + t('Switched off') + '</span>') + '</button>';
+      html += cur.teams.length ? '<p class="adm-k adm-k-pad">' + t('Managers') + '</p><div class="adm-mgrs">' + cur.teams.map(mgrCard).join('') + '</div>'
+        : '<p class="note adm-dir-none">' + t('No team under this director yet. Open a team and choose its director.') + '</p>';
+      html += '</section>';
+    }
+    var loose = people.filter(function (p) { return p.active && !LEAD[p.role] && p.role !== 'admin' && (!p.team_id || !team(p.team_id)) && !teams.some(function (x) { return x.manager_id === p.id; }); }).sort(byName);
+    if (loose.length) html += '<section class="card"><h2>' + t('Not in a team') + '</h2><div class="rows">' + loose.map(function (p) { return personRow(p); }).join('') + '</div></section>';
+    var admins = people.filter(function (p) { return p.role === 'admin' && p.active; }).sort(byName);
+    if (admins.length) html += '<section class="card"><h2>' + t('Admins') + '</h2><div class="rows">' + admins.map(function (p) { return personRow(p); }).join('') + '</div></section>';
+    return html + '<button class="btn ghost" type="button" id="addTeam">' + t('Add a team') + '</button>';
+  }
+  /* the team, in a pane of glass over the blurred page */
+  function openTeamGlass(id) {
+    var tm = team(id); if (!tm) return;
+    var tp = teamPeople(tm), d = person(tm.director_id);
+    var cnt = function (f) { return tp.all.filter(f).length; };
+    var box = $('tw');
+    if (!box) { box = document.createElement('div'); box.id = 'tw'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true'); document.body.appendChild(box); }
+    if (!glassTeam) opener = document.activeElement;
+    glassTeam = id;
+    box.setAttribute('aria-label', teamLabel(tm));
+    box.innerHTML = '<div class="adm-win"><button class="adm-wx" type="button" id="twX" aria-label="' + esc(t('Close')) + '">✕</button>' +
+      '<p class="eyebrow">' + (d ? nm(d.name) + ' · ' + t('Sales director') : t('No director yet')) + '</p><h3>' + nm(teamLabel(tm)) + '</h3>' +
+      '<div class="adm-stats small"><div><b>' + cnt(function (p) { return p.active; }) + '</b><span>' + t('active') + '</span></div><div><b>' + cnt(needsHer) + '</b><span>' + t('Needs a look') + '</span></div><div><b>' + cnt(function (p) { return !p.active; }) + '</b><span>' + t('Switched off') + '</span></div></div>' +
+      (tp.all.length ? '<div class="rows">' + (tp.mgr ? personRow(tp.mgr, t('Manager')) : '') + tp.agents.map(function (p) { return personRow(p); }).join('') + '</div>' : '<p class="note">' + t('Nobody is in this team yet.') + '</p>') +
+      '<button class="btn ghost" type="button" data-team="' + esc(tm.id) + '">' + t('Change the manager or director') + '</button></div>';
+    document.documentElement.classList.add('is-locked');
+    requestAnimationFrame(function () { box.classList.add('on'); var x = $('twX'); if (x) x.focus({ preventScroll: true }); });
+  }
+  function closeTeamGlass(keepLock) {
+    var box = $('tw'); if (!box || !glassTeam) return;
+    glassTeam = null; box.classList.remove('on');
+    if (!keepLock) { document.documentElement.classList.remove('is-locked'); if (opener && document.contains(opener)) opener.focus({ preventScroll: true }); }
+  }
   function screenPeople() {
+    if (!find && filter === 'all') {
+      var on0 = people.filter(function (p) { return p.active; }).length;
+      return head(t('People'), t('{n} accounts, {off} switched off', { n: '<b>' + people.length + '</b>', off: '<b>' + (people.length - on0) + '</b>' })) +
+        '<label class="fld adm-find"><input id="find" type="search" autocomplete="off" placeholder="' + esc(t('Find a name or an email')) + '" value=""></label>' +
+        '<div class="chips">' + [['all', t('Everyone')], ['sales', t('Sales agents')], ['sales_manager', t('Managers')], ['lead', t('Directors and CCO')], ['off', t('Switched off')]].map(function (c) { return '<button class="chip" type="button" data-f="' + c[0] + '" aria-pressed="' + (filter === c[0]) + '">' + c[1] + '</button>'; }).join('') + '</div>' +
+        treePeople();
+    }
     var on = people.filter(function (p) { return p.active; }).length;
     var html = head(t('People'), t('{n} accounts, {off} switched off', { n: '<b>' + people.length + '</b>', off: '<b>' + (people.length - on) + '</b>' })) +
       '<label class="fld adm-find"><input id="find" type="search" autocomplete="off" placeholder="' + esc(t('Find a name or an email')) + '" value="' + esc(find) + '"></label>' +
@@ -635,6 +724,8 @@
     var f = keep && $('find');                 /* History and Account have no find box */
     if (f) { f.focus(); f.setSelectionRange(f.value.length, f.value.length); }
     if (tab === 'companies') listInit();
+    /* build 209: an open team pane shows the numbers just saved */
+    if (glassTeam && tab === 'people') openTeamGlass(glassTeam);
   }
 
   /* ---- sheets ---------------------------------------------------------- */
@@ -648,6 +739,8 @@
   }
   function closeSheet() {
     $('sheet').classList.remove('on'); $('veil').classList.remove('on');
+    /* build 209: a person opened from a team's pane of glass goes back to that pane */
+    if (backTo) { var b = backTo; backTo = null; if (team(b)) { openTeamGlass(b); return; } }
     document.documentElement.classList.remove('is-locked');
     if (opener && document.contains(opener)) opener.focus({ preventScroll: true });
   }
@@ -729,7 +822,7 @@
   function openPerson(id) {
     var p = person(id); if (!p) return;
     var tm = team(p.team_id), self = p.id === session.id;
-    showSheet('<div><h3>' + nm(p.name) + '</h3><p class="role">' + roleName(p.role) + (p.title ? ' · ' + esc(p.title) : '') + '</p></div><div class="form">' +
+    showSheet('<div><h3>' + nm(p.name) + '</h3><p class="role">' + roleName(p.role) + (p.title && p.title.toLowerCase() !== roleName(p.role).toLowerCase() ? ' · ' + esc(p.title) : '') + '</p></div><div class="form">' +
       '<div class="facts"><div><span>' + t('Sign-in email') + '</span><b><bdi>' + esc(p.email) + '</bdi></b></div><div><span>' + t('Team') + '</span><b>' + (tm ? nm(teamLabel(tm)) : t('Not in a team')) + '</b></div>' +
       (p.staff_code ? '<div><span>' + t('Staff code') + '</span><b>' + nm(p.staff_code) + '</b></div>' : '') +
       '<div><span>' + t('Account') + '</span><b>' + (p.active ? (p.must_change_password ? t('On. Still using the first password.') : t('On')) : t('Switched off on {date}', { date: '<bdi>' + esc(p.left_on || '') + '</bdi>' })) + '</b></div>' +
@@ -752,8 +845,10 @@
     });
     if ($('aOnOff')) $('aOnOff').addEventListener('click', function () {
       if (p.active && !window.confirm(t('Switch off {name}? He will not be able to sign in.', { name: p.name }))) return;
-      send($('aOnOff'), rpc('mm_admin_set_active', { p_person: p.id, p_active: !p.active }), function () {
-        closeSheet(); again(p.active ? t('{name} is switched off.', { name: p.name }) : t('{name} can sign in again.', { name: p.name }));
+      /* build 209: the message follows what was asked, read before the change (the practice data changes p itself) */
+      var wasOn = !!p.active;
+      send($('aOnOff'), rpc('mm_admin_set_active', { p_person: p.id, p_active: !wasOn }), function () {
+        closeSheet(); again(wasOn ? t('{name} is switched off.', { name: p.name }) : t('{name} can sign in again.', { name: p.name }));
       });
     });
   }
@@ -874,7 +969,8 @@
       send($('aSave'), c ? rpc('mm_admin_set_company', { p_company: c.id, p_name: name, p_active: c.active }) : rpc('mm_admin_add_company', some ? { p_name: name, p_agents: some } : { p_name: name }), function () { closeSheet(); again(c ? t('Saved.') : some ? t('{name} is on the list, given to {who}.', { name: name, who: whoNames(some) }) : t('{name} is on the list.', { name: name })); });
     });
     if ($('aOnOff')) $('aOnOff').addEventListener('click', function () {
-      send($('aOnOff'), rpc('mm_admin_set_company', { p_company: c.id, p_name: c.name, p_active: !c.active }), function () { closeSheet(); again(c.active ? t('{name} is switched off.', { name: c.name }) : t('{name} is on the list.', { name: c.name })); });
+      var wasOn = !!c.active;   /* build 209: read before the change, as for a person */
+      send($('aOnOff'), rpc('mm_admin_set_company', { p_company: c.id, p_name: c.name, p_active: !wasOn }), function () { closeSheet(); again(wasOn ? t('{name} is switched off.', { name: c.name }) : t('{name} is on the list.', { name: c.name })); });
     });
     if (!c) $('aName').focus();
   }
@@ -1092,6 +1188,15 @@
   document.addEventListener('click', function (e) {
     var hit = function (a) { return e.target.closest('[' + a + ']'); };
     var p = hit('data-p'), c = hit('data-c'), f = hit('data-f'), tb = e.target.closest('#tab [data-tab]'), l = hit('data-lang'), tm = hit('data-team');
+    /* build 209: the team's pane of glass. A tap outside the pane or on ✕ closes it; a person or "Change the
+       manager or director" closes it and opens the sheet in its place. */
+    if (glassTeam) {
+      if (e.target.closest('#twX') || (e.target.id === 'tw')) { closeTeamGlass(); return; }
+      if (e.target.closest('#tw') && (p || tm)) { backTo = glassTeam; closeTeamGlass(true); }
+      else if (e.target.closest('#tw')) return;
+    }
+    if (hit('data-dir')) { dirPick = hit('data-dir').dataset.dir; $('scr').classList.remove('in'); draw(); var dt = document.querySelector('.adm-dtabs [aria-selected="true"]'); if (dt) { dt.focus({ preventScroll: true }); dt.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } return; }
+    if (hit('data-mt')) { openTeamGlass(hit('data-mt').dataset.mt); return; }
     if (e.target.closest('#veil')) closeSheet();
     else if (tb) { tab = tb.dataset.tab; find = ''; if (tab === 'history') hist.failed = false; draw(); window.scrollTo(0, 0); }
     else if (hit('data-hf')) { hist.filter = hit('data-hf').dataset.hf; draw(); }
@@ -1138,7 +1243,7 @@
   /* build 141: "Another plan" shows the two numbers it asks for */
   document.addEventListener('change', function (e) { if (e.target.id === 'rPl' && $('rPlO')) { $('rPlO').hidden = e.target.value !== 'other'; if ($('pErr')) $('pErr').hidden = true; } });
   document.addEventListener('input', function (e) { if ((e.target.id === 'rPd' || e.target.id === 'rPy') && $('pErr')) $('pErr').hidden = true; });
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeSheet(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { if (glassTeam) closeTeamGlass(); else closeSheet(); } });
 
   /* for the check script: the email rule, without a browser tap */
   MM.adminSuggestEmail = suggestEmail;

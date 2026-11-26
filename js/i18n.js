@@ -1680,7 +1680,15 @@
     'Units in this file': 'الوحدات في هذا الملف',
     'Every available unit and every unit on hold, as the app reads it now.': 'كل الوحدات المتاحة والمحجوزة مؤقتاً، كما يقرؤها التطبيق الآن.',
     'Add a list': 'إضافة قائمة',
-    'Adding {n} of {total}…': 'جارٍ إضافة {n} من {total}…'
+    'Adding {n} of {total}…': 'جارٍ إضافة {n} من {total}…',
+    /* build 209 admin: People as the company's tree */
+    'Directors': 'مديرو القطاعات',
+    'active': 'نشط',
+    'off': 'موقوف',
+    'Needs a look: {n}': 'يحتاج إلى مراجعة: {n}',
+    'Needs a look': 'يحتاج إلى مراجعة',
+    '{t} teams · {n} people': 'الفرق {t} · الأشخاص {n}',
+    '1 team · {n} people': 'فريق واحد · الأشخاص {n}'
   };
 
   /* ---- the sheet's words and config values --------------------------- */

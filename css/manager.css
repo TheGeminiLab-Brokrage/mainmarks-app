@@ -816,3 +816,84 @@ html[dir="rtl"] .cal190-k { letter-spacing: 0; }
 .adm-page .sheet .x { width: 44px; height: 44px; top: 10px; inset-inline-end: 10px; }
 .row.adm-person.gone .val { text-decoration: none; }   /* the flag of a switched-off person is not struck through */
 @media (min-width: 900px) { .adm-page .scr > .card { grid-column: 1 / -1; } }
+
+/* ---- build 209: People as the company's tree (admin.html). The CCO card, a tab for each director, his
+   managers as cards, a manager's team in a pane of glass. Neutral Haze glass, orange only for "chosen". */
+.adm-top { display: grid; gap: 14px; padding: 18px; border-radius: 24px; border: 1px solid rgba(255,255,255,.14);
+  background: linear-gradient(165deg, rgba(255,255,255,.12), rgba(255,255,255,.03) 60%), rgba(22,22,24,.6);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.16), 0 20px 40px -20px rgba(0,0,0,.7); }
+.adm-top-hd { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 14px; min-height: 56px; }
+.adm-top-hd:focus-visible, .adm-dline:focus-visible, .adm-mgr:focus-visible, .adm-dtabs button:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; }
+.adm-top-tx { display: grid; gap: 2px; min-width: 0; }
+.adm-k { font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--mut); }
+.adm-top-nm { font-size: 24px; font-weight: 800; line-height: 1.15; letter-spacing: -.01em; color: var(--ink); overflow-wrap: anywhere; }
+.adm-top-nm::after, .adm-dline-nm::after { content: "\00a0\203A"; color: var(--faint); font-weight: 400; }
+.adm-top-sub { font-size: 13px; color: var(--mut); }
+.adm-av { flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-size: 15px; font-weight: 800; letter-spacing: .02em; color: var(--ink);
+  background: linear-gradient(160deg, rgba(255,255,255,.22), rgba(255,255,255,.06)); box-shadow: inset 0 0 0 1px rgba(255,255,255,.16); }
+.adm-av.big { width: 58px; height: 58px; font-size: 19px; }
+.adm-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.adm-stats > div { display: grid; gap: 2px; padding: 11px 12px; border-radius: 16px; background: rgba(255,255,255,.065); }
+.adm-stats > div:nth-child(2) { background: rgba(255,255,255,.035); }
+.adm-stats b { font-size: 22px; font-weight: 800; line-height: 1.1; color: var(--ink); }
+.adm-stats span { font-size: 11.5px; color: var(--mut); line-height: 1.3; }
+.adm-stats.small b { font-size: 19px; }
+/* the director tabs: a dark well, the chosen one a solid orange pill with black ink (as the date switch) */
+.adm-dtabs { display: flex; gap: 4px; padding: 4px; border-radius: 16px; background: rgba(0,0,0,.3); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); overflow-x: auto; scrollbar-width: none; }
+.adm-dtabs::-webkit-scrollbar { display: none; }
+.adm-dtabs button { all: unset; box-sizing: border-box; cursor: pointer; flex: 1 0 auto; min-height: 52px; padding: 8px 14px; border-radius: 12px; display: grid; align-content: center; gap: 1px; text-align: center;
+  color: var(--mut); transition: background .25s, color .25s; }
+.adm-dtabs button span { font-size: 15px; font-weight: 700; white-space: nowrap; }
+.adm-dtabs button small { font-size: 11px; font-weight: 600; opacity: .85; white-space: nowrap; }
+.adm-dtabs button[aria-selected="true"] { background: var(--acc); color: #000; box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 4px 12px rgba(0,0,0,.35); }
+.adm-dtabs button.gone:not([aria-selected="true"]) span { text-decoration: line-through; }
+.adm-dpane { display: grid; gap: 10px; animation: admPane .35s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes admPane { from { opacity: 0; transform: translateY(8px); } }
+.adm-dline { all: unset; box-sizing: border-box; cursor: pointer; display: grid; gap: 2px; padding: 6px 4px 2px; min-height: 44px; }
+.adm-dline-nm { font-size: 22px; font-weight: 800; line-height: 1.2; color: var(--ink); overflow-wrap: anywhere; }
+.adm-dline.gone .adm-dline-nm { color: var(--mut); }
+.adm-dline .adm-flag { justify-self: start; }
+.adm-k-pad { margin: 4px 4px -2px; }
+.adm-mgrs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.adm-mgr { all: unset; box-sizing: border-box; cursor: pointer; position: relative; display: grid; align-content: start; gap: 4px; padding: 14px; border-radius: 20px; min-height: 150px;
+  background: linear-gradient(170deg, rgba(255,255,255,.09), rgba(255,255,255,.03)); border: 1px solid rgba(255,255,255,.1); box-shadow: inset 0 1px 0 rgba(255,255,255,.1);
+  transition: transform .2s ease, border-color .2s ease; }
+.adm-mgr:active { transform: scale(.97); border-color: var(--acc); }
+@media (hover: hover) { .adm-mgr:hover { border-color: rgba(255,255,255,.24); } }
+.adm-mgr .adm-av { margin-bottom: 6px; }
+.adm-mgr-nm { font-size: 15.5px; font-weight: 700; line-height: 1.25; color: var(--ink); overflow-wrap: anywhere; }
+.adm-mgr-sub { font-size: 11.5px; color: var(--mut); }
+.adm-mgr-n { margin-top: auto; padding-top: 8px; font-size: 12px; color: var(--mut); }
+.adm-mgr-n b { font-size: 17px; font-weight: 800; color: var(--ink); }
+.adm-mgr.gone .adm-mgr-nm { color: var(--mut); }
+.adm-dot { position: absolute; top: 12px; inset-inline-end: 12px; min-width: 22px; height: 22px; padding: 0 6px; box-sizing: border-box; border-radius: 999px; display: grid; place-items: center; font-size: 11.5px; font-weight: 800; color: #000; background: var(--acc); }
+/* the team's pane of glass, in the middle of the screen over the blurred page */
+#tw { position: fixed; inset: 0; z-index: 30; display: grid; align-items: center; justify-items: center; padding: 20px 12px; overflow-y: auto;
+  background: rgba(6,6,7,.4); -webkit-backdrop-filter: blur(18px) saturate(1.2); backdrop-filter: blur(18px) saturate(1.2);
+  opacity: 0; visibility: hidden; transition: opacity .28s ease, visibility 0s linear .28s; }
+#tw.on { opacity: 1; visibility: visible; transition: opacity .28s ease; }
+.adm-win { position: relative; width: min(100%, 460px); max-height: calc(100dvh - 40px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; display: grid; gap: 12px; padding: 22px 16px 16px; border-radius: 30px; box-sizing: border-box;
+  background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.04)), rgba(28,28,30,.6);
+  -webkit-backdrop-filter: blur(34px) saturate(1.8); backdrop-filter: blur(34px) saturate(1.8);
+  border: 1px solid rgba(255,255,255,.18); box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 30px 80px rgba(0,0,0,.6);
+  transform: translateY(24px) scale(.97); transition: transform .42s cubic-bezier(.2,1.1,.3,1); }
+.adm-win::-webkit-scrollbar { display: none; }
+#tw.on .adm-win { transform: none; }
+.adm-win .eyebrow { padding-inline-end: 48px; }
+.adm-win h3 { margin: -4px 0 0; font-size: 24px; font-weight: 800; letter-spacing: -.01em; line-height: 1.2; padding-inline-end: 44px; overflow-wrap: anywhere; }
+.adm-win .rows { display: grid; gap: 3px; }
+.adm-win .btn { margin-top: 2px; }
+.adm-wx { all: unset; cursor: pointer; position: absolute; top: 12px; inset-inline-end: 12px; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-size: 15px; color: var(--ink);
+  background: rgba(255,255,255,.12); }
+.adm-wx:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+@media (max-width: 359px) { .adm-mgrs { grid-template-columns: 1fr; } .adm-mgr { min-height: 0; } }
+@media (min-width: 900px) {
+  .adm-page .scr > .adm-top, .adm-page .scr > .adm-dtabs, .adm-page .scr > .adm-dpane, .adm-page .scr > .chips { grid-column: 1 / -1; }
+  .adm-mgrs { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) { .adm-dpane, .adm-win, #tw { animation: none; transition: none; } }
+/* build 209: History lines shaded one lighter, one darker, no hairlines (the rule for every list of rows) */
+.adm-page .hist { display: grid; gap: 3px; }
+.adm-page .hist .hl { border-top: 0; padding: 11px 12px; border-radius: 12px; background: rgba(255,255,255,.065); }
+.adm-page .hist .hl:nth-child(even) { background: rgba(255,255,255,.03); }
+.adm-page .hist .hl:first-child { padding-top: 11px; }
