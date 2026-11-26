@@ -322,12 +322,21 @@
     return matches(p.name + ' ' + p.email + ' ' + (p.staff_code || '') + ' ' + (p.title || ''));
   }
   var byName = function (a, b) { return a.name.localeCompare(b.name); };
+  /* build 198 (Muhanad: "check the last Excel sheet that shows the hierarchy"): the order of the company's sheet
+     (New Sales Structure, 05 Nov 2026). Directors and teams by the staff code of the director and of the
+     manager, the oldest first (the lowest staff code number first, as the sheet lists them); a team's people
+     by rank as the sheet lists them, then by name. No staff name or code here: this file is published. */
+  var codeNo = function (p) { var m = p && /(\d+)/.exec(p.staff_code || ''); return m ? +m[1] : 1e9; };
+  var bySeniority = function (a, b) { return codeNo(a) - codeNo(b) || byName(a, b); };
+  var RANK = [/assistant\s+sales\s+manager/i, /supervisor/i, /senior\s+property\s+consultant/i, /property\s+consultant/i];
+  var rankOf = function (p) { for (var i = 0; i < RANK.length; i++) if (RANK[i].test(p.title || '')) return i; return RANK.length; };
+  var byTeamOrder = function (x, y) { return bySeniority(person(x.manager_id), person(y.manager_id)) || x.name.localeCompare(y.name); };
   /* one team: its name (its manager's), how many are in it, the manager first, his sales agents under him */
   function teamCard(tm) {
     var mgr = person(tm.manager_id);
     var members = people.filter(function (p) { return p.team_id === tm.id && p.id !== tm.manager_id; });
     var on = members.filter(function (p) { return p.active; }).length + (mgr && mgr.active ? 1 : 0);
-    var agents = members.filter(showsUp).sort(function (a, b) { return (b.active - a.active) || (b.role === 'sales_manager') - (a.role === 'sales_manager') || byName(a, b); });
+    var agents = members.filter(showsUp).sort(function (a, b) { return (b.active - a.active) || (b.role === 'sales_manager') - (a.role === 'sales_manager') || rankOf(a) - rankOf(b) || byName(a, b); });
     var mgrShown = mgr && showsUp(mgr);
     var quiet = find || filter !== 'all';
     if (quiet && !mgrShown && !agents.length) return '';
@@ -353,9 +362,9 @@
     var ccos = people.filter(function (p) { return p.role === 'cco' && p.active && showsUp(p); }).sort(byName);
     if (ccos.length) { any = true; html += '<section class="card"><h2>' + t('CCO') + '</h2><div class="rows">' + ccos.map(function (p) { return personRow(p); }).join('') + '</div></section>'; }
     /* each director, and the teams he leads under him */
-    var dirs = people.filter(function (p) { return p.role === 'director' && (p.active || teams.some(function (x) { return x.director_id === p.id; })); }).sort(byName);
+    var dirs = people.filter(function (p) { return p.role === 'director' && (p.active || teams.some(function (x) { return x.director_id === p.id; })); }).sort(bySeniority);
     dirs.forEach(function (d) {
-      var mine = teams.filter(function (x) { return x.director_id === d.id; });
+      var mine = teams.filter(function (x) { return x.director_id === d.id; }).sort(byTeamOrder);
       var cards = filter === 'lead' ? '' : mine.map(teamCard).join('');
       var dShown = showsUp(d);
       if (quiet && !dShown && !cards) return;
@@ -368,7 +377,7 @@
     /* teams no director leads yet */
     if (filter !== 'lead') {
       var free = teams.filter(function (x) { return !x.director_id || !person(x.director_id) || person(x.director_id).role !== 'director'; });
-      var freeCards = free.map(teamCard).join('');
+      var freeCards = free.sort(byTeamOrder).map(teamCard).join('');
       if (freeCards) {
         any = true;
         html += '<section class="adm-dir"><div class="adm-dir-hd flat"><span class="adm-k">' + (dirs.length ? t('No director yet') : t('Teams')) + '</span></div><div class="adm-dir-teams">' + freeCards + '</div></section>';

@@ -3599,3 +3599,12 @@ html[lang="ar"] .mb-logo-sub { letter-spacing: 0; font-family: "IBM Plex Sans Ar
    left (the projects page cards: place, description, facts, Open). In Arabic they align right. */
 [dir="rtl"] .mm-card, [dir="rtl"] .chip, [dir="rtl"] .u-card, [dir="rtl"] .demo-acct,
 [dir="rtl"] .pick-foot .gate-priv { text-align: right; }
+
+/* build 198 (Muhanad, 2026-11-26: "in the login page the main marks footer should not be changed as when i turn
+   it to arabic the Bespoke Experiences go to the left of the page"). MAIN MARKS : BESPOKE EXPERIENCES is Main
+   Marks' lockup, in English in both languages: in Arabic it keeps the English order and alignment (the name,
+   then the tagline to its right), on every page that carries it (sign-in, projects, start, project). */
+[dir="rtl"] .mm-sig { direction: ltr; }
+[dir="rtl"] .mm-tag { text-align: left; }
+/* and its English letter spacing (line 3274 sets every letter-spacing to 0 in Arabic, for Arabic text) */
+[dir="rtl"] .mm-foot .mm-tag, [dir="rtl"] .mm-sig .mm-tag span { letter-spacing: .06em !important; }
