@@ -290,13 +290,26 @@
       void im.offsetWidth;            /* drawn once off, so its first light fades in */
       return im;
     }
+    /* BUILD 206: a line with light masks (Commercial) shows a chosen building through ITS OWN mask (config litMask), white
+       where that building's light was put when the picture was made, so inside the card it lights exactly as it does on
+       the Moray page. A building with no mask has no light on the Moray page either. */
+    function maskLayer(src, P) {
+      if ((l.litMaskIds || []).indexOf(P.id) === -1) return null;
+      var url = 'url("' + l.litMask + P.id + '.png")';
+      var im = litLayer(src, [[0, 0], [W, 0], [W, H], [0, H]]);
+      im.style.clipPath = '';
+      ['maskImage', 'webkitMaskImage'].forEach(function (k) { im.style[k] = url; });
+      ['maskSize', 'webkitMaskSize'].forEach(function (k) { im.style[k] = '100% 100%'; });
+      ['maskRepeat', 'webkitMaskRepeat'].forEach(function (k) { im.style[k] = 'no-repeat'; });
+      return im;
+    }
     function lightOn(P, on) {
       if (!topSrc && !typeSrc) return;
       if (!lights[P.id]) {
         if (!on) return;
         lights[P.id] = [];
-        if (typeSrc) lights[P.id].push(litLayer(typeSrc, areaOf(P)));
-        if (topSrc) lights[P.id].push(litLayer(topSrc, shapeOf(P)));   /* the top over the type: the roof wins */
+        if (typeSrc) { var ly = l.litMask ? maskLayer(typeSrc, P) : litLayer(typeSrc, areaOf(P)); if (ly) lights[P.id].push(ly); }
+        if (topSrc && l.litTop !== false) lights[P.id].push(litLayer(topSrc, shapeOf(P)));   /* the top over the type: the roof wins */
       }
       lights[P.id].forEach(function (im) { im.classList.toggle('is-off', !on); });
     }

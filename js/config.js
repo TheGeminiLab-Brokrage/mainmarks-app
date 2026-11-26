@@ -14,7 +14,7 @@ const CONFIG = {
   /* Bumped on every deploy, and matched by the ?v= on every script tag in
      the HTML. That pair is what stops a returning phone running yesterday's
      JavaScript. See README, "Deploying". */
-  build: 205,
+  build: 206,
 
   /* BUILD 171 (Muhanad, 17 Nov 2026: "finalize the sales view, remove anything that says this is a
      demo, for example the build number"). false = no demo marks on the screens a SALES AGENT sees:
@@ -611,6 +611,15 @@ const CONFIG = {
              level', inventory: 'ST' }]`, build 155); with no line building, each shop is filed under its block again
              (js/lineflow.js build, homeKey) and its offer still names that block. */
           streetTabs: true,
+          /* BUILD 206 (Muhanad, 26 Nov 2026: "when the user select the building the way the layout inside the card light up should be
+             exactly like how it is outside"). On the Ground floor tab a chosen building lights EXACTLY as on the Moray page: this
+             line's lit picture through that building's own light mask (litMask + id + .png, white where its light was put, made
+             with the picture by scripts/night-aerial/composite.js MASKS=...), and no roof light (litTop: false). A building's
+             traced outline stops above its shop glass and takes in a neighbour's shops, so an outline cut could not match. A
+             building with no mask has no light outside, and none inside. RE-MAKE THE MASKS WITH EVERY NEW lit PICTURE. */
+          litTop: false,
+          litMask: 'img/moray-litmask-206-',
+          litMaskIds: ['A1', 'B1', 'C1', 'D1-D2', 'D3-D4', 'E1', 'E2'],
           /* the zones on the street-level plan, in its frame (1445 x 1332). HA, A2, A1, C2, C1 and HD TRACED BY
              MUHANAD in tools/trace-street-zones.html (scripts/make-street-zone-tracer.js), 18 Nov 2026 (build 184).
              HB and HC are STILL THE SEED BOXES round ST02B / ST02A (he will trace them later); neither holds a shop
