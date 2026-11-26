@@ -641,76 +641,8 @@
     s.appendChild(el('p', 'src', t('Pictures and figures: {list}', { list: lines.map(function (l) {
       return l.name + ' — ' + l.factsSource;
     }).join('; ') })));
-    s.appendChild(inventoryExport());
+    /* build 197: the inventory download is on the admin page only (js/invexport.js) */
     return s;
-  }
-
-  /* ---- THE INVENTORY, AS THE APP READS IT (build 155) --------------------------------------------------
-     Main Marks Development, 11 Nov 2026: "Add a feature to extract the inventory periodically for
-     validation." One Excel file, every row of the sheet the moment it is pressed: what the app read
-     (code, building, floor, type, size, price, status) and what it makes of it (its block, whether it is
-     offered, whether its outline is traced, whether it gets the offer PDF, its delivery). For the people
-     who check the data: a sales manager, a director, the CCO and the admin. Nothing is written anywhere. */
-  function inventoryExport() {
-    var role = CONFIG.roles[session.role] || {};
-    var box = el('div', 'inv-export');
-    if (!(role.canSeeTeam || session.role === 'admin') || !p.inventory || !MM.xlsx) return box;
-    var btn = el('button', 'inv-export-btn', t('Download the inventory (Excel)'));
-    btn.type = 'button';
-    box.appendChild(btn);
-    box.appendChild(el('p', 'inv-export-note', t('Every unit as the app reads it now, to check the data.')));
-    btn.addEventListener('click', function () {
-      if (btn.disabled) return;
-      btn.disabled = true;
-      MM.inventory.load(p.inventory).then(function (res) {
-        var B = p.buildings || [];
-        var rows = res.all.map(function (u) {
-          var x = Object.assign({}, u);
-          x.fid = MM.inventory.floorId(u.floor);
-          /* placed as the line page places it: a street shop in the block above it, a "B" unit in its block */
-          var k = MM.plans.blockOf(p, u);
-          if (k) {
-            var shared = B.filter(function (y) { return (y.sheet || []).indexOf(u.building) !== -1; }).length;
-            if (shared > 1) x.building = k.id;
-            else if (!B.some(function (y) { return (y.sheet || []).indexOf(u.building) !== -1 || y.id === u.building; })) x.building = (k.sheet || [])[0] || k.id;
-          }
-          var line = MM.pdf ? MM.pdf.lineOf(p, x) : null, dm = MM.plans.termsFor(p, u).deliveryMonths;
-          return [u.code, u.building, k ? k.id : '', u.floor, u.type, line ? line.name : '', u.area, u.areaFrom === 'plan' ? t('The floor plan') : t('The inventory'),
-                  u.listPrice, u.status, u.sellable ? t('Yes') : t('No'),
-                  (p.unitShapes || {})[u.code] ? t('Yes') : t('No'),
-                  u.sellable && MM.pdf && MM.pdf.can(p, x) ? t('Yes') : t('No'),
-                  dm ? dm / 12 : ''];
-        });
-        var n = function (f) { return rows.filter(f).length; };
-        var now = new Date();
-        var report = {
-          title: t('{name} inventory, as the app reads it', { name: p.name }),
-          subtitle: t('Read {when}', { when: now.toLocaleString('en-GB') }),
-          rtl: !!MM.isArabic,
-          summary: [[t('Units in the inventory'), rows.length], [t('Offered (available)'), n(function (r) { return r[10] === t('Yes'); })],
-                    [t('Not for sale'), n(function (r) { return r[10] !== t('Yes'); })], [t('With an outline on the drawing'), n(function (r) { return r[11] === t('Yes'); })],
-                    [t('With the offer PDF'), n(function (r) { return r[12] === t('Yes'); })]],
-          notes: res.problems || [],
-          tables: [{ title: t('Units'), cols: [
-            { h: t('Unit'), w: 10 }, { h: t('Building (inventory)'), w: 12 }, { h: t('Block'), w: 9 }, { h: t('Floor'), w: 10 }, { h: t('Type'), w: 11 },
-            { h: t('Line'), w: 18 }, { h: t('Area m²'), type: 'int', w: 9 }, { h: t('Area from'), w: 13 }, { h: t('Price'), type: 'money', w: 14 },
-            { h: t('Status'), w: 12 }, { h: t('Offered'), w: 9 }, { h: t('Outline'), w: 9 }, { h: t('Offer PDF'), w: 10 }, { h: t('Delivery, years'), type: 'int', w: 10 }],
-            rows: rows }]
-        };
-        var file = p.name + ' inventory - ' + now.toISOString().slice(0, 10) + '.xlsx';
-        var blob = new Blob([MM.xlsx.workbook(report)], { type: MM.xlsx.type });
-        var w = window.parent, hook = null;
-        try { hook = w && w !== window && w.MMsave; } catch (e) { hook = null; }
-        if (!(typeof hook === 'function' && hook(blob, file) === true)) {
-          var a = document.createElement('a'), url = URL.createObjectURL(blob);
-          a.href = url; a.download = file; document.body.appendChild(a); a.click(); a.remove();
-          setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
-        }
-      }).catch(function () {
-        box.appendChild(el('p', 'inv-export-note', t('The inventory could not be read. Try again.')));
-      }).then(function () { btn.disabled = false; });
-    });
-    return box;
   }
 
   function lineCard(l) {

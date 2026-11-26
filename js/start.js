@@ -15,7 +15,8 @@
   var session = MM.auth.require('start.html');
   if (!session) return;
   /* build 135: on the real app too. Team Pulse reads the store now, so there is a team to lead. */
-  if (session.role !== 'sales_manager') { location.replace('index.html'); return; }
+  /* build 198: a director and the CCO lead too */
+  if (!MM.auth.leads()) { location.replace('index.html'); return; }
 
   document.body.classList.add('seq');
 

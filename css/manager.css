@@ -754,3 +754,65 @@ html[dir="rtl"] .cal190-k { letter-spacing: 0; }
    (Muhanad, 2026-11-20). The date box may shrink, and on a phone each field of a Record form has its own row. */
 .fld input[type="date"] { -webkit-appearance: none; appearance: none; display: block; min-width: 0; max-width: 100%; }
 @media (max-width: 520px) { #sheet .range { grid-template-columns: minmax(0, 1fr); } }
+
+/* build 192 (Muhanad, 2026-11-20: "how the arrow look in the arabic is messed up"). On the Arabic page a "›"
+   or "‹" is turned round by the browser depending on the words beside it: after a Latin company name it
+   pointed right, after Arabic words it pointed left. Every arrow is now set apart and drawn left to right,
+   so it shows exactly the "‹" written here: pointing left, the way the page reads. css/haze.css is generated
+   and draws some of these with "›"; these rules are more specific, so they win wherever haze.css loads. */
+[dir="rtl"] .st186 b::after, [dir="rtl"] .step186 b::after, [dir="rtl"] .mini186 span::after,
+[dir="rtl"] .stat span::after, [dir="rtl"] .row:not(.flat) .nm::after, [dir="rtl"] .go b::after,
+[dir="rtl"] .mv-grp .n::after, [dir="rtl"] .row.wk-row:not(.flat) .nm::after {
+  content: "‹"; direction: ltr; unicode-bidi: isolate; display: inline-block; margin-left: 0; margin-right: .3em;
+}
+[dir="rtl"] .st186 b::after { margin-right: 5px; }
+/* the calendar's month buttons hold one arrow each, already chosen for Arabic in js/manager.js */
+[dir="rtl"] .cal190-nav { direction: ltr; unicode-bidi: isolate; }
+/* the "Open this day" button in the graph's note: its arrow drawn here like the others (the button is
+   reset with all: unset in css/haze.css, and an arrow typed into its text still turned round in Arabic) */
+.day186::after { content: " ›"; }
+[dir="rtl"] .day186::after { content: "‹"; direction: ltr; unicode-bidi: isolate; display: inline-block; margin-left: 0; margin-right: .3em; }
+
+/* ---- build 198 admin: THE PEOPLE PAGE AS THE COMPANY IS (Muhanad, 25 Nov 2026: "first we need to have
+   the director, and the teams under this director, which is the manager, and the manager, their sales
+   team under it ... make it easier to the eye"). A director is a heading, not a card; his teams stand
+   under him on a thin line, each team a card called after its manager, the manager first. One accent
+   (orange) stays for what is chosen; everything here is white and grey. ------------------------------ */
+.adm-dir { display: grid; gap: 10px; }
+.adm-dir-hd { all: unset; box-sizing: border-box; cursor: pointer; display: grid; gap: 3px; padding: 8px 4px 2px; min-height: 44px; }
+.adm-dir-hd.flat { cursor: default; min-height: 0; }
+.adm-dir-hd:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; border-radius: 10px; }
+.adm-dir-hd .adm-k { font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--mut); }
+.adm-dir-nm { font-size: 22px; font-weight: 700; line-height: 1.2; color: var(--ink); overflow-wrap: anywhere; }
+.adm-dir-hd:not(.flat) .adm-dir-nm::after { content: "\00a0›"; color: var(--faint); font-weight: 400; }
+[dir="rtl"] .adm-dir-hd:not(.flat) .adm-dir-nm::after { content: "\00a0‹"; }
+.adm-dir-sub { font-size: 12.5px; color: var(--mut); }
+.adm-dir-hd.gone .adm-dir-nm { color: var(--mut); }
+.adm-dir-none { margin: 0 4px; }
+.adm-dir-teams { display: grid; gap: 12px; margin-inline-start: 4px; padding-inline-start: 12px; border-inline-start: 2px solid rgba(255,255,255,.14); }
+.adm-team-hd { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.scr .card.adm-team h2 { font-size: 17px; font-weight: 700; letter-spacing: 0; text-transform: none; color: var(--ink); display: block; overflow-wrap: anywhere; }
+.adm-count { flex: none; min-width: 30px; height: 30px; padding: 0 9px; box-sizing: border-box; border-radius: 999px; display: grid; place-items: center; font-size: 13px; font-weight: 700; color: var(--ink); background: rgba(255,255,255,.09); }
+/* a row: the name, and under it the job, on one line each; no email */
+.row.adm-person .nm { white-space: normal; overflow-wrap: anywhere; }
+.row.adm-person .sub { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+.adm-tag { font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink); background: rgba(255,255,255,.12); border-radius: 999px; padding: 2px 8px; }
+.scr .rows > .row.adm-lead-row { background: rgba(255,255,255,.085); }
+.row.adm-person .val.code { display: grid; gap: 4px; justify-items: end; }
+/* Companies: the two ways to add, side by side */
+.adm-adds { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.adm-adds .btn { min-height: 48px; font-size: 14px; }
+@media (max-width: 359px) { .adm-adds { grid-template-columns: 1fr; } }
+@media (min-width: 900px) {
+  .scr > .adm-dir, .scr > .adm-adds, .scr > .adm-find, .scr > #addTeam { grid-column: 1 / -1; }
+  .adm-dir-teams { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .adm-adds { max-width: 560px; }
+}
+/* build 198 admin: the Apple sizes on the admin page (text 11 px or more, a tap 44 px or more). The manager
+   and sales pages keep theirs: these rules ask for body.adm-page (admin.html only). */
+.adm-page .tab button { font-size: 11px; }
+.adm-page .adm-flag, .adm-page .adm-tag, .adm-page .sec, .adm-page .hist .k, .adm-page .row .val small, .adm-page .kv span { font-size: 11px; }
+.adm-page .adm-link { min-height: 44px; display: inline-flex; align-items: center; padding-block: 0; }
+.adm-page .sheet .x { width: 44px; height: 44px; top: 10px; inset-inline-end: 10px; }
+.row.adm-person.gone .val { text-decoration: none; }   /* the flag of a switched-off person is not struck through */
+@media (min-width: 900px) { .adm-page .scr > .card { grid-column: 1 / -1; } }

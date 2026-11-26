@@ -235,7 +235,7 @@
     'The down payment is taken as a share of the price after the plan’s discount.':
       'المقدم محسوب كنسبة من السعر بعد خصم نظام السداد.',
     'The first instalment falls three months after the down payment, as in Main Marks’ sample contract.':
-      'القسط الأول يستحق بعد 3 شهور من المقدم، كما في نموذج عقد Main Marks.'
+      'القسط الأول يستحق بعد 3 أشهر من المقدم، كما في نموذج عقد Main Marks.'
   };
 
   var AR = {
@@ -259,7 +259,7 @@
     project: 'المشروع', projectSub: function (p) { return [p.mark, 'شارع التسعين الشمالي، القاهرة الجديدة'].filter(Boolean).join('  ·  '); },
     renderSrc: function (pg) { return 'الصورة: كتيب Moray، صفحة ' + pg + '.'; },
     /* build 155 (our Arabic) */
-    mixedUse: 'متعدد الاستخدامات', mark1: 'العلامة الأولى /', mark2: 'القاهرة الجديدة', northSt: 'التسعين الشمالي',
+    mixedUse: 'Mixed use', mark1: '1ST MARK /', mark2: 'NEW CAIRO',   /* build 197: slogan lockup and Mixed use stay English (his word) */ northSt: 'التسعين الشمالي',
     renderSrcDay: 'الصورة والخريطة: Main Marks.', mapSrc: 'موقع Moray: شارع التسعين الشمالي، القاهرة الجديدة.',
     factSmall: function (f) { return f.smallAr || f.small; },
     plaza: 'الساحة المركزية الكبرى', sky: 'الصالات العلوية',
@@ -285,13 +285,13 @@
     /* 4 */
     yourUnit: function (K) { return K.arYour; }, unitSub: function (b, fl, L) { return b + '  ·  ' + fl + '  ·  ' + L.nameAr; },
     thisUnit: function (K, c) { return K.arThis + '، ' + c; },
-    fUnitCode: 'كود الوحدة', unitWord: function (K) { return K.ar; }, fFloor: 'الدور', fArea: 'المساحة', fList: 'السعر الأصلي', fPerM: 'سعر المتر المربع',
+    fUnitCode: 'رمز الوحدة', unitWord: function (K) { return K.ar; }, fFloor: 'الدور', fArea: 'المساحة', fList: 'السعر الأصلي', fPerM: 'سعر المتر المربع',
     onFloor: function (fl) { return 'في ' + fl; },
     drawingsSrc: function (floor) { return 'الرسومات: مخططات أدوار Main Marks، ' + floor + '.'; },
     /* 5 */
     paymentPlan: 'نظام السداد',
     planLabel: function (pl) {
-      if (pl.cash) return 'كاش فوري' + (pl.discount ? '  ·  خصم ' + pct(pl.discount) + '%' : '');
+      if (pl.cash) return 'دفع نقدي فوري' + (pl.discount ? '  ·  خصم ' + pct(pl.discount) + '%' : '');
       /* a split down payment names both parts: مقدم 2.5% + 2.5% */
       var parts = [pl.down].concat((pl.milestones || []).filter(function (m) { return m.down; }).map(function (m) { return m.pct; }));
       return 'مقدم ' + parts.map(function (f) { return pct(f) + '%'; }).join(' + ') + '  ·  ' + yearsAr(pl.years) + (pl.discount ? '  ·  خصم ' + pct(pl.discount) + '%' : '');
@@ -299,8 +299,8 @@
     group: function (until) { return until ? 'العرض الحالي  ·  ساري حتى ' + until : 'نظام أساسي'; },
     cPayable: 'السعر بعد الخصم', cPrice: 'السعر', cOff: function (p, l) { return 'خصم ' + p + '% من ' + l; },
     cNoDiscount: 'بدون خصم على نظام السداد هذا', cDown: 'المقدم', cOnSigning: 'عند التعاقد', cNothing: 'لا شيء عند التعاقد',
-    cPlusLater: function (v) { return 'عند التعاقد، + ' + v + ' بعد 3 شهور'; },
-    cEvery: 'كل 3 شهور', cOver: function (n, y) { return countAr(n) + ' على ' + yearsAr(y); },
+    cPlusLater: function (v) { return 'عند التعاقد، + ' + v + ' بعد 3 أشهر'; },
+    cEvery: 'كل 3 أشهر', cOver: function (n, y) { return countAr(n) + ' على ' + yearsAr(y); },
     cPaid: 'السداد', cOnce: 'دفعة واحدة عند التعاقد',
     sPrice: 'السعر', list: 'السعر الأصلي', discount: 'خصمك',
     /* NO space after the sign: with one, the shaper's ordering put the minus on
@@ -308,9 +308,9 @@
     minus: function (v) { return '−' + money(v) + ' جنيه'; },
     discountSub: function (p, current, afterDown) { return 'خصم ' + p + (afterDown ? '% من المتبقي بعد المقدم  ·  ' : '% من السعر الأصلي  ·  ') + (current ? 'العرض الحالي' : 'هذا النظام'); },
     payable: 'السعر بعد الخصم', price: 'السعر',
-    sHow: 'طريقة السداد', paidFull: 'السداد بالكامل عند التعاقد', downRow: 'المقدم، عند التعاقد', down2Row: 'الجزء الثاني من المقدم، بعد 3 شهور',
+    sHow: 'طريقة السداد', paidFull: 'السداد بالكامل عند التعاقد', downRow: 'المقدم، عند التعاقد', down2Row: 'الجزء الثاني من المقدم، بعد 3 أشهر',
     downSub: function (p, onList, date) { return p + (onList ? '% من السعر الأصلي  ·  ' : '% من السعر بعد الخصم  ·  ') + date; },
-    instRow: function (n) { return countAr(n) + '، كل 3 شهور'; },
+    instRow: function (n) { return countAr(n) + '، كل 3 أشهر'; },
     instSub: function (a, b, last) { return 'الأول في ' + a + '، والأخير في ' + b + (last ? ' (الأخير ' + last + ')' : ''); },
     each: function (v) { return v + ' للقسط'; },
     planTotal: 'إجمالي نظام السداد',
@@ -327,22 +327,22 @@
     schedule: 'جدول السداد', scheduleTitle: 'كل دفعة بتاريخها',
     scheduleSub: function (date, cash, before) {
       return 'من تعاقد بتاريخ ' + date + '. ' +
-        (cash ? 'السداد بالكامل عند التعاقد. ' : 'الأقساط كل 3 شهور، والقسط الأول بعد 3 شهور من التعاقد، كما في نموذج عقد Main Marks. ') +
+        (cash ? 'السداد بالكامل عند التعاقد. ' : 'الأقساط كل 3 أشهر، والقسط الأول بعد 3 أشهر من التعاقد، كما في نموذج عقد Main Marks. ') +
         (before === null ? '' : before !== undefined ? 'وديعة الصيانة تُستحق قبل الاستلام ' + byAr(before) + '.' : 'وديعة الصيانة غير موضحة لأن Main Marks لم تؤكدها بعد.');
     },
     colYear: 'السنة', colDue: 'تاريخ الاستحقاق', colWhat: 'البيان', colAmount: 'المبلغ (جنيه)',
-    year: function (n) { return 'السنة ' + n; }, rowDown: 'المقدم', rowDown2: 'الجزء الثاني من المقدم', rowCash: 'دفعة كاش',
+    year: function (n) { return 'السنة ' + n; }, rowDown: 'المقدم', rowDown2: 'الجزء الثاني من المقدم', rowCash: 'دفعة نقدية',
     rowInst: function (n, of) { return 'القسط ' + n + ' من ' + of; }, rowMaint: 'وديعة الصيانة',
     plusMaint: 'يضاف إليها وديعة الصيانة بعد أن تؤكد Main Marks قيمتها وموعدها.',
     deliveryTbc: 'موعد استلام هذا المبنى تؤكده Main Marks لاحقاً.',
     deliveryLine: function (date, m) { return 'الاستلام في ' + date + '، بعد ' + spanAr(m) + ' من التعاقد.'; }
   };
-  function spanAr(m) { return m === 12 ? 'سنة' : m === 24 ? 'سنتين' : m % 12 === 0 ? yearsAr(m / 12) : m + (m <= 10 ? ' شهور' : ' شهراً'); }
+  function spanAr(m) { return m === 12 ? 'سنة' : m === 24 ? 'سنتين' : m % 12 === 0 ? yearsAr(m / 12) : m + (m <= 10 ? ' أشهر' : ' شهراً'); }
   /* build 154: the admin sets the years (2 to 12), so the Arabic counted noun follows the number:
      2 سنتين, 3 to 10 سنوات, 11 and up سنة; 3 to 10 أقساط, 11 and up قسطاً */
   function yearsAr(y) { return y === 1 ? 'سنة واحدة' : y === 2 ? 'سنتين' : y + (y <= 10 ? ' سنوات' : ' سنة'); }
   function countAr(n) { return n + (n <= 10 ? ' أقساط' : ' قسطاً'); }
-  /* "by a year" بسنة, but "by 6 months" بـ 6 شهور: a digit does not join the letter */
+  /* "by a year" بسنة, but "by 6 months" بـ 6 أشهر: a digit does not join the letter */
   function byAr(m) { var w = spanAr(m); return (/^[0-9]/.test(w) ? 'بـ ' : 'ب') + w; }
 
   /* ---- jsPDF's own Arabic passes, switched off for this document ----
@@ -1306,7 +1306,8 @@
     return {
       render: L.cover, logoCover: L.logoCover, logoPage: L.logoPage, mainMarks: a.mainMarks,
       plate: a.plates && a.plates[u.building] && a.plates[u.building][u.fid],
-      plan: a.floors && a.floors[u.fid],
+      /* build 195: the key plan as a PNG with a see-through outside (config floorsPdf); the JPEG if none */
+      plan: (a.floorsPdf && a.floorsPdf[u.fid]) || (a.floors && a.floors[u.fid]),
       street: a.street, plaza: a.plaza, sky: a.sky, roomA: L.rooms.a.img, roomB: L.rooms.b.img, master: a.master,
       map: a.map, morayLogo: a.morayLogo, morayWhite: a.morayWhite, mainMarksBlack: a.mainMarksBlack,
       script: L.script,  /* build 156: optional, the commercial cover's "Same place / One Address" */

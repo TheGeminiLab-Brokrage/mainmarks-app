@@ -45,7 +45,8 @@
     if (me && me.role === 'admin') return 'admin.html';
     /* build 124 sent a manager on the store straight to the sales app, because Team Pulse still drew the
        demo book. build 135: Team Pulse reads the store, so he lands on "Lead or sell?" there as well. */
-    if (!raw) return me && me.role === 'sales_manager' && (REAL || CONFIG.salesTeam) ? 'start.html' : 'index.html';
+    /* build 198: a director and the CCO land there too (MM.auth.leads) */
+    if (!raw) return me && MM.auth.leads() && (REAL || CONFIG.salesTeam) ? 'start.html' : 'index.html';
     if (/^[a-z0-9\-]+\.html(\?[^#]*)?$/i.test(raw)) return raw;
     return 'index.html';
   }

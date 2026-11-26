@@ -80,10 +80,15 @@
   var FLOOR = { street: 'Street', ground: 'Ground', first: '1st', second: '2nd', third: '3rd', fourth: '4th', fifth: '5th' };
 
   function money(v) { return Math.round(v).toLocaleString('en-US'); }
-  function millions(v) { return (Math.round(v / 1e4) / 100).toString().replace(/\.0+$/, '') + 'M'; }
+  function millions(v) { return (Math.round(v / 1e4) / 100).toString().replace(/\.0+$/, '') + (MM.isArabic ? ' مليون' : 'M'); }
   /* 55,500 reads "55.5k", never "56k": a summary must not round a budget
      up past what the client said */
-  function short(v) { return !v ? '0' : v >= 1e6 ? millions(v) : (Math.round(v / 100) / 10).toString().replace(/\.0$/, '') + 'k'; }
+  function short(v) {
+    if (!v) return '0';
+    /* build 197: Arabic reads "2 مليون" / "400 ألف", never "2M" / "400k" */
+    if (MM.isArabic) return v >= 1e6 ? millions(v) : (Math.round(v / 100) / 10).toString().replace(/\.0$/, '') + ' ألف';
+    return v >= 1e6 ? millions(v) : (Math.round(v / 100) / 10).toString().replace(/\.0$/, '') + 'k';
+  }
   function roundUpTo(n, step) { return Math.ceil(n / step) * step; }
 
   /* What a salesperson types: "8m", "500k", "8,000,000", "٨٠٠٠٠٠٠",
@@ -593,7 +598,7 @@
     function bandWord(b) {
       if (!b.lo) return t('Up to {v}', { v: millions(b.hi) });
       if (b.hi === null) return t('Over {v}', { v: millions(b.lo) });
-      return millions(b.lo).replace(/M$/, '') + '–' + millions(b.hi);
+      return millions(b.lo).replace(/M$| مليون$/, '') + '–' + millions(b.hi);
     }
     function floorWords() {
       return t('{floors} floor', { floors: join(floorList.filter(function (f) { return has(S.floors, f); }).map(fl)) });

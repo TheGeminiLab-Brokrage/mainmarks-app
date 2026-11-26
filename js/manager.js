@@ -224,8 +224,9 @@
      Pulse. Which rows a manager is handed is the database's decision (mm_can_see: his own team's), never
      this page's, so there is nothing here to keep closed any more. */
   /* Fail closed: Team Pulse is the sales manager's, My activity is a salesperson's who is on the team.
-     The director and CCO views are not built. */
-  if (MY ? MM.auth.member() === -1 : session.role !== 'sales_manager') { location.replace('index.html'); return; }
+     Build 198: a director and the CCO open Team Pulse too (MM.auth.leads); the store hands each his own
+     teams, the CCO every team. */
+  if (MY ? MM.auth.member() === -1 : !MM.auth.leads()) { location.replace('index.html'); return; }
 
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
@@ -237,20 +238,20 @@
      two, 3 to 10, and 11 up. [en one, en many, ar 1, ar 2, ar 3-10, ar 11+] */
   var NOUN = {
     company: ['company', 'companies', 'شركة واحدة', 'شركتان', 'شركات', 'شركة'],
-    salesperson: ['sales agent', 'sales agents', 'سيلز واحد', '2 سيلز', 'سيلز', 'سيلز'],
-    meeting: ['meeting', 'meetings', 'ميتنج واحد', '2 ميتنج', 'ميتنج', 'ميتنج'],
-    deal: ['deal', 'deals', 'بيعة واحدة', 'بيعتان', 'بيعات', 'بيعة'],
-    offer: ['offer', 'offers', 'اوفر واحد', 'اوفرين', 'اوفرات', 'اوفر'],
+    salesperson: ['sales agent', 'sales agents', 'مندوب مبيعات واحد', 'مندوبا مبيعات', 'مندوبي مبيعات', 'مندوب مبيعات'],
+    meeting: ['meeting', 'meetings', 'اجتماع واحد', 'اجتماعان', 'اجتماعات', 'اجتماعاً'],
+    deal: ['deal', 'deals', 'صفقة واحدة', 'صفقتان', 'صفقات', 'صفقة'],
+    offer: ['offer', 'offers', 'عرض واحد', 'عرضان', 'عروض', 'عرضاً'],
     request: ['request', 'requests', 'طلب واحد', 'طلبان', 'طلبات', 'طلباً'],
-    broadcast: ['broadcast', 'broadcasts', 'برودكاست واحد', '2 برودكاست', 'برودكاست', 'برودكاست'],
+    broadcast: ['broadcast', 'broadcasts', 'رسالة جماعية واحدة', 'رسالتان جماعيتان', 'رسائل جماعية', 'رسالة جماعية'],
     contract: ['contract', 'contracts', 'عقد واحد', 'عقدان', 'عقود', 'عقداً'],
     reservation: ['reservation', 'reservations', 'حجز واحد', 'حجزان', 'حجوزات', 'حجزاً'],
     cancellation: ['cancellation', 'cancellations', 'إلغاء واحد', 'إلغاءان', 'إلغاءات', 'إلغاءً'],
-    post: ['WhatsApp post', 'WhatsApp posts', 'بوست واتساب واحد', 'بوستان على واتساب', 'بوستات واتساب', 'بوست واتساب'],
+    post: ['WhatsApp post', 'WhatsApp posts', 'منشور واتساب واحد', 'منشوران على واتساب', 'منشورات واتساب', 'منشور واتساب'],
     pdf: ['offer PDF', 'offer PDFs', 'ملف PDF واحد', 'ملفان PDF', 'ملفات PDF', 'ملف PDF']
   };
-  NOUN.orientation = ['orientation', 'orientations', 'اورينتيشن واحد', '2 اورينتيشن', 'اورينتيشن', 'اورينتيشن'];
-  NOUN.workshop = ['workshop', 'workshops', 'ورك شوب واحد', '2 ورك شوب', 'ورك شوب', 'ورك شوب'];
+  NOUN.orientation = ['orientation', 'orientations', 'جلسة تعريفية واحدة', 'جلستان تعريفيتان', 'جلسات تعريفية', 'جلسة تعريفية'];
+  NOUN.workshop = ['workshop', 'workshops', 'ورشة عمل واحدة', 'ورشتا عمل', 'ورش عمل', 'ورشة عمل'];
   NOUN.day = ['day', 'days', 'يوم واحد', 'يومين', 'أيام', 'يوماً'];
   NOUN.special = ['special request', 'special requests', 'طلب خاص واحد', 'طلبان خاصان', 'طلبات خاصة', 'طلباً خاصاً'];
   NOUN.entry = ['entry', 'entries', 'إدخال واحد', 'إدخالان', 'إدخالات', 'إدخالاً'];
@@ -844,7 +845,7 @@
         (menuOpen ? '<div class="menu"><div class="chips">' + PERIODS.map(function (p) { return '<button class="chip" type="button" data-r="' + p[0] + '" aria-pressed="' + (period.key === p[0]) + '">' + p[1] + '</button>'; }).join('') + '</div>' +
           /* build 190: "Custom dates" opens the glass calendar (openCal); the From / To boxes are gone */
           '</div>' : '') +
-        '<p class="showing">' + (MY ? t(sayDemo(B) ? 'Showing {dates} · your own activity · demo figures' : 'Showing {dates} · your own activity', { dates: '<b>' + rangeText() + '</b>' }) : t(B.demo ? 'Showing {dates} · your team only · demo figures' : 'Showing {dates} · your team only', { dates: '<b>' + rangeText() + '</b>' })) + '</p>';
+        '<p class="showing">' + (MY ? t(sayDemo(B) ? 'Showing {dates} · your own activity · demo figures' : 'Showing {dates} · your own activity', { dates: '<b>' + rangeText() + '</b>' }) : t(B.demo ? 'Showing {dates} · your team only · demo figures' : B.everyTeam ? 'Showing {dates} · every team' : 'Showing {dates} · your team only', { dates: '<b>' + rangeText() + '</b>' })) + '</p>';
     }
     /* the way across to the sales app, on every tab: he is a seller too */
     function swap() { return '<a class="swap" href="index.html">' + svg('send') + t('Quick Offer') + '</a>'; }
@@ -2033,7 +2034,7 @@
       }
       return '<section class="card hero186"><h2>' + t('My sales') + '</h2>' +
         '<div class="sales"><b>' + (AR ? fig + ' <small>' + t('million EGP') + '</small>' : '<small>EGP</small>' + fig + 'M') + '</b></div>' + delta +
-        '<p class="sub186">' + (n.contract ? '<b>' + count(n.contract, 'contract') + '</b> ' + t('signed') : t('No contract signed in these dates')) +
+        '<p class="sub186">' + (n.contract ? t('{x} signed', { x: '<b>' + count(n.contract, 'contract') + '</b>' }) : t('No contract signed in these dates')) +   /* build 192: one sentence, so the Arabic reads اتمضى عقد واحد / اتمضى 3 عقود */
         (openIn.length ? ' · <b>' + money(held) + '</b> ' + t('reserved, not signed yet') : '') + '</p></section>';
     }
     function smooth186(pts) {
@@ -2093,7 +2094,7 @@
       tip.innerHTML = '<b>' + B.dateOf(d).toLocaleDateString(AR ? 'ar-EG' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) + '</b>' +
         '<span>' + t('{n} that day', { n: C.daily[j] }) + ' · ' + t('{n} so far', { n: now }) + '</span>' +
         (gap === null ? '' : '<span class="' + (gap > 0 ? 'up' : gap < 0 ? 'down' : '') + '">' + (gap > 0 ? t('{n} ahead of {b}', { n: gap, b: C.base }) : gap < 0 ? t('{n} behind {b}', { n: -gap, b: C.base }) : t('level with {b}', { b: C.base })) + '</span>') +
-        '<button type="button" class="day186">' + t('Open this day') + ' ›</button>';
+        '<button type="button" class="day186">' + t('Open this day') + '</button>';   /* build 192: the arrow is drawn by css/manager.css, pointing the way the page reads */
       var tw = tip.offsetWidth, cw = chart.parentNode.clientWidth, left = Math.max(0, Math.min(cw - tw, x + chart.offsetLeft - tw / 2));
       tip.style.left = left + 'px'; tip.style.top = Math.max(0, chart.offsetTop - tip.offsetHeight - 8) + 'px';
     }
@@ -2285,7 +2286,7 @@
         /* on the store a code, and the director he reports to, are shown when the admin has set them */
         return '<section class="card wide">' + swap() + '<div class="me"><div class="av">' + esc(ini) + '</div><div><h1>' + esc(MGR.name) + '</h1><p>' + title(MGR.title) + (MGR.code ? ' · ' + nm(MGR.code) : '') + '</p></div></div></section>' +
           '<section class="card"><h2>' + t('Your account') + '</h2><div class="facts">' +
-            [[t('Developer'), 'Main Marks Development'], [t('Project'), 'Moray'], MGR.reportsTo ? [t('Reports to'), nm(MGR.reportsTo) + (AR ? '، ' : ', ') + title(MGR.reportsTitle)] : null, [t('Your team'), count(OWN, 'salesperson')], [t('Brokerage companies'), t('{n}, open to every team', { n: book.length })], [t('What you see'), t('Your team’s activity only')]].filter(Boolean).map(fact).join('') + '</div></section>' +
+            [[t('Developer'), 'Main Marks Development'], [t('Project'), 'Moray'], MGR.reportsTo ? [t('Reports to'), nm(MGR.reportsTo) + (AR ? '، ' : ', ') + title(MGR.reportsTitle)] : null, [t('Your team'), count(OWN, 'salesperson')], [t('Brokerage companies'), t('{n}, open to every team', { n: book.length })], [t('What you see'), B.everyTeam ? t('Every team’s activity') : t('Your team’s activity only')]].filter(Boolean).map(fact).join('') + '</div></section>' +
           '<section class="card"><h2>' + t('Your team') + '</h2>' + (OWN ? '<div class="rows">' + TEAM.slice(0, OWN).map(function (p, i) { return '<button class="row" type="button" data-m="' + i + '"><span class="nm">' + esc(p.name) + '</span><span class="val code">' + esc(p.code) + '</span><span class="sub">' + title(p.title) + '</span></button>'; }).join('') + '</div>' : noTeam(true)) + '</section>' +
           '<section class="card"><h2>' + t('What the words mean') + '</h2><dl class="defs">' +
             [['active', STATE.active, t('Asked your team for an offer in the last two weeks.')], ['quiet', STATE.quiet, t('Was asking, then nothing for two weeks. The early warning.')], ['inactive', STATE.inactive, t('No request to your team for a month.')], ['never', STATE.never, t('Has not asked your team for an offer yet.')],
@@ -2315,7 +2316,8 @@
       if (hush) pulse.enter = function () { scr.classList.add('in'); countUp(scr); };
       else if (!keep) countUp(scr);
       deckInit('deck'); deckInit('mv'); listInit();
-      $('fab').hidden = look.tab === 'profile';
+      /* build 198: a director and the CCO record nothing (the store refuses them, mm_record): no plus */
+      $('fab').hidden = look.tab === 'profile' || (!MY && !B.add);
       [].forEach.call($('tab').children, function (b) { if (b.dataset.t === look.tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
       try { history.replaceState(null, '', '#' + look.tab); } catch (e) { /* the tab is simply not remembered */ }
     }
@@ -3052,7 +3054,7 @@
       go();
     });
     $('veil').addEventListener('click', closeSheet);
-    $('fab').addEventListener('click', function () { if (MY) { myRec.company = -1; openMyRecord(); } else openRecord(); });
+    $('fab').addEventListener('click', function () { if (MY) { myRec.company = -1; openMyRecord(); } else if (B.add) openRecord(); });
     /* the record form checks a unit code as it is typed, and a corrected field clears the last refusal */
     /* build 135: the manager's form is checked the same way. `rFree` is only on a contract's form: the
        cancellation's own list of reservations (also `rR`) has no price to fill. */
@@ -3102,7 +3104,7 @@
       else if (hit('data-pd')) pdTo(+hit('data-pd').dataset.pd);
       else if (hit('data-w')) { barPick(hit('data-w')); openGlass(hit('data-w')); }
       else if (k && MY) { if ($('rC') && $('rC').value !== '') myRec.company = +$('rC').value; myRec.kind = k.dataset.k; openMyRecord(); }
-      else if (k) { recKind = k.dataset.k; openRecord(); }
+      else if (k && B.add) { recKind = k.dataset.k; openRecord(); }
       else if (hit('data-wk')) openWeek(+hit('data-wk').dataset.wk);
       else if (c) openCompany(+c.dataset.c);
       else if (m) openPerson(+m.dataset.m);

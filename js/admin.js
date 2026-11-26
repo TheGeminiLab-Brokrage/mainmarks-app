@@ -45,8 +45,9 @@
   var nm = function (s) { return '<bdi>' + esc(s) + '</bdi>'; };
 
   var ENDING = { sales: 'sales', sales_manager: 'manager', director: 'director', cco: 'cco', admin: 'admin' };
-  var ROLES = ['sales', 'sales_manager', 'admin'];            /* what she can make today; directors and the CCO come later */
-  if (BOOK) ROLES = ['sales', 'sales_manager', 'director', 'cco', 'admin'];
+  /* build 198: every role on the real store too. Its tables, sign-up rule (mm_make_person) and team rule
+     (mm_admin_set_team, mm_my_teams) have taken directors and the CCO since build 141. */
+  var ROLES = ['sales', 'sales_manager', 'director', 'cco', 'admin'];
   /* the roles that are in no team: a director leads teams, the CCO and the admin see all */
   var NO_TEAM = { admin: 1, director: 1, cco: 1 };
   function roleName(r) { return t(((CONFIG.roles || {})[r] || {}).label || r); }
@@ -91,7 +92,7 @@
   function load() {
     return Promise.all([
       rpc('mm_admin_people'),
-      MM.auth.call('/rest/v1/mm_teams?select=id,name,manager_id&order=name'),
+      MM.auth.call('/rest/v1/mm_teams?select=id,name,manager_id,director_id&order=name'),
       /* build 137: page by page (getAll, below). About two thousand companies are coming, and one
          question would have handed her the first thousand and said nothing. */
       getAll('/rest/v1/mm_companies?select=id,name,active,pending,proposed_by,merged_into&order=name.asc,id.asc'),
@@ -108,6 +109,14 @@
   }
   function person(id) { return people.filter(function (p) { return p.id === id; })[0] || null; }
   function team(id) { return teams.filter(function (x) { return x.id === id; })[0] || null; }
+  /* build 198 (Muhanad, 25 Nov 2026: "the name of the team would be the name of the manager, for example
+     <manager>'s team"): read from whoever manages it now, so it is right the day the manager changes.
+     A team with no manager keeps the name it was made with. */
+  function teamLabel(tm) {
+    if (!tm) return '';
+    var m = person(tm.manager_id);
+    return m ? t('{name}’s team', { name: m.name }) : tm.name;
+  }
 
   /* ---- THE HISTORY (build 136) -----------------------------------------
      Muhanad, 2026-10-09: a wrong entry is corrected by the manager for his team and by the admin for
@@ -293,40 +302,85 @@
   }
   function matches(text) { return !find || String(text).toLowerCase().indexOf(find.toLowerCase()) !== -1; }
 
-  function personRow(p) {
-    var bits = [p.title ? esc(p.title) : roleName(p.role), '<bdi>' + esc(p.email) + '</bdi>'];
+  function flags(p) {
     var flag = !p.active ? '<span class="adm-flag off">' + t('Switched off') + '</span>' : (p.must_change_password ? '<span class="adm-flag">' + t('First password') + '</span>' : '');
     /* build 127: how many company names he sent that turned out to be listed companies spelled differently */
     if (p.wrong_names > 0) flag += '<span class="adm-flag off">' + t('Wrong spellings: {n} of 3', { n: p.wrong_names }) + '</span>';
-    return '<button class="row' + (p.active ? '' : ' gone') + '" type="button" data-p="' + esc(p.id) + '"><span class="nm">' + nm(p.name) + '</span><span class="sub">' + bits.join(' · ') + '</span><span class="val code">' + flag + '</span></button>';
+    return flag;
+  }
+  /* build 198: a row is the name and the job; the email is in his sheet */
+  function personRow(p, tag) {
+    return '<button class="row adm-person' + (p.active ? '' : ' gone') + (tag ? ' adm-lead-row' : '') + '" type="button" data-p="' + esc(p.id) + '"><span class="nm">' + nm(p.name) + '</span>' +
+      '<span class="sub">' + (tag ? '<b class="adm-tag">' + tag + '</b>' : '') + (p.title ? esc(p.title) : roleName(p.role)) + '</span><span class="val code">' + flags(p) + '</span></button>';
   }
   var LEAD = { director: 1, cco: 1 };
+  /* who is shown under the chosen chip and what is typed in the find box */
+  function showsUp(p) {
+    if (filter === 'lead') { if (!LEAD[p.role] || !p.active) return false; }
+    else if (filter === 'off') { if (p.active) return false; }
+    else if (filter !== 'all' && (p.role !== filter || !p.active)) return false;
+    return matches(p.name + ' ' + p.email + ' ' + (p.staff_code || '') + ' ' + (p.title || ''));
+  }
+  var byName = function (a, b) { return a.name.localeCompare(b.name); };
+  /* one team: its name (its manager's), how many are in it, the manager first, his sales agents under him */
+  function teamCard(tm) {
+    var mgr = person(tm.manager_id);
+    var members = people.filter(function (p) { return p.team_id === tm.id && p.id !== tm.manager_id; });
+    var on = members.filter(function (p) { return p.active; }).length + (mgr && mgr.active ? 1 : 0);
+    var agents = members.filter(showsUp).sort(function (a, b) { return (b.active - a.active) || (b.role === 'sales_manager') - (a.role === 'sales_manager') || byName(a, b); });
+    var mgrShown = mgr && showsUp(mgr);
+    var quiet = find || filter !== 'all';
+    if (quiet && !mgrShown && !agents.length) return '';
+    return '<section class="card adm-team"><div class="adm-team-hd"><h2>' + nm(teamLabel(tm)) + '</h2><span class="adm-count" title="' + esc(t('Active accounts')) + '">' + on + '</span></div>' +
+      (!mgr ? '<p class="note">' + t('No manager yet') + '</p>' : '') +
+      (mgrShown || agents.length ? '<div class="rows">' + (mgrShown ? personRow(mgr, t('Manager')) : '') + agents.map(function (p) { return personRow(p); }).join('') + '</div>'
+        : '<p class="note">' + t('Nobody is in this team yet.') + '</p>') +
+      '<button class="also adm-link" type="button" data-team="' + esc(tm.id) + '">' + t('Change the manager or director') + '</button></section>';
+  }
   function screenPeople() {
-    var shown = people.filter(function (p) {
-      if (filter === 'lead') { if (!LEAD[p.role] || !p.active) return false; }
-      else if (filter === 'off' ? p.active : (filter !== 'all' && (p.role !== filter || !p.active))) return false;
-      return matches(p.name + ' ' + p.email + ' ' + (p.staff_code || ''));
-    });
     var on = people.filter(function (p) { return p.active; }).length;
     var html = head(t('People'), t('{n} accounts, {off} switched off', { n: '<b>' + people.length + '</b>', off: '<b>' + (people.length - on) + '</b>' })) +
       '<label class="fld adm-find"><input id="find" type="search" autocomplete="off" placeholder="' + esc(t('Find a name or an email')) + '" value="' + esc(find) + '"></label>' +
-      '<div class="chips">' + [['all', t('Everyone')], ['sales', t('Sales agents')], ['sales_manager', t('Managers')]].concat(BOOK ? [['lead', t('Directors and CCO')]] : [], [['off', t('Switched off')]]).map(function (c) { return '<button class="chip" type="button" data-f="' + c[0] + '" aria-pressed="' + (filter === c[0]) + '">' + c[1] + '</button>'; }).join('') + '</div>';
-    /* build 154: the directors and the CCO are in no team; they lead teams or see them all */
-    var lead = shown.filter(function (p) { return LEAD[p.role]; });
-    if (lead.length && filter !== 'off') html += '<section class="card"><h2>' + t('Directors and CCO') + '</h2><div class="rows">' + lead.map(personRow).join('') + '</div></section>';
-    teams.forEach(function (tm) {
-      var mgr = person(tm.manager_id), dir = BOOK ? person(tm.director_id) : null;
-      var rows = shown.filter(function (p) { return p.team_id === tm.id; }).sort(function (a, b) { return (b.role === 'sales_manager') - (a.role === 'sales_manager') || a.name.localeCompare(b.name); });
-      if (!rows.length && (find || filter !== 'all')) return;
-      html += '<section class="card"><h2>' + nm(tm.name) + '<em>' + (mgr ? t('Manager: {name}', { name: nm(mgr.name) }) : t('No manager yet')) + '</em></h2>' +
-        (dir ? '<p class="note adm-lead">' + t('Director: {name}', { name: nm(dir.name) }) + '</p>' : '') +
-        (rows.length ? '<div class="rows">' + rows.map(personRow).join('') + '</div>' : '<p class="note">' + t('Nobody is in this team yet.') + '</p>') +
-        '<button class="also adm-link" type="button" data-team="' + esc(tm.id) + '">' + (BOOK ? t('Change the manager or director') : t('Change the manager')) + '</button></section>';
+      '<div class="chips">' + [['all', t('Everyone')], ['sales', t('Sales agents')], ['sales_manager', t('Managers')], ['lead', t('Directors and CCO')], ['off', t('Switched off')]].map(function (c) { return '<button class="chip" type="button" data-f="' + c[0] + '" aria-pressed="' + (filter === c[0]) + '">' + c[1] + '</button>'; }).join('') + '</div>';
+    var quiet = find || filter !== 'all', any = false;
+    /* switched off: one plain list, whoever they were */
+    if (filter === 'off') {
+      var off = people.filter(showsUp).sort(byName);
+      if (off.length) html += '<section class="card"><div class="rows">' + off.map(function (p) { return personRow(p); }).join('') + '</div></section>';
+      return html + (off.length ? '' : '<p class="note center">' + t('Nobody matches.') + '</p>');
+    }
+    /* the CCO sees every team: first */
+    var ccos = people.filter(function (p) { return p.role === 'cco' && p.active && showsUp(p); }).sort(byName);
+    if (ccos.length) { any = true; html += '<section class="card"><h2>' + t('CCO') + '</h2><div class="rows">' + ccos.map(function (p) { return personRow(p); }).join('') + '</div></section>'; }
+    /* each director, and the teams he leads under him */
+    var dirs = people.filter(function (p) { return p.role === 'director' && (p.active || teams.some(function (x) { return x.director_id === p.id; })); }).sort(byName);
+    dirs.forEach(function (d) {
+      var mine = teams.filter(function (x) { return x.director_id === d.id; });
+      var cards = filter === 'lead' ? '' : mine.map(teamCard).join('');
+      var dShown = showsUp(d);
+      if (quiet && !dShown && !cards) return;
+      any = true;
+      var size = mine.reduce(function (n, x) { return n + people.filter(function (p) { return p.team_id === x.id && p.active; }).length; }, 0);
+      html += '<section class="adm-dir"><button class="adm-dir-hd' + (d.active ? '' : ' gone') + '" type="button" data-p="' + esc(d.id) + '"><span class="adm-k">' + t('Sales director') + '</span>' +
+        '<span class="adm-dir-nm">' + nm(d.name) + '</span><span class="adm-dir-sub">' + t('Teams: {n}', { n: mine.length }) + ' · ' + t('People: {n}', { n: size }) + (d.active ? '' : ' · ' + t('Switched off')) + '</span></button>' +
+        (cards ? '<div class="adm-dir-teams">' + cards + '</div>' : (mine.length || filter === 'lead' ? '' : '<p class="note adm-dir-none">' + t('No team under this director yet. Open a team and choose its director.') + '</p>')) + '</section>';
     });
-    var loose = shown.filter(function (p) { return (!p.team_id || !team(p.team_id)) && !LEAD[p.role]; });
-    if (loose.length) html += '<section class="card"><h2>' + t('Not in a team') + '</h2><div class="rows">' + loose.map(personRow).join('') + '</div></section>';
-    if (!shown.length) html += '<p class="note center">' + t('Nobody matches.') + '</p>';
-    html += '<button class="btn ghost" type="button" id="addTeam">' + t('Add a team') + '</button>';
+    /* teams no director leads yet */
+    if (filter !== 'lead') {
+      var free = teams.filter(function (x) { return !x.director_id || !person(x.director_id) || person(x.director_id).role !== 'director'; });
+      var freeCards = free.map(teamCard).join('');
+      if (freeCards) {
+        any = true;
+        html += '<section class="adm-dir"><div class="adm-dir-hd flat"><span class="adm-k">' + (dirs.length ? t('No director yet') : t('Teams')) + '</span></div><div class="adm-dir-teams">' + freeCards + '</div></section>';
+      }
+      /* sales agents and managers in no team */
+      var loose = people.filter(function (p) { return !LEAD[p.role] && p.role !== 'admin' && (!p.team_id || !team(p.team_id)) && !teams.some(function (x) { return x.manager_id === p.id; }) && showsUp(p); }).sort(byName);
+      if (loose.length) { any = true; html += '<section class="card"><h2>' + t('Not in a team') + '</h2><div class="rows">' + loose.map(function (p) { return personRow(p); }).join('') + '</div></section>'; }
+      var admins = people.filter(function (p) { return p.role === 'admin' && p.active && showsUp(p); }).sort(byName);
+      if (admins.length) { any = true; html += '<section class="card"><h2>' + t('Admins') + '</h2><div class="rows">' + admins.map(function (p) { return personRow(p); }).join('') + '</div></section>'; }
+    }
+    if (!any) html += '<p class="note center">' + t('Nobody matches.') + '</p>';
+    if (!quiet) html += '<button class="btn ghost" type="button" id="addTeam">' + t('Add a team') + '</button>';
     return html;
   }
   function screenCompanies() {
@@ -342,6 +396,8 @@
     /* build 149: sales agents who sent offers to a company she gave to others, waiting for her word */
     var asking = asks.filter(function (a) { return a.status === 'waiting' && company(a.company_id) && person(a.person_id); });
     return head(t('Brokerage companies'), t('{n} companies, {off} switched off', { n: '<b>' + real.length + '</b>', off: '<b>' + (real.length - on) + '</b>' })) +
+      /* build 198: the two ways to add, first on the page; the plus is not shown here */
+      '<div class="adm-adds"><button class="btn" type="button" id="cOne">' + t('Add a company') + '</button><button class="btn ghost" type="button" id="cLoad">' + t('Add a list') + '</button></div>' +
       (asking.length ? '<section class="card"><h2>' + t('Asking to serve a company') + ' <em>' + asking.length + '</em></h2><p class="note">' + t('These sales agents sent offers to a company you gave to others. Their offers are saved. Open each one and decide.') + '</p><div class="rows">' + asking.map(function (a) {
         return '<button class="row" type="button" data-ask="' + esc(a.company_id + '|' + a.person_id) + '"><span class="nm">' + nm(person(a.person_id).name) + '</span><span class="sub">' + t('{company} · given to {names}', { company: nm(company(a.company_id).name), names: servedText(a.company_id) }) + '</span><span class="val code"><span class="adm-flag">' + t('Decide') + '</span></span></button>';
       }).join('') + '</div></section>' : '') +
@@ -349,6 +405,7 @@
         var by = person(c.proposed_by);
         return '<button class="row" type="button" data-c="' + esc(c.id) + '"><span class="nm">' + nm(c.name) + '</span><span class="sub">' + (by ? t('Sent by {name}', { name: nm(by.name) }) : '') + '</span><span class="val code"><span class="adm-flag">' + t('Decide') + '</span></span></button>';
       }).join('') + '</div></section>' : '') +
+      /* build 198 (Muhanad: "the admin can add brokerage companies, not only by adding a list, but also adding individual companies") */
       '<label class="fld adm-find"><input id="find" type="search" autocomplete="off" placeholder="' + esc(t('Find a company')) + '" value="' + esc(find) + '"></label>' +
       /* build 138: the list opens on its first six and scrolls inside its card, as the manager's does
          (js/manager.js, build 137), and is drawn a part at a time: about two thousand companies are
@@ -385,7 +442,7 @@
     teams.concat([{ id: null, name: t('Not in a team') }]).forEach(function (tm) {
       var rows = agents.filter(function (p) { return tm.id ? p.team_id === tm.id : !team(p.team_id); }).sort(function (a, b) { return a.name.localeCompare(b.name); });
       if (!rows.length) return;
-      html += '<p class="sec">' + nm(tm.name) + '</p><div class="rows">' + rows.map(function (p) {
+      html += '<p class="sec">' + nm(tm.id ? teamLabel(tm) : tm.name) + '</p><div class="rows">' + rows.map(function (p) {
         return '<button class="row adm-pick" type="button" data-pick="' + esc(p.id) + '" data-name="' + esc(p.name.toLowerCase()) + '" aria-pressed="' + !!on[p.id] + '"><span class="nm">' + nm(p.name) + '</span><span class="val code"><span class="adm-tick" aria-hidden="true"></span></span></button>';
       }).join('') + '</div>';
     });
@@ -435,7 +492,7 @@
     var c = company(cid), p = person(pid), a = askOf(cid, pid);
     if (!c || !p || !a) return;
     var tm = team(p.team_id), keepers = servedText(cid);
-    showSheet('<div><h3>' + nm(p.name) + '</h3><p class="role">' + (tm ? nm(tm.name) + ' · ' : '') + t('Asks to serve {company}', { company: nm(c.name) }) + '</p></div><div class="form">' +
+    showSheet('<div><h3>' + nm(p.name) + '</h3><p class="role">' + (tm ? nm(teamLabel(tm)) + ' · ' : '') + t('Asks to serve {company}', { company: nm(c.name) }) + '</p></div><div class="form">' +
       '<div class="facts"><div><span>' + t('Company') + '</span><b>' + nm(c.name) + '</b></div><div><span>' + t('Given to') + '</span><b>' + keepers + '</b></div><div><span>' + t('Asked on') + '</span><b><bdi>' + esc(whenAt(a.asked_at)) + '</bdi></b></div></div>' +
       '<p class="sec">' + t('At this company') + '</p><div id="aPort"><p class="note">' + t('Reading…') + '</p></div>' +
       '<button class="btn" type="button" id="aAllow">' + t('Let {name} serve it too', { name: esc(p.name) }) + '</button>' +
@@ -455,7 +512,7 @@
      a CSV file; js/namecheck.js sorts the names, and she sees the new ones, the ones already listed, the
      ones typed twice, and the ones that look like another company, which she decides one by one, before
      anything is added. Nothing is merged without her. */
-  function loadButton() { return BOOK ? '<button class="btn ghost" type="button" id="cLoad">' + t('Load a list of companies') + '</button>' : ''; }
+  /* build 198: on the real store too (sql MAIN-MARKS-PASTE-BUILD-198.sql, mm_admin_add_companies); the button is at the top of the page */
   function openLoad() {
     showSheet('<div><h3>' + t('Load a list of companies') + '</h3><p class="role">' + t('Nothing is added until you have checked the list.') + '</p></div><div class="form">' +
       '<label class="fld">' + t('Paste the names, one on each line') + '<textarea id="cText" rows="7" autocomplete="off" spellcheck="false" placeholder="' + esc(t('Copy the column of names from the sheet and paste it here')) + '"></textarea></label>' +
@@ -500,7 +557,23 @@
     $('cBack').addEventListener('click', openLoad);
     $('cAdd').addEventListener('click', function () {
       var list = chosen();
-      send($('cAdd'), rpc('mm_admin_add_companies', { p_names: list }), function (n) { closeSheet(); again(t('{n} companies added. Every sales agent can choose them now.', { n: n })); });
+      /* build 198: the whole list in one step (sql MAIN-MARKS-PASTE-BUILD-198.sql). A store without that file
+         answers 404: the names then go one by one through mm_admin_add_company, which every store has; a name
+         already listed is passed over, as the one-step way does. */
+      var one = function () {
+        var added = 0, i = 0, btn = $('cAdd');
+        var next = function () {
+          if (i >= list.length) return Promise.resolve({ status: 200, body: added });
+          btn.textContent = t('Adding {n} of {total}…', { n: i + 1, total: list.length });
+          return rpc('mm_admin_add_company', { p_name: list[i++] }).then(function (r) {
+            if (r.status < 300) added++;
+            else if (!/MM_NAME_TAKEN/.test(JSON.stringify(r.body || ''))) return r;
+            return next();
+          });
+        };
+        return next();
+      };
+      send($('cAdd'), rpc('mm_admin_add_companies', { p_names: list }).then(function (r) { return r.status === 404 ? one() : r; }), function (n) { closeSheet(); again(t('{n} companies added. Every sales agent can choose them now.', { n: n })); });
     });
   }
 
@@ -528,6 +601,9 @@
       '<section class="card"><div class="facts"><div><span>' + t('Name') + '</span><b>' + nm(session.name) + '</b></div><div><span>' + t('Email') + '</span><b><bdi>' + esc(session.email) + '</bdi></b></div>' +
       '<div><span>' + t('Language') + '</span><b><span class="chips"><button class="chip" type="button" data-lang="en" lang="en" aria-pressed="' + !AR + '">English</button><button class="chip" type="button" data-lang="ar" lang="ar" aria-pressed="' + AR + '">العربية</button></span></b></div></div>' +
       (DEMO ? '' : '<a class="btn ghost" href="login.html?change=1">' + t('Change password') + '</a>') + '<button class="btn ghost" type="button" id="out">' + t('Sign out') + '</button></section>' +
+      /* build 197: the inventory download lives here, for the admin only (js/invexport.js) */
+      (MM.invExport && MM.invExport.projects().length ? '<section class="card"><h2>' + t('The inventory') + '</h2><p class="note">' + t('Every available unit and every unit on hold, as the app reads it now.') + '</p>' +
+      '<p class="note bad" id="invErr" hidden>' + t('The inventory could not be read. Try again.') + '</p><button class="btn" type="button" id="invDl">' + t('Download the inventory (Excel)') + '</button></section>' : '') +
       (BOOK ? '<section class="card"><h2>' + t('Practice data') + '</h2><p class="note">' + t('This demo keeps what you change on this phone only. Nothing is sent anywhere.') + '</p><button class="btn ghost" type="button" id="aPractice">' + t('Start the practice again') + '</button></section>' : '') +
       '<section class="card"><h2>' + t('How this page works') + '</h2>' +
       (DEMO ? '' : '<p class="note">' + t('Nothing is ever deleted. A person who leaves is switched off: he can no longer sign in, and everything he recorded stays with his team. A company that is switched off leaves the lists and keeps its history.') + '</p>' +
@@ -536,15 +612,15 @@
   }
   function draw() {
     var keep = document.activeElement && document.activeElement.id === 'find';
-    $('scr').innerHTML = tab === 'people' ? screenPeople() : tab === 'companies' ? screenCompanies() + loadButton() : tab === 'history' ? screenHistory() : tab === 'plans' ? screenPlans() : screenMe();
+    $('scr').innerHTML = tab === 'people' ? screenPeople() : tab === 'companies' ? screenCompanies() : tab === 'history' ? screenHistory() : tab === 'plans' ? screenPlans() : screenMe();
     /* the history is read the first time its tab is opened, not with the accounts */
     if (tab === 'history' && hist.rows === null && !hist.busy && !hist.failed) loadHistory().then(function () { if (tab === 'history') draw(); });
     $('tab').innerHTML = TABS.map(function (x) {
-      return '<button type="button" data-t="' + x[0] + '"' + (tab === x[0] ? ' aria-current="page"' : '') + '>' + svg(x[0]) + '<span>' + t(x[1]) + '</span></button>';
+      return '<button type="button" data-tab="' + x[0] + '"' + (tab === x[0] ? ' aria-current="page"' : '') + '>' + svg(x[0]) + '<span>' + t(x[1]) + '</span></button>';
     }).join('');
     $('tab').className = 'tab ' + ['', '', 'two', 'three', 'four', 'five'][TABS.length];
     $('tab').hidden = false;
-    $('fab').hidden = tab === 'me' || tab === 'history';
+    $('fab').hidden = tab === 'me' || tab === 'history' || tab === 'companies';
     $('fab').innerHTML = svg('plus');
     $('fab').setAttribute('aria-label', tab === 'companies' ? t('Add a company') : tab === 'plans' ? t('Add a payment plan') : t('Add a person'));
     var f = keep && $('find');                 /* History and Account have no find box */
@@ -581,7 +657,7 @@
   function again(msg) { return load().then(function () { draw(); if (msg) toast(msg); }); }
 
   function teamOptions(chosen, none) {
-    return (none ? '<option value="">' + none + '</option>' : '') + teams.map(function (x) { return '<option value="' + esc(x.id) + '"' + (x.id === chosen ? ' selected' : '') + '>' + esc(x.name) + '</option>'; }).join('');
+    return (none ? '<option value="">' + none + '</option>' : '') + teams.map(function (x) { return '<option value="' + esc(x.id) + '"' + (x.id === chosen ? ' selected' : '') + '>' + esc(teamLabel(x)) + '</option>'; }).join('');
   }
   function roleChips(chosen) {
     return '<div class="chips" id="aRole">' + ROLES.map(function (r) { return '<button class="chip" type="button" data-role="' + r + '" aria-pressed="' + (r === chosen) + '">' + roleName(r) + '</button>'; }).join('') + '</div>';
@@ -645,14 +721,14 @@
     var p = person(id); if (!p) return;
     var tm = team(p.team_id), self = p.id === session.id;
     showSheet('<div><h3>' + nm(p.name) + '</h3><p class="role">' + roleName(p.role) + (p.title ? ' · ' + esc(p.title) : '') + '</p></div><div class="form">' +
-      '<div class="facts"><div><span>' + t('Sign-in email') + '</span><b><bdi>' + esc(p.email) + '</bdi></b></div><div><span>' + t('Team') + '</span><b>' + (tm ? nm(tm.name) : t('Not in a team')) + '</b></div>' +
+      '<div class="facts"><div><span>' + t('Sign-in email') + '</span><b><bdi>' + esc(p.email) + '</bdi></b></div><div><span>' + t('Team') + '</span><b>' + (tm ? nm(teamLabel(tm)) : t('Not in a team')) + '</b></div>' +
       (p.staff_code ? '<div><span>' + t('Staff code') + '</span><b>' + nm(p.staff_code) + '</b></div>' : '') +
       '<div><span>' + t('Account') + '</span><b>' + (p.active ? (p.must_change_password ? t('On. Still using the first password.') : t('On')) : t('Switched off on {date}', { date: '<bdi>' + esc(p.left_on || '') + '</bdi>' })) + '</b></div>' +
       /* build 127: three company names that were listed companies spelled differently block new names */
       (p.wrong_names > 0 ? '<div><span>' + t('New company names') + '</span><b>' + (p.wrong_names >= 3 ? t('Blocked after 3 wrong spellings') : t('Wrong spellings: {n} of 3', { n: p.wrong_names })) + '</b></div>' : '') + '</div>' +
       '<p class="note bad" id="aErr" hidden></p>' +
       /* build 154, his pick: the undo of that block (the demo until the database step) */
-      (BOOK && p.wrong_names >= 3 ? '<button class="btn" type="button" id="aUnblock">' + t('Let him send new company names again') + '</button><p class="note">' + t('His count of wrong spellings goes back to 0. Everything he sent stays as it is.') + '</p>' : '') +
+      (p.wrong_names >= 3 ? '<button class="btn" type="button" id="aUnblock">' + t('Let him send new company names again') + '</button><p class="note">' + t('His count of wrong spellings goes back to 0. Everything he sent stays as it is.') + '</p>' : '') +
       '<button class="btn ghost" type="button" id="aEdit">' + t('Change the name, title, role or team') + '</button>' +
       '<button class="btn ghost" type="button" id="aReset">' + t('Reset the password') + '</button>' +
       (self ? '' : '<button class="btn' + (p.active ? ' ghost adm-danger' : '') + '" type="button" id="aOnOff">' + (p.active ? t('Switch this account off') : t('Switch this account on again')) + '</button>') +
@@ -686,11 +762,11 @@
       var b = e.target.closest('[data-role]'); if (!b) return;
       role = b.dataset.role;
       Array.prototype.forEach.call($('aRole').children, function (c) { c.setAttribute('aria-pressed', c === b); });
-      if (BOOK) $('aTeamBox').hidden = !!NO_TEAM[role];
+      $('aTeamBox').hidden = !!NO_TEAM[role];
     });
-    if (BOOK) $('aTeamBox').hidden = !!NO_TEAM[role];
+    $('aTeamBox').hidden = !!NO_TEAM[role];
     $('aSave').addEventListener('click', function () {
-      var name = $('aName').value.replace(/\s+/g, ' ').trim(), teamId = BOOK && NO_TEAM[role] ? null : $('aTeam').value || null;
+      var name = $('aName').value.replace(/\s+/g, ' ').trim(), teamId = NO_TEAM[role] ? null : $('aTeam').value || null;
       if (!name) return bad(t('Enter the name.'));
       if (role === 'sales' && !teamId) return bad(t('Choose the team.'));
       send($('aSave'), rpc('mm_admin_set_person', { p_person: p.id, p_name: name, p_title: $('aTitle').value.trim(), p_role: role, p_team: teamId }), function () { closeSheet(); again(t('Saved.')); });
@@ -701,19 +777,25 @@
   function openTeam(tm, lead) {
     var managers = people.filter(function (p) { return p.active && p.role === 'sales_manager'; });
     var directors = people.filter(function (p) { return p.active && p.role === 'director'; });
-    showSheet('<div><h3>' + (tm ? nm(tm.name) : t('Add a team')) + '</h3><p class="role">' + (lead || t('A team is one sales manager and the people under him. He sees his own team only.')) + '</p></div><div class="form">' +
-      (tm ? '' : '<label class="fld">' + t('Team name') + '<input id="aName" type="text" autocomplete="off"></label>') +
+    showSheet('<div><h3>' + (tm ? nm(teamLabel(tm)) : t('Add a team')) + '</h3><p class="role">' + (lead || t('A team is one sales manager and the people under him. He sees his own team only.')) + '</p></div><div class="form">' +
       '<label class="fld">' + t('Its manager') + '<select id="aMgr"><option value="">' + t('No manager yet') + '</option>' + managers.map(function (p) { return '<option value="' + esc(p.id) + '"' + (tm && tm.manager_id === p.id ? ' selected' : '') + '>' + esc(p.name) + '</option>'; }).join('') + '</select></label>' +
       (managers.length ? '' : '<p class="note">' + t('There is no sales manager account yet. Make the team now and choose its manager after you add him.') + '</p>') +
-      /* build 154, his pick: the director a team reports to (the demo until the database step) */
-      (BOOK && tm ? '<label class="fld">' + t('Its director') + '<select id="aDir"><option value="">' + t('No director yet') + '</option>' + directors.map(function (p) { return '<option value="' + esc(p.id) + '"' + (tm.director_id === p.id ? ' selected' : '') + '>' + esc(p.name) + '</option>'; }).join('') + '</select></label>' : '') +
+      /* build 154, his pick: the director a team reports to. Build 198: on the real store too, and on a new team */
+      '<label class="fld">' + t('Its director') + '<select id="aDir"><option value="">' + t('No director yet') + '</option>' + directors.map(function (p) { return '<option value="' + esc(p.id) + '"' + (tm && tm.director_id === p.id ? ' selected' : '') + '>' + esc(p.name) + '</option>'; }).join('') + '</select></label>' +
+      (directors.length ? '' : '<p class="note">' + t('There is no director account yet. Add one with the plus on People, then choose him here.') + '</p>') +
+      /* build 198: the team is called after its manager; a name is asked only for a team with no manager yet */
+      (tm ? '' : '<label class="fld" id="aNameBox" hidden>' + t('Team name') + '<input id="aName" type="text" autocomplete="off"></label>') +
       '<p class="note bad" id="aErr" hidden></p><button class="btn" type="button" id="aSave">' + (tm ? t('Save') : t('Make the team')) + '</button></div>');
+    var nameBox = function () { if ($('aNameBox')) $('aNameBox').hidden = !!$('aMgr').value; };
+    $('aMgr').addEventListener('change', function () { nameBox(); $('aErr').hidden = true; });
+    nameBox();
     $('aSave').addEventListener('click', function () {
-      var mgr = $('aMgr').value || null, dir = $('aDir') ? $('aDir').value || null : null;
+      var mgr = $('aMgr').value || null, dir = $('aDir').value || null;
       if (tm) return send($('aSave'), rpc('mm_admin_set_team', { p_team: tm.id, p_manager: mgr, p_director: dir }), function () { closeSheet(); again(t('Saved.')); });
-      var name = $('aName').value.replace(/\s+/g, ' ').trim();
-      if (!name) return bad(t('Enter the name.'));
-      send($('aSave'), rpc('mm_admin_add_team', { p_name: name, p_manager: mgr }), function () { closeSheet(); again(t('The team is made.')); });
+      /* stored as the real teams are named ("Team <manager>"); shown as "<manager>'s team" */
+      var name = mgr ? 'Team ' + person(mgr).name : $('aName').value.replace(/\s+/g, ' ').trim();
+      if (!name) return bad(t('Choose its manager, or enter a name.'));
+      send($('aSave'), rpc('mm_admin_add_team', { p_name: name, p_manager: mgr, p_director: dir }), function () { closeSheet(); again(t('The team is made.')); });
     });
   }
 
@@ -800,7 +882,7 @@
   /* months in words: the Arabic counted noun follows the number (3 to 10 شهور, 11 and up شهراً) */
   function monthsT(n) {
     if (!AR) return n + (n === 1 ? ' month' : ' months');
-    return n === 1 ? 'شهر' : n === 2 ? 'شهرين' : MM.iso(n) + (n <= 10 ? ' شهور' : ' شهراً');
+    return n === 1 ? 'شهر' : n === 2 ? 'شهرين' : MM.iso(n) + (n <= 10 ? ' أشهر' : ' شهراً');
   }
   function typesText(notFor) {
     return PTYPES.filter(function (x) { return !notFor || notFor.indexOf(x[0]) === -1; }).map(function (x) { return t(x[1]); }).join(AR ? '، ' : ', ');
@@ -1000,9 +1082,9 @@
   /* ---- taps ------------------------------------------------------------ */
   document.addEventListener('click', function (e) {
     var hit = function (a) { return e.target.closest('[' + a + ']'); };
-    var p = hit('data-p'), c = hit('data-c'), f = hit('data-f'), tb = e.target.closest('#tab [data-t]'), l = hit('data-lang'), tm = hit('data-team');
+    var p = hit('data-p'), c = hit('data-c'), f = hit('data-f'), tb = e.target.closest('#tab [data-tab]'), l = hit('data-lang'), tm = hit('data-team');
     if (e.target.closest('#veil')) closeSheet();
-    else if (tb) { tab = tb.dataset.t; find = ''; if (tab === 'history') hist.failed = false; draw(); window.scrollTo(0, 0); }
+    else if (tb) { tab = tb.dataset.tab; find = ''; if (tab === 'history') hist.failed = false; draw(); window.scrollTo(0, 0); }
     else if (hit('data-hf')) { hist.filter = hit('data-hf').dataset.hf; draw(); }
     else if (e.target.closest('#hGo')) removeEntry(e.target.closest('#hGo'));
     else if (e.target.closest('#hPlan')) savePlan(e.target.closest('#hPlan'));
@@ -1022,9 +1104,15 @@
     else if (hit('data-ptype')) { var pt = hit('data-ptype'); pt.setAttribute('aria-pressed', String(pt.getAttribute('aria-pressed') !== 'true')); if ($('aErr')) $('aErr').hidden = true; planPreview(); }
     else if (e.target.closest('#pTerms')) openTerms();
     else if (e.target.closest('#cLoad')) openLoad();
+    else if (e.target.closest('#cOne')) openCompany(null);
     else if (e.target.closest('#aPractice')) { BOOK.reset(); if (PB) PB.reset(); hist.rows = null; again(t('The practice data is back as it was.')); }
     else if (e.target.closest('#pReset')) { PB.reset(); draw(); toast(t('The original plans are back.')); }
     else if (e.target.closest('#fab')) { if (tab === 'companies') openCompany(null); else if (tab === 'plans') openNewPlan(null); else openAddPerson(); }
+    else if (e.target.closest('#invDl')) {
+      var ib = e.target.closest('#invDl'); if (ib.disabled) return;
+      ib.disabled = true; $('invErr').hidden = true;
+      MM.invExport.download().then(function (file) { toast(t('Downloaded as Excel: {name}', { name: file })); }, function () { if ($('invErr')) $('invErr').hidden = false; }).then(function () { ib.disabled = false; });
+    }
     else if (e.target.closest('#out')) { MM.auth.signOut(); location.replace('login.html'); }
   });
   document.addEventListener('input', function (e) { if (e.target.id === 'find') { find = e.target.value; draw(); } });

@@ -102,6 +102,9 @@
   function warm(mark) {
     var src = safeSrc(mark && mark.src);
     if (!src) return;
+    /* build 193: a second file of the lockup (Commercial's "One Address" script) is fetched now too */
+    var ex = safeSrc(mark && mark.extra);
+    if (ex) (new Image()).src = ex;
     if (!/\.svg$/.test(src) || !root.fetch) { (new Image()).src = src; return; }
     if (art[src] !== undefined) return;
     art[src] = '';
@@ -322,9 +325,12 @@
       if (art[mark.src]) sessionStorage.setItem(ART, JSON.stringify({ src: mark.src, text: art[mark.src] }));
     } catch (e) { /* no room, or private mode: the arriving page fetches the file itself */ }
 
-    var ms = reduced ? 120 : T.handoff / SPEED;
+    /* build 194: a line's own logo (kind 'logo') leaves the card page on a softer, slightly longer fade
+       to black, so the tap does not snap; the other builds keep their measured 160 ms */
+    var soft = mark.kind === 'logo';
+    var ms = reduced ? 120 : (soft ? 280 : T.handoff) / SPEED;
     var a = n.animate([{ opacity: 0 }, { opacity: 1 }],
-                      { duration: ms, easing: 'ease-out', fill: 'forwards' });
+                      { duration: ms, easing: soft ? 'cubic-bezier(.45, 0, .55, 1)' : 'ease-out', fill: 'forwards' });
     a.finished.then(go, go);
     /* the safety net: a browser that will not animate still leaves */
     setTimeout(go, ms + 120);
@@ -354,6 +360,7 @@
 
     var mark = p && p.markBuild;
     var src = safeSrc(mark && mark.src);
+    if (src && mark.kind === 'logo' && n.animate) { runLogo(p, n, mark, src, done); return; }
     if (src && mark.kind === 'letters' && n.animate) { runLetters(p, n, mark, src, done); return; }
     if (src && mark.kind === 'fourth' && n.animate) { runFourth(p, n, mark, src, done); return; }
     if (!src || !mark.cut || !n.animate) { fade(n, done); return; }
@@ -1154,6 +1161,115 @@
         last.finished.then(done, done);
         setTimeout(done, d(TF.reveal[1]) + 400);
         setTimeout(done, d(TF.reveal[1]) + 2000);
+      };
+      whenSteady(begin);
+    }
+  }
+
+  /* ================================================================
+     BUILD 193 — "logo": THE LINE'S OWN LOGO, SIMPLY.
+     Muhanad, 24 Nov 2026: "the transition that happens when the user
+     press on the type card should be the logo of that type and make it
+     simple and the logo should be high quality as in the CI of that
+     type". So nothing is cut or built: the line's logo file, a vector
+     lifted from its own CI, comes up on the black (a fade and a small
+     settle), the line's name under it (Main Marks' note of 11 Nov:
+     the name centred under the logo), it holds, it goes, the black
+     dissolves. Only opacity and transform move (see the top of this
+     file). Config per line: src, extra (a second file under it),
+     width (of the frame), sub.
+     ================================================================ */
+  /* build 194 (Muhanad: "all the transitions should be smooth"): softer and a little longer; the logo
+     only FADES and RISES (opacity + translate). 193 grew it from 94 % (a scale), and a phone redraws a
+     scaled vector picture frame by frame: the one move here that could stutter. */
+  var TG = {
+    logo:    [0, 900],
+    extra:   [160, 1000],
+    sub:     [260, 1060],
+    out:     [1600, 1900],
+    reveal:  [1840, 2300]
+  };
+  var EASE_SOFT = 'cubic-bezier(.22, 1, .36, 1)';    /* a long, gentle settle */
+  var EASE_FADE = 'cubic-bezier(.45, 0, .55, 1)';    /* in and out, no edge  */
+
+  function runLogo(p, n, mark, src, done) {
+    var lock = n.querySelector('.mb-lock');
+    if (!lock) { fade(n, done); return; }
+
+    withLogo(src, function (text) {
+      if (!/<svg[\s>]/.test(text)) throw new Error('logo shape');
+      play('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(text));
+    }, function () { fade(n, done); });
+
+    function play(url) {
+      document.documentElement.classList.add('mb-running');
+      var box = el('div', 'mb-logo');
+      var w = Number(mark.width);
+      if (w > 0 && w <= 1) box.style.width = (w * 100).toFixed(2) + '%';
+
+      var main = el('img', 'mb-logo-img');
+      main.alt = '';
+      /* build 194: the clock waits until the logo is DECODED (ready to paint), so its first frame is
+         not spent drawing it; at most HOLD_CAP, as for everything the black waits for */
+      var letMain = hold();
+      main.onload = main.onerror = function () {
+        if (main.decode) main.decode().then(letMain, letMain); else letMain();
+      };
+      setTimeout(letMain, HOLD_CAP);
+      main.src = url;
+      box.appendChild(main);
+
+      /* the second file, if any (Commercial: "Same place / One Address" under MORAY). The clock waits
+         for it to be drawn (hold), as it waits for the page. */
+      var extra = null, ex = safeSrc(mark.extra);
+      if (ex) {
+        extra = el('img', 'mb-logo-img mb-logo-extra');
+        extra.alt = '';
+        var let_ = hold();
+        extra.onload = extra.onerror = let_;
+        extra.src = ex;
+        setTimeout(let_, HOLD_CAP);
+        box.appendChild(extra);
+      }
+
+      var sub = null;
+      if (mark.sub) {
+        sub = el('div', 'mb-logo-sub');
+        sub.textContent = (typeof MM.t === 'function') ? MM.t(mark.sub) : mark.sub;
+        box.appendChild(sub);
+      }
+      lock.appendChild(box);
+      var frame = lock.getBoundingClientRect().width || 0;
+      if (frame) lock.style.fontSize = (frame * 0.028).toFixed(2) + 'px';
+
+      if (reduced) {
+        n.animate([{ opacity: 1 }, { opacity: 1, offset: 0.5 }, { opacity: 0 }],
+                  { duration: 360, easing: 'ease-out', fill: 'forwards' }).finished.then(done, done);
+        setTimeout(done, 700);
+        return;
+      }
+
+      var d = function (ms) { return ms / SPEED; };
+      var all = [];
+      var add = function (node, frames, opts) { var a = node.animate(frames, opts); all.push(a); return a; };
+      var at = function (r, ease) {
+        return { delay: d(r[0]), duration: d(r[1] - r[0]), easing: ease || EASE_SOFT, fill: 'both' };
+      };
+
+      add(main, [{ opacity: 0, transform: 'translate3d(0, 6%, 0)' }, { opacity: 1, transform: 'translate3d(0, 0, 0)' }], at(TG.logo));
+      if (extra) add(extra, [{ opacity: 0, transform: 'translate3d(0, 4%, 0)' }, { opacity: 1, transform: 'translate3d(0, 0, 0)' }], at(TG.extra));
+      if (sub) add(sub, [{ opacity: 0, transform: 'translate3d(0, .5em, 0)' }, { opacity: 1, transform: 'translate3d(0, 0, 0)' }], at(TG.sub));
+      add(box, [{ opacity: 1 }, { opacity: 0 }], at(TG.out, EASE_FADE));
+      var last = add(n, [{ opacity: 1 }, { opacity: 0 }], at(TG.reveal, EASE_FADE));
+
+      all.forEach(function (a) { a.pause(); a.currentTime = 0; });
+      var begin = function () {
+        if (begin.done) return;
+        begin.done = true;
+        all.forEach(function (a) { a.play(); });
+        last.finished.then(done, done);
+        setTimeout(done, d(TG.reveal[1]) + 400);
+        setTimeout(done, d(TG.reveal[1]) + 2000);
       };
       whenSteady(begin);
     }

@@ -576,6 +576,18 @@
     return (s.projects || []).indexOf(id) !== -1 && !!MM.sellableProject(id);
   }
 
+  /* DOES THIS PERSON LEAD (build 198, Muhanad 2026-11-25: "the director sees all the data of the managers
+     under him and the sales agents under the managers under him"). Yes for a sales manager (his team), and
+     on the store for a director (the teams the admin set him over) and the CCO (every team). What each one
+     is handed is the database's rule (mm_can_see), never this answer: it only opens the team view.
+     Assistant managers and supervisors are sales agents (his rule, 2026-10-05). */
+  function leads() {
+    var s = current();
+    if (!s) return false;
+    if (s.role === 'sales_manager') return true;
+    return !!(real() && s.real && (s.role === 'director' || s.role === 'cco'));
+  }
+
   /* WHICH MEMBER OF THE SALES TEAM IS SIGNED IN (build 121): the place of
      this salesperson in CONFIG.salesTeam.members, found by staff code, or -1.
      -1 is the answer for a manager, for an account with no staff code, and
@@ -753,6 +765,7 @@
     changePassword: changePassword,
     passwordProblem: passwordProblem,
     member: member,
+    leads: leads,
     current: current,
     signIn: signIn,
     signOut: signOut,

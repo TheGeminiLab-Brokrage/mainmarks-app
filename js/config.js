@@ -14,7 +14,7 @@ const CONFIG = {
   /* Bumped on every deploy, and matched by the ?v= on every script tag in
      the HTML. That pair is what stops a returning phone running yesterday's
      JavaScript. See README, "Deploying". */
-  build: 191,
+  build: 198,
 
   /* BUILD 171 (Muhanad, 17 Nov 2026: "finalize the sales view, remove anything that says this is a
      demo, for example the build number"). false = no demo marks on the screens a SALES AGENT sees:
@@ -637,12 +637,20 @@ const CONFIG = {
                     script: 'img/moray-commercial-one-address.svg', facts: ['Unit sizes'],
                     logo: 'img/moray-logo.svg', sub: 'Commercial units',
                     photoSource: 'Main Marks, sales app footage, 11 Nov 2026 (Asset 1@4x.png); lockup: Moray Commercial Guidelines p.12' },
+          /* build 193 (Muhanad, 24 Nov 2026: "the transition ... should be the logo of that type and make it
+             simple ... high quality as in the CI of that type"): Commercial has no logo of its own; its CI
+             (Moray Commercial Guidelines) signs with MORAY and the "Same place / One Address" script, so
+             those two vectors come up, simply (js/markbuild.js runLogo). Until 192: kind 'letters', heading
+             'Commercial units' (the MORAY letters rising). */
+          /* build 194 (Muhanad, 24 Nov 2026): "the transition of moray commercial card should be without the
+             slogan make it as it was before": the "Same place / One Address" script is gone; MORAY alone with
+             COMMERCIAL UNITS under it, as before 193 (extra: 'img/moray-commercial-one-address.svg' in 193). */
           markBuild: {
-            kind:    'letters',
+            kind:    'logo',
             src:     'img/moray-logo.svg',
+            width:   0.6,
             sub:     'Commercial units',          /* build 155: under the logo, centred (their notes) */
-            heading: 'Commercial units',
-            source:  'Moray CI PDF p.18 (logo); Moray brochure PDF p.28 ("Moray’s commercial units")'
+            source:  'Moray CI PDF p.18 (logo)'
           }
         },
         { id: 'admin', released: true,
@@ -688,13 +696,16 @@ const CONFIG = {
              orange strip at its left (2.9% of the card). A larger file from them replaces it as is. */
           card:   { photo: 'img/moray-card-admin.jpg', ground: '#FF8F00', ink: '#000000', accent: '#FF8F00',
                     bars: { left: '#FF8F00' }, barWidth: { left: '2.9%' }, coverBars: {},   /* the offer's cover stays as in 156: no bar */
-                    logo: 'img/moray-logo.svg', logoInk: 'black', sub: 'Administrative units', photoSource: 'Main Marks, sales app.pdf p.4 (their mock)' },
+                    logo: 'img/moray-logo.svg', logoInk: 'black', sub: 'Administrative units', photoSource: 'Main Marks, sales app.pdf p.4 (their mock)',
+                    facts: ['Unit sizes'] },   /* build 193 (Muhanad, 24 Nov 2026): the card carries only the sizes, as Commercial */
+          /* build 193: the line's logo, simply (js/markbuild.js runLogo). Offices has no brand of its own:
+             it wears MORAY (Moray CI p.18). Until 192: kind 'letters', heading 'Administrative spaces'. */
           markBuild: {
-            kind:    'letters',
+            kind:    'logo',
             src:     'img/moray-logo.svg',
+            width:   0.6,
             sub:     'Administrative units',      /* build 155: under the logo, centred (their notes) */
-            heading: 'Administrative spaces',
-            source:  'Moray CI PDF p.18 (logo); Moray brochure PDF p.35 (heading)'
+            source:  'Moray CI PDF p.18 (logo)'
           }
         },
         { id: 'fourth', released: true,
@@ -723,8 +734,12 @@ const CONFIG = {
                     lockup: 'img/the-fourth-lockup.svg' },        /* CI PDF p.20 minus the photo, vector */
           imgSource: 'The Fourth CI, PDF p.20, 30 (master visual, post layout)',
           line:   'Beyond the third, into the fourth.',               lineSource: 'The Fourth brochure, PDF p.10',
-          facts:  [ { k: 'Units', v: '153 administrative' }, { k: 'Area', v: '13,027 m² + 609 m² terraces' } ],
-          factsSource: 'The Fourth brochure, PDF p.10',
+          /* build 193: Unit sizes read off the brochure's six AREA BREAKDOWN tables (PDF p.14-16, "Total
+             sellable Area"): smallest D1-413 43 m², largest B401 467 m² (both printed on the plans beside
+             the tables too); the 18 sizes corrected from the 28 Oct plan (inventory planAreas) all fall
+             inside it. The card shows only this one (Muhanad, 24 Nov 2026). */
+          facts:  [ { k: 'Unit sizes', v: '43 – 467 m²' }, { k: 'Units', v: '153 administrative' }, { k: 'Area', v: '13,027 m² + 609 m² terraces' } ],
+          factsSource: 'The Fourth brochure, PDF p.10, 14-16',
           lit:    'img/moray-night-167-fourth.webp',     /* the fourth-floor band only */
           floors: ['fourth'],                   /* "Positioned on the fourth floor" — CI PDF p.4 */
 
@@ -764,18 +779,21 @@ const CONFIG = {
           /* BUILD 155, THE CARD ON THE MORAY PAGE (Main Marks' design notes, 11 Nov 2026: "Please use every section with its identity"): their picture on top, then a band in the line's colour carrying the MORAY wordmark (or the line's own logo) with the line's name centred under it. The colours are SAMPLED off their mock until the line's brand book file is with us. js/project.js lineCard. */
           card:   { photo: 'img/moray-card-fourth.jpg', overlay: 'img/the-fourth-logo-white.svg', ground: '#FFFFFF', ink: '#000000', accent: '#F4F4F1',
                     logo: 'img/moray-logo.svg', logoInk: 'black', sub: 'Premium offices with view',
-                    photoSource: 'Main Marks, sales app footage, 11 Nov 2026 (magnific__skin-enhancer__44749.png)' },
+                    photoSource: 'Main Marks, sales app footage, 11 Nov 2026 (magnific__skin-enhancer__44749.png)',
+                    facts: ['Unit sizes'] },   /* build 193 (Muhanad, 24 Nov 2026): the card carries only the sizes */
           /* build 164 (Muhanad, 16 Nov 2026: every card opens "exactly as simple as the commercial card and the
              admin card, the same exact style"): the Moray letters build with the line's name under it, as
              Commercial and Offices. Until 163 it was The Fourth's own post build: kind 'fourth', src
              'img/the-fourth-logo-white.svg', ground '#090909', red '#D74E3C', byline 'img/mainmarks-wordmark.svg',
              moray 'img/moray-logo.svg' (js/markbuild.js runFourth, kept). */
+          /* build 193: The Fourth's own logo, simply (js/markbuild.js runLogo): the client's logos-02.svg,
+             reversed white. Until 192: kind 'letters' (the MORAY letters). */
           markBuild: {
-            kind:    'letters',
-            src:     'img/moray-logo.svg',
+            kind:    'logo',
+            src:     'img/the-fourth-logo-white.svg',
+            width:   0.74,
             sub:     'Premium offices with view', /* build 155: under the logo, centred (their notes) */
-            heading: 'Premium offices with view',
-            source:  'Moray CI PDF p.18 (logo)'
+            source:  'The Fourth logos (logos-02.svg)'
           }
         },
         { id: 'wellness', released: true,
@@ -846,17 +864,20 @@ const CONFIG = {
                     frame: { ground: '#FFFFFF', inset: { left: '17.7%', width: '59%' }, position: '50% 70%' },
                     bars: { right: [['#377484', 62], ['#2A6878', 100]] }, barWidth: { right: '23.3%' },
                     coverBars: { right: '#095569' },   /* the offer's cover keeps its 156 bar (js/pdf.js) */
-                    logo: 'img/moray-wellness-logo.svg', logoTall: true, sub: 'Clinical units', photoSource: 'Moray Wellness (medical) guidelines p.4; framing: sales app.pdf p.4' },
+                    logo: 'img/moray-wellness-logo.svg', logoTall: true, sub: 'Clinical units', photoSource: 'Moray Wellness (medical) guidelines p.4; framing: sales app.pdf p.4',
+                    facts: ['Unit sizes'] },   /* build 193 (Muhanad, 24 Nov 2026): the card carries only the sizes */
           /* build 164 (Muhanad, 16 Nov 2026): opens exactly as Commercial and Offices, the Moray letters build with
              the line's name under it. Until 163: src 'img/moray-wellness-logo.svg', script: true (handwritten
              second row), tagline ['1st Mark', 'New Cairo'], bars { left '#F67C4B', foot '#191819', right
              [['#12A2C6', 6], ['#15BEE8', 48], ['#095569', 100]] } (Moray Wellness CI p.10-11). */
+          /* build 193: the Moray Wellness logo, simply (js/markbuild.js runLogo), lifted off the Wellness CI.
+             Until 192: kind 'letters' (the MORAY letters). */
           markBuild: {
-            kind:    'letters',
-            src:     'img/moray-logo.svg',
+            kind:    'logo',
+            src:     'img/moray-wellness-logo.svg',
+            width:   0.62,
             sub:     'Clinical units',            /* build 155: under the logo, centred (their notes) */
-            heading: 'Clinical units',
-            source:  'Moray CI PDF p.18 (logo)'
+            source:  'Moray Wellness CI (logo)'
           },
 
           /* The clinic buildings, named as MAIN MARKS' INVENTORY names them
@@ -898,7 +919,11 @@ const CONFIG = {
           name:   'R- Residence',
           badge:  'Serviced apartments',
           ground: '#191819', ink: '#FFFFFF', accent: '#F59421',   /* Moray ink; the lockup's slash, Moray CI secondary */
-          mark:   { kind: 'moray-endorsed', logo: 'img/moray-logo.svg', over: 'R- Residence', by: 'by' },
+          /* build 194 (Muhanad, 24 Nov 2026, on a screenshot of the page top "R- RESIDENCE by / MORAY": "what
+             should be on top should be R residence logo only"): the page top is the R RESIDENCE logo alone
+             (img/r-residence-logo-white.svg, lifted off its brand book). Until 193: { kind: 'moray-endorsed',
+             logo: 'img/moray-logo.svg', over: 'R- Residence', by: 'by' } (Moray brochure PDF p.39). */
+          mark:   { kind: 'logo', logo: 'img/r-residence-logo-white.svg' },
           img:    'img/moray-line-residence.jpg', imgSource: 'Moray brochure, PDF p.40',
           line:   'Fully furnished serviced apartments.',             lineSource: 'Moray brochure, PDF p.40',
           facts:  [ { k: 'Unit sizes', v: '38 – 83 m²' }, { k: 'Buildings', v: '4 serviced apartments' } ],
@@ -940,17 +965,25 @@ const CONFIG = {
           /* build 157: THEIR PICTURE WITH THE R RESIDENCE LOGO, cut from their mock (sales app.pdf p.4, 477 x 341 px;
              the R Residence brand book has not this photograph). The mock cuts it at the top, and the logo runs
              the full width, so it is held whole at the card's foot and its top fades into the photo's own dark. */
-          card:   { photo: 'img/moray-card-residence.jpg', ground: '#034640', ink: '#FFFFFF', accent: '#F59421',
+          /* build 193 (Muhanad, 24 Nov 2026): the card's "Open R- Residence" line and arrow (and its dot and
+             touched edge) in the R Residence TERRACOTTA RED, no longer Moray's orange #F59421: rgb(174,41,36)
+             = #AE2924, read off the swatch itself (R Residence option 1 small.pdf p.10 and the red panel on
+             p.11; the page prints #AE2925). The card carries only the sizes. */
+          card:   { photo: 'img/moray-card-residence.jpg', ground: '#034640', ink: '#FFFFFF', accent: '#AE2924',
                     frame: { ground: '#15110C', foot: true },
-                    logo: 'img/moray-logo.svg', sub: 'Serviced apartments', photoSource: 'Main Marks, sales app.pdf p.4 (their mock)' },
+                    logo: 'img/moray-logo.svg', sub: 'Serviced apartments', photoSource: 'Main Marks, sales app.pdf p.4 (their mock)',
+                    facts: ['Unit sizes'] },
           /* build 164 (Muhanad, 16 Nov 2026): opens exactly as Commercial and Offices. Until 163 it also drew the
              brochure lockup over the wordmark: over ['R- Residence', 'by'] (Moray brochure PDF p.39). */
+          /* build 193: the R RESIDENCE logo, simply (js/markbuild.js runLogo): the R in its square over
+             RESIDENCE, lifted as vector paths off their brand book (R Residence option 1 small.pdf p.11, the
+             white-on-charcoal version), nothing redrawn. Until 192: kind 'letters' (the MORAY letters). */
           markBuild: {
-            kind:    'letters',
-            src:     'img/moray-logo.svg',
+            kind:    'logo',
+            src:     'img/r-residence-logo-white.svg',
+            width:   0.62,
             sub:     'Serviced apartments',         /* build 155: under the logo, centred (their notes) */
-            heading: 'Serviced apartments',
-            source:  'Moray CI PDF p.18 (logo)'
+            source:  'R Residence option 1 small.pdf p.11 (logo)'
           }
         }
       ],
@@ -1171,6 +1204,14 @@ const CONFIG = {
           },
           floors:     { street: 'img/pdf/plan-street.jpg', first: 'img/pdf/plan-first.jpg', second: 'img/pdf/plan-second.jpg',
                         third: 'img/pdf/plan-third.jpg', fourth: 'img/pdf/plan-fourth.jpg' },
+          /* build 195 (Muhanad, 24 Nov 2026: the key plan "has a black background we need to remove this black
+             background and have it as a png"): the offer PDF's key plan ("On the second floor") is a PNG whose
+             outside is SEE-THROUGH, made from the app's own floor picture (img/moray-plan-<floor>.webp keeps the
+             site outline as transparency; a JPEG cannot, so its outside was black). Same pixel size as the JPEG,
+             so every box and dot drawn on it lands where it did. The WhatsApp picture (js/post.js) keeps
+             `floors` above, unchanged. Made by scripts/make-plan-png.js (sharp: webp -> resize -> png). */
+          floorsPdf:  { street: 'img/pdf/plan-street.png', first: 'img/pdf/plan-first.png', second: 'img/pdf/plan-second.png',
+                        third: 'img/pdf/plan-third.png', fourth: 'img/pdf/plan-fourth.png' },
           /* build 79: the project. Every render is Main Marks' own,
              copied out of the Moray brochure with pdfimages -j, NOT re-encoded. */
           /* build 155: the day render of the North 90 front, from Main Marks' design notes (11 Nov 2026), as their
@@ -1205,6 +1246,11 @@ const CONFIG = {
             cover:     'img/pdf/cover-wellness.jpg', coverPhotoW: 0.545,   /* the card photo re-saved plain (PDF-safe) */
             logoCover: 'img/pdf/wellness-white.png',              /* CI p.11 */
             logoPage:  'img/pdf/wellness-orange.png',             /* CI p.11 */
+            /* build 196 (Muhanad, 24 Nov 2026, the Wellness WhatsApp picture beside the Offices one: "the logo ... is in
+               orange we need it to be the same color as the second image"): the WhatsApp picture's logo in Moray's
+               charcoal rgb(50,48,49), the colour MORAY wears there (moray-charcoal.png). The file is wellness-orange.png
+               with only its colour changed (same pixels, same edges). The PDF pages keep logoPage (not asked). */
+            logoPost:  'img/pdf/wellness-charcoal.png',
             rooms: { title: 'Medical Spaces', titleAr: 'المساحات الطبية', doc: 'Moray brochure', docAr: 'كتيب Moray',
                      a: { img: 'img/pdf/render-p37-clinic.jpg', page: 37, fy: 0.5 }, b: { img: 'img/pdf/render-p37-corridor.jpg', page: 37, fy: 0.42 } },
             quote: 'Moray’s medical clinics bring together advanced facilities and refined design, offering trusted care in a setting that prioritizes comfort, accessibility, and community well-being.',

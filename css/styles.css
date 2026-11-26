@@ -3560,3 +3560,42 @@ html[lang="ar"] .l-card .l-go { letter-spacing: 0; font-size: 13px; }
 .q-post-when[hidden] { display: none; }
 .q-post-laterbox .q-cta[hidden] { display: none; }
 .q-post-laternote:empty { display: none; }
+
+/* build 192 (Muhanad, 2026-11-20: "if you hovered see how the arrows act it is not like the english version").
+   A card's arrow nudges 4 px forward on hover. In Arabic it is mirrored (scaleX(-1), above), but the hover
+   rule is more specific and REPLACED the mirror: on hover the Arabic arrow turned to point right and moved
+   right. In Arabic it now keeps pointing left and nudges 4 px to the left, the mirror of the English. */
+[dir="rtl"] .l-card:hover .l-go svg,
+[dir="rtl"] .mm-card.feature:hover .c-go svg,
+[dir="rtl"] .mm-card.start:hover .c-go svg { transform: translateX(-4px) scaleX(-1); }
+
+/* build 193 (Muhanad, 2026-11-24: "the footer should remain in the middle always"). The MAIN MARKS :
+   BESPOKE EXPERIENCES signature stands in the middle of the footer on every page (sign-in, projects,
+   Start, Moray and its lines). The build number (hidden in the sales view, five taps show it) no longer
+   takes a place in the row: it sits at the far end, out of the way, so it cannot push the signature off
+   centre. On the Moray page the row kept 64 px clear at one end for the plus; it now keeps it at both. */
+.mm-foot { position: relative; justify-content: center; }
+.mm-foot .mm-sig { justify-content: center; }
+.mm-foot .gate-priv { position: absolute; inset-inline-end: 0; bottom: 8px; }
+.is-chooser.has-sp-bar .pick-foot.mm-foot { padding-inline: 64px; }
+
+/* build 193: THE LINE'S OWN LOGO on the black when a card is tapped (js/markbuild.js runLogo). Sizes are
+   parts of .mb-lock (the 9:16 frame), as for every other lockup in it. */
+.mb-logo { position: absolute; left: 50%; top: 45%; width: 62%; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center; }
+.mb-logo-img { display: block; width: 100%; height: auto; opacity: 0; }
+.mb-logo-extra { width: 118%; max-width: none; margin-top: 1.6em; }
+.mb-logo-sub { margin-top: 2.2em; font-family: var(--font-corporate); font-weight: 400; font-size: 1.1em;
+  letter-spacing: .22em; text-transform: uppercase; color: #fff; white-space: nowrap; text-align: center; opacity: 0; }
+html[lang="ar"] .mb-logo-sub { letter-spacing: 0; font-family: "IBM Plex Sans Arabic", Manrope, Tahoma, sans-serif; font-size: 1.3em; }
+.mb-running .mb-logo-img, .mb-running .mb-logo-sub { will-change: transform, opacity; }
+
+/* build 194: R Residence's page top is its own logo alone (config mark kind 'logo'), at the height the
+   other lines' logos stand in the same place (.q-logo 46 px), a little taller as it is two rows */
+.q-title .q-mark.l-mark-logo .l-logo { height: 52px; width: auto; display: block; }
+
+/* build 197 (Muhanad, 2026-11-25: "all the arabic translation should be aligned correctly, arabic should be
+   written RTL"). These boxes were fixed to text-align: left for English, so in Arabic their text hung to the
+   left (the projects page cards: place, description, facts, Open). In Arabic they align right. */
+[dir="rtl"] .mm-card, [dir="rtl"] .chip, [dir="rtl"] .u-card, [dir="rtl"] .demo-acct,
+[dir="rtl"] .pick-foot .gate-priv { text-align: right; }

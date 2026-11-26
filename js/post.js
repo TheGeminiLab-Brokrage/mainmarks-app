@@ -95,22 +95,22 @@
     ar: {
       sample: '⚠️ عينة — شروط نظام السداد لم تؤكدها Main Marks بعد',
       headline: function (s, pl) {
-        if (s.cash) return '🔥خصم ' + isoPct(s.discountPct) + ' كاش🔥';
-        var yrs = pl.years + (pl.years <= 10 ? ' سنين' : ' سنة');
+        if (s.cash) return '🔥خصم ' + isoPct(s.discountPct) + ' للدفع النقدي🔥';
+        var yrs = pl.years + (pl.years <= 10 ? ' سنوات' : ' سنة');
         var down = pl.down ? 'بمقدم ' + downParts(pl).map(isoPct).join(' + ') : 'بدون مقدم';
         return '🔥' + (s.discount ? 'خصم ' + isoPct(s.discountPct) + ' و' : '') + 'تقسيط على ' + yrs + ' ' + down + '🔥';
       },
-      size: function (u) { return '🔷 ' + (USE_AR[u.type] || u.type) + ' ' + money(u.area) + ' متر'; },
+      size: function (u) { return '🔷 ' + (USE_AR[u.type] || u.type) + ' ' + money(u.area) + ' م²'; },
       where: function (u, b) { return '🔷 ' + (FLOOR_AR[u.fid] || u.floor) + ' · مبنى ' + b; },
       before: function (v) { return '👈السعر قبل الخصم ~' + v + '~'; },
       after: function (v) { return '👈*السعر بعد الخصم ' + v + '*🔥'; },
       price: function (v) { return '👈*السعر ' + v + '*🔥'; },
-      cash: '👈*الدفع كاش مرة واحدة*🔥',
+      cash: '👈*الدفع نقداً دفعة واحدة*🔥',
       down: function (v) { return '👈*مقدم ' + v + '*🔥'; },
-      down2: function (v) { return '👈*وبعد 3 شهور ' + v + '*🔥'; },
+      down2: function (v) { return '👈*وبعد 3 أشهر ' + v + '*🔥'; },
       noDown: '👈*بدون مقدم*🔥',
-      quarter: function (v) { return '👈*قسط كل 3 شهور ' + v + '*🔥'; },
-      monthly: function (v) { return '👈يعني حوالي ' + v + ' في الشهر'; },
+      quarter: function (v) { return '👈*قسط كل 3 أشهر ' + v + '*🔥'; },
+      monthly: function (v) { return '👈أي نحو ' + v + ' شهرياً'; },
       until: function (d) { return '⏳ العرض ساري حتى ' + d.getDate() + ' ' + MONTHS_AR[d.getMonth()] + ' ' + d.getFullYear(); },
       contact: function (name, phone) { return '📞 للتواصل: ' + [name, phone].filter(Boolean).join(' · '); }
     }
@@ -143,28 +143,35 @@
     },
     ar: {
       line: function (n) { return LINE_AR[n] || n; },
-      size: function (u) { return (USE_AR[u.type] || u.type) + ' ' + money(u.area) + ' متر'; },
+      size: function (u) { return (USE_AR[u.type] || u.type) + ' ' + money(u.area) + ' م²'; },
       where: function (u, b) { return (FLOOR_AR[u.fid] || u.floor) + ' · مبنى ' + b; },
       plan: function (s, pl) {
-        if (s.cash) return 'خصم ' + isoPct(s.discountPct) + ' كاش';
-        var yrs = pl.years + (pl.years <= 10 ? ' سنين' : ' سنة');
+        if (s.cash) return 'خصم ' + isoPct(s.discountPct) + ' للدفع النقدي';
+        var yrs = pl.years + (pl.years <= 10 ? ' سنوات' : ' سنة');
         return (s.discount ? 'خصم ' + isoPct(s.discountPct) + ' و' : '') + 'تقسيط على ' + yrs + ' ' + (pl.down ? 'بمقدم ' + downParts(pl).map(isoPct).join(' + ') : 'بدون مقدم');
       },
       before: function (v) { return 'السعر قبل الخصم ~' + v + '~'; },
       after: function (v) { return '*السعر بعد الخصم ' + v + '*'; },
       price: function (v) { return '*السعر ' + v + '*'; },
-      cash: 'الدفع كاش مرة واحدة',
+      cash: 'الدفع نقداً دفعة واحدة',
       down: function (v) { return 'مقدم ' + v; },
-      down2: function (v) { return 'وبعد 3 شهور ' + v; },
+      down2: function (v) { return 'وبعد 3 أشهر ' + v; },
       noDown: 'بدون مقدم',
-      quarter: function (v) { return 'قسط كل 3 شهور ' + v; },
-      monthly: function (v) { return 'يعني حوالي ' + v + ' في الشهر'; }
+      quarter: function (v) { return 'قسط كل 3 أشهر ' + v; },
+      monthly: function (v) { return 'أي نحو ' + v + ' شهرياً'; }
     }
   };
 
   /* o: { project, line, unit, plan, buildingName, lang, agent:{name,phone}|null, date }
      The schedule is worked HERE from the plan, the way the PDF works it,
      so a caller cannot hand in a stale one. */
+  /* build 198 (Muhanad, 2026-11-25: "arabic should be written RTL"). WhatsApp sets a message's direction
+     from its first letter, and an Arabic post opens on the unit code (E212, Latin): the whole post could
+     show left to right. An invisible right-to-left mark (U+200F, built from its code point) opens every
+     non-empty line of an Arabic post, so each line reads and aligns right to left. English is untouched. */
+  var RLM = String.fromCharCode(0x200F);
+  function rtlLines(lines, lang) { return lang === 'en' ? lines : lines.map(function (l) { return l ? RLM + l : l; }); }
+
   function caption(o) {
     var p = o.project, u = o.unit, pl = o.plan, T = TEXT[o.lang === 'en' ? 'en' : 'ar'];
     if (!u || !u.sellable) throw new Error('this unit is not available, so it cannot be posted');
@@ -205,7 +212,7 @@
     if (o.agent && (o.agent.name || o.agent.phone)) {
       lines.push('', T.contact((o.agent.name || '').trim(), (o.agent.phone || '').trim()));
     }
-    return lines.join('\n');
+    return rtlLines(lines, o.lang).join('\n');
   }
 
   /* ================================================================ picture */
@@ -264,7 +271,8 @@
     var L = MM.pdf && MM.pdf.lineOffer(p, u), C = L && MM.pdf.themes[L.brand];
     return C ? { primary: C.primary, accent: C.accent, text: C.text, grey: C.grey, rule: C.rule } : WELLNESS;
   }
-  function logoOf(p, u) { var L = MM.pdf && MM.pdf.lineOffer(p, u); return (L && L.logoPage) || null; }
+  /* build 196: a line may set its own logo for the WhatsApp picture (config `logoPost`); otherwise the PDF page's */
+  function logoOf(p, u) { var L = MM.pdf && MM.pdf.lineOffer(p, u); return (L && (L.logoPost || L.logoPage)) || null; }
   /* '#FA6126', 0.42 -> 'rgba(250,97,38,0.42)' */
   function tint(hex, a) {
     var v = parseInt(String(hex).slice(1), 16);
@@ -292,13 +300,13 @@
           floors: function (fids, b) { return fids.map(function (f) { return FLOOR_EN[f] || f; }).join(' and ') + ' · Building ' + b; },
           buildings: function (bs) { return 'Buildings ' + bs.join(' and '); } },
     ar: { building: function (b) { return 'مبنى ' + b; }, use: function (u) { return USE_AR[u.type] || u.type; },
-          area: function (u) { return money(u.area) + ' متر'; }   /* the posts' word; a canvas puts ² on the wrong side in Arabic */, where: function (u, b) { return (FLOOR_AR[u.fid] || u.floor) + ' · مبنى ' + b; },
+          area: function (u) { return money(u.area) + ' متر مربع'; }   /* the posts' word; a canvas puts ² on the wrong side in Arabic */, where: function (u, b) { return (FLOOR_AR[u.fid] || u.floor) + ' · مبنى ' + b; },
           sample: 'عينة · الشروط قيد التأكيد',
-          mark1: 'العلامة الأولى /', mark2: 'القاهرة الجديدة', street: 'التسعين الشمالي',
+          mark1: '1ST MARK /', mark2: 'NEW CAIRO', street: 'التسعين الشمالي',   /* build 197: the slogan lockup stays English (his word) */
           floorTag: function (f) { return FLOOR_AR[f] || f; },
           floorName: function (u) { return FLOOR_AR[u.fid] || u.floor; },
           floors: function (fids, b) { return fids.map(function (f) { return FLOOR_AR[f] || f; }).join(' و') + ' · مبنى ' + b; },
-          buildings: function (bs) { return 'مباني ' + bs.join(' و'); } }
+          buildings: function (bs) { return 'المباني ' + bs.join(' و'); } }
   };
 
   /* o: { project, unit, buildingName, lang } -> Promise<Blob> */
@@ -472,22 +480,22 @@
       head: function (n) { return '🔥 ' + n + ' اختيارات لعميلك 🔥'; },
       where: function (f, b) { return '🔷 ' + f + ' · مبنى ' + b; },
       planLine: function (s, pl) {
-        if (s.cash) return '💰 خصم ' + isoPct(s.discountPct) + ' كاش';
-        return '💰 ' + (s.discount ? 'خصم ' + isoPct(s.discountPct) + ' و' : '') + 'تقسيط على ' + pl.years + (pl.years <= 10 ? ' سنين ' : ' سنة ') + (pl.down ? 'بمقدم ' + downParts(pl).map(isoPct).join(' + ') : 'بدون مقدم');
+        if (s.cash) return '💰 خصم ' + isoPct(s.discountPct) + ' للدفع النقدي';
+        return '💰 ' + (s.discount ? 'خصم ' + isoPct(s.discountPct) + ' و' : '') + 'تقسيط على ' + pl.years + (pl.years <= 10 ? ' سنوات ' : ' سنة ') + (pl.down ? 'بمقدم ' + downParts(pl).map(isoPct).join(' + ') : 'بدون مقدم');
       },
-      unit: function (i, u) { return KEYCAP[i] + ' 📍*' + u.code + '* · ' + (USE_AR[u.type] || u.type) + ' ' + money(u.area) + ' متر'; },
+      unit: function (i, u) { return KEYCAP[i] + ' 📍*' + u.code + '* · ' + (USE_AR[u.type] || u.type) + ' ' + money(u.area) + ' م²'; },
       role: { fit: '✅ الأنسب للميزانية', cheapest: '✅ أقل سعر', value: '✅ أقل سعر للمتر', lower: '✅ سعر أقل', stretch: '⬆️ فوق الميزانية بقليل' },
       twins: function (c) { return ' (ومثلها ' + c.join(' و') + ')'; },
-      stepQ: function (m2, v) { return ': مساحة أكبر بـ ' + m2 + ' متر بزيادة ' + v + ' كل 3 شهور'; },
-      stepC: function (m2, v) { return ': مساحة أكبر بـ ' + m2 + ' متر بزيادة ' + v; },
-      stepM: function (m2) { return ': مساحة أكبر بـ ' + m2 + ' متر'; },
+      stepQ: function (m2, v) { return ': مساحة أكبر بـ ' + m2 + ' م² بزيادة ' + v + ' كل 3 أشهر'; },
+      stepC: function (m2, v) { return ': مساحة أكبر بـ ' + m2 + ' م² بزيادة ' + v; },
+      stepM: function (m2) { return ': مساحة أكبر بـ ' + m2 + ' م²'; },
       price: function (v) { return '👈 السعر ' + v; },
       before: function (v) { return '👈 السعر قبل الخصم ~' + v + '~'; },
       after: function (v) { return '👈 السعر بعد الخصم ' + v; },
-      cash: '👈 *الدفع كاش مرة واحدة*',
+      cash: '👈 *الدفع نقداً دفعة واحدة*',
       down: function (v) { return '👈 مقدم ' + v; },
-      down2: function (v) { return '👈 وبعد 3 شهور ' + v; },
-      quarter: function (v, m) { return '👈 *قسط كل 3 شهور ' + v + '* (حوالي ' + m + ' في الشهر)'; },
+      down2: function (v) { return '👈 وبعد 3 أشهر ' + v; },
+      quarter: function (v, m) { return '👈 *قسط كل 3 أشهر ' + v + '* (نحو ' + m + ' شهرياً)'; },
       picRole: { fit: 'الأنسب للميزانية', cheapest: 'أقل سعر', value: 'أقل سعر للمتر', lower: 'سعر أقل', stretch: 'مساحة أكبر' },
       /* several of them: the plural */
       picHead: function (n, u) { return n + ' اختيارات · ' + ({ Clinic: 'عيادات', Admin: 'مكاتب إدارية', Commercial: 'محلات تجارية' }[u.type] || u.type); }
@@ -578,7 +586,7 @@
     if (o.agent && (o.agent.name || o.agent.phone)) {
       lines.push('', T.contact((o.agent.name || '').trim(), (o.agent.phone || '').trim()));
     }
-    return lines.join('\n');
+    return rtlLines(lines, L).join('\n');
   }
 
   /* a picture needs every option traced on its own floor drawing; one floor or several (build 131) */

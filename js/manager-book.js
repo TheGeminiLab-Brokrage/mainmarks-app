@@ -353,9 +353,13 @@
     var byName = function (a, b) { return a.name.localeCompare(b.name); };
     /* build 135: anyone who is not a sales agent reads this book as the one who LEADS (a sales manager) */
     var lead = me.role !== 'sales', led = {}, leads = 0, team, own, mineN;
-    (got.teams || []).forEach(function (x) { if (lead && (x.manager_id === me.id || x.director_id === me.id)) { led[x.id] = x; leads++; } });
+    /* build 198: above the managers. A director leads the teams the admin set him over; the CCO every
+       team. Both read everything the store hands them (mm_can_see decides), and record nothing. */
+    var above = me.role === 'director' || me.role === 'cco';
+    (got.teams || []).forEach(function (x) { if (lead && (me.role === 'cco' || x.manager_id === me.id || x.director_id === me.id)) { led[x.id] = x; leads++; } });
     if (lead) {
-      var agent = function (p) { return p.id !== me.id && p.role === 'sales' && !!p.team_id; };
+      /* the people he leads: the sales agents of his teams; for a director and the CCO, their managers too */
+      var agent = function (p) { return p.id !== me.id && !!p.team_id && (p.role === 'sales' || (above && p.role === 'sales_manager')); };
       var gone = function (p) { var c = card(p); c.off = true; return c; };
       team = got.people.filter(function (p) { return agent(p) && p.active && led[p.team_id]; }).sort(byName).map(card);
       own = team.length;
@@ -378,9 +382,12 @@
     var manager;
     if (lead) {
       /* the page is his own. Who he reports to is the director the admin set on his team, when there is one. */
-      var over = Object.keys(led).map(function (k) { return led[k]; }).filter(function (x) { return x.director_id && x.director_id !== me.id && people[x.director_id]; })[0];
-      manager = { name: me.name, title: me.title || 'Sales Manager', code: me.staff_code || '' };
+      var over = above ? null : Object.keys(led).map(function (k) { return led[k]; }).filter(function (x) { return x.director_id && x.director_id !== me.id && people[x.director_id]; })[0];
+      manager = { name: me.name, title: me.title || (me.role === 'cco' ? 'CCO' : me.role === 'director' ? 'Sales Director' : 'Sales Manager'), code: me.staff_code || '' };
       if (over) { manager.reportsTo = people[over.director_id].name; manager.reportsTitle = people[over.director_id].title || 'Sales Director'; }
+      /* a director reports to the CCO */
+      var cco = me.role === 'director' ? got.people.filter(function (p) { return p.role === 'cco' && p.active; })[0] : null;
+      if (cco) { manager.reportsTo = cco.name; manager.reportsTitle = cco.title || 'CCO'; }
     } else {
       var mine = (got.teams || []).filter(function (x) { return x.id === me.team_id; })[0];
       var boss = mine && mine.manager_id && people[mine.manager_id];
@@ -486,6 +493,8 @@
     return {
       demo: false, live: true, span: SPAN, today: today, now: now,
       me: at[me.id], mates: mates, own: own, mine: mineN, leads: lead ? leads : undefined,
+      /* build 198: the CCO is handed every team; his page says so instead of "your team only" */
+      everyTeam: me.role === 'cco',
       manager: manager, team: team, companies: companies, products: PRODUCTS, why: WHY,
       events: function () { return events.concat(follow); },
       dateOf: dateOf, agoOf: agoOf, iso: iso, fromIso: fromIso,
@@ -499,7 +508,9 @@
       waiting: function (i) { return !!waits[i]; },
       productOf: productOf,
       recorded: function () { return 0; },
-      add: function (r) {
+      /* build 198: a director and the CCO record nothing and cancel nothing (the store refuses them:
+         mm_record, mm_cancel); the page offers no plus where `add` is missing */
+      add: above ? undefined : function (r) {
         var u = r.u ? byCode[String(r.u).toUpperCase()] : null;
         var body = {
           p_kind: r.k, p_company: ids[r.c] || null, p_date: iso(r.date),
@@ -549,7 +560,7 @@
       /* a reservation is cancelled by the manager of the team, never by a sales agent. It is kept and
          marked; the cancellation is its own row, with its own date and reason. */
       cancel: function (id, date, why) {
-        if (!lead) return Promise.reject(new Error('MM_NOT_ALLOWED'));
+        if (!lead || above) return Promise.reject(new Error('MM_NOT_ALLOWED'));
         return rpc('mm_cancel', { p_reservation: id, p_date: iso(date), p_why: why }).then(function (saved) {
           var e = row(saved);
           if (!e) throw new Error('MM_FAILED');
@@ -561,7 +572,8 @@
       /* REMOVING A WRONG ENTRY, WITH A REASON (build 136; the store's mm_remove). The manager for his own
          team, never a contract; the store decides, keeps the whole entry with the reason in the history,
          and refuses with a code the page has the words for. Only where someone leads. */
-      removeWhy: !lead ? undefined : function (id, reason) {
+      /* a director corrects for his teams (his word, 2026-10-10); the CCO reads only (the store: mm_remove) */
+      removeWhy: !lead || me.role === 'cco' ? undefined : function (id, reason) {
         var e = events.filter(function (x) { return x.id === id; })[0];
         if (!e) return Promise.reject(new Error('MM_NO_SUCH_ENTRY'));
         return rpc('mm_remove', { p_id: id, p_reason: reason }).then(function () {

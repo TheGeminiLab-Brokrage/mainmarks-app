@@ -26,45 +26,60 @@
   'use strict';
   function $(s) { return document.querySelector(s); }
   function txt(s) { var e = $(s); return e ? e.textContent.replace(/\s+/g, ' ').trim() : ''; }
+  /* build 192 (Muhanad, 2026-11-20: "do the Arabic ... what the sales agents in the egytian market is most
+     familiar with"): the tour speaks Arabic on the Arabic page. Build 197 (his word, 2026-11-25: "everything translated in
+     accurate Arabic"): standard Arabic, no loanwords (عرض, رسالة جماعية, اجتماع, جلسة تعريفية, ورشة عمل). L(english, arabic) picks one; the English is unchanged. */
+  var AR = !!(window.MM && MM.lang === 'ar');
+  function L(en, ar) { return AR ? ar : en; }
   function when() {
     var b = $('.seg186 button[aria-pressed="true"]'), k = b ? b.dataset.r : '';
-    return { today: 'today', week: 'this week', month: 'in the last 30 days', ever: 'so far' }[k] || 'in these dates';
+    return AR ? ({ today: 'اليوم', week: 'هذا الأسبوع', month: 'في آخر 30 يوماً', ever: 'حتى الآن' }[k] || 'في هذه التواريخ')
+      : ({ today: 'today', week: 'this week', month: 'in the last 30 days', ever: 'so far' }[k] || 'in these dates');
   }
   function money() { return txt('.hero186 .sales b').replace(/^EGP\s*/, 'EGP '); }
-  function goal() { var m = /\/(\d+)/.exec(txt('.ring186 text')); return m ? m[1] : '3'; }
+  /* build 192: the DAILY target from the settings. Since 191 the ring shows the target for the chosen dates
+     (90 for 30 days), so reading it off the ring made the tour say "Send 90 offers a day". */
+  function goal() { var n = typeof CONFIG !== 'undefined' && CONFIG.salesDay && Number(CONFIG.salesDay.broadcasts); return String(n || 3); }
   function bar(k) { return $('#tab button[data-t="' + k + '"]'); }
   function card(re) { return [].filter.call(document.querySelectorAll('.scr .card'), function (c) { var h = c.querySelector('h2'); return h && re.test(h.textContent); })[0]; }
   function inSheet(s) { var sh = $('#sheet'); return sh && sh.classList.contains('on') ? sh.querySelector(s) : null; }
 
-  var CHOOSE = '<div class="tour-mock" aria-hidden="true"><span><b>Special request</b>A company asked. Counts for that company.</span><span><b>General broadcast</b>To groups. Counts on today’s target.</span></div>';
+  var CHOOSE = L('<div class="tour-mock" aria-hidden="true"><span><b>Special request</b>A company asked. Counts for that company.</span><span><b>General broadcast</b>To groups. Counts on today’s target.</span></div>',
+    '<div class="tour-mock" aria-hidden="true"><span><b>طلب خاص</b>شركة طلبت منك. يُحتسب لهذه الشركة.</span><span><b>رسالة جماعية</b>للمجموعات. تُحتسب في مستهدف اليوم.</span></div>');
+
   var STEPS = [
-    { center: true, title: 'Your work, counted', text: 'Most of this page fills by itself as you send offers. Here is how to read it and use it.' },
+    { center: true, title: L('Your work, counted', 'عملك كله محسوب'), text: L('Most of this page fills by itself as you send offers. Here is how to read it and use it.', 'تمتلئ معظم هذه الصفحة تلقائياً كلما أرسلت عروضاً. إليك طريقة قراءتها والاستفادة منها.') },
 
-    { ch: 'How it fills', find: function () { return bar('offer'); }, pad: 2, title: 'It starts with an offer', text: 'Send offers from Quick Offer. Before each one goes, you choose who it is for:', extra: CHOOSE },
+    { ch: L('How it fills', 'كيف تمتلئ'), find: function () { return bar('offer'); }, pad: 2, title: L('It starts with an offer', 'البداية من العرض'), text: L('Send offers from Quick Offer. Before each one goes, you choose who it is for:', 'أرسل العروض من «عرض سريع». قبل إرسال أي عرض، تختار لمن هو:'), extra: CHOOSE },
 
-    { ch: 'Your results', sel: '.segrow186', title: 'Pick your dates', text: 'Today, this week, 30 days or all time. Every card on this page follows them.' },
-    { ch: 'Your results', sel: '.hero186', title: 'Your sales', text: function () { var v = money(); return (v ? v + ' sold ' + when() + '.' : 'What you sold.') + ' A deal split with a colleague counts half.'; } },
-    { ch: 'Your results', sel: '.curve186', title: 'Special requests', text: function () { var n = txt('.curve186 .big186 b'); return (n ? n + ' offers' : 'Offers') + ' to companies that asked you, ' + when() + '. Orange above dashed: ahead.'; } },
-    { ch: 'Your results', sel: '.curve186', demo: true, title: 'Read any day', text: 'Drag a finger across the graph to read any day. “Open this day” shows who asked.' },
+    { ch: L('Your results', 'نتائجك'), sel: '.segrow186', title: L('Pick your dates', 'اختر التواريخ'), text: L('Today, this week, 30 days or all time. Every card on this page follows them.', 'اليوم، أو الأسبوع، أو 30 يوماً، أو منذ البداية. كل بطاقة في الصفحة تتبعها.') },
+    { ch: L('Your results', 'نتائجك'), sel: '.hero186', title: L('Your sales', 'مبيعاتك'), text: function () { var v = money(); return AR ? (v ? 'مبيعاتك ' + when() + ': ' + v + '.' : 'ما بعته.') + ' الصفقة المشتركة مع زميل تُحتسب بالنصف.'
+      : (v ? v + ' sold ' + when() + '.' : 'What you sold.') + ' A deal split with a colleague counts half.'; } },
+    { ch: L('Your results', 'نتائجك'), sel: '.curve186', title: L('Special requests', 'الطلبات الخاصة'), text: function () { var n = txt('.curve186 .big186 b'); return AR ? (n ? n + ' عرض' : 'العروض') + ' لشركات طلبت منك، ' + when() + '. البرتقالي فوق المتقطع: أنت متقدم.'
+      : (n ? n + ' offers' : 'Offers') + ' to companies that asked you, ' + when() + '. Orange above dashed: ahead.'; } },
+    { ch: L('Your results', 'نتائجك'), sel: '.curve186', demo: true, title: L('Read any day', 'اقرأ أي يوم'), text: L('Drag a finger across the graph to read any day. “Open this day” shows who asked.', 'اسحب إصبعك على الرسم البياني لقراءة أي يوم. «افتح هذا اليوم» يعرض من طلب.') },
 
-    { ch: 'Your companies', sel: '.reach186 .big186', pad: 10, title: 'Active companies', text: function () { var n = txt('.reach186 .big186 b'), of = txt('.reach186 .big186 span').replace(/^of\s*/, ''); return (n && of ? n + ' of your ' + of + ' companies asked you ' + when() + '.' : 'How many of your companies asked you.') + ' More asking, more sales.'; } },
-    { ch: 'Your companies', sel: '.st186[data-g186="active"]', title: 'Active', text: 'Asked you for an offer in the dates you picked. Keep them warm with your offers.' },
-    { ch: 'Your companies', sel: '.st186[data-g186="quiet"]', title: 'Gone quiet', text: 'Asked you just before your dates, then nothing in them. The early warning: call them today.' },
-    { ch: 'Your companies', sel: '.st186[data-g186="inactive"]', title: 'Inactive', text: 'Asked you once, long before your dates, nothing since. A visit to their office can wake them up.' },
-    { ch: 'Your companies', sel: '.st186[data-g186="never"]', title: 'Never asked', text: 'Never asked you for an offer. An orientation at their office is the way in.' },
-    { ch: 'Your companies', sel: '.states186', pad: 8, title: 'See the names', text: 'Tap any group to see its companies. The gone quiet ones also show below it.' },
+    { ch: L('Your companies', 'شركاتك'), sel: '.reach186 .big186', pad: 10, title: L('Active companies', 'الشركات النشطة'), text: function () { var n = txt('.reach186 .big186 b'), of = txt('.reach186 .big186 span').replace(/^(of|من)\s*/, '');
+      return AR ? (n && of ? n + ' من شركاتك الـ ' + of + ' طلبت منك ' + when() + '.' : 'عدد شركاتك التي طلبت منك.') + ' طلبات أكثر تعني مبيعات أكثر.'
+        : (n && of ? n + ' of your ' + of + ' companies asked you ' + when() + '.' : 'How many of your companies asked you.') + ' More asking, more sales.'; } },
+    { ch: L('Your companies', 'شركاتك'), sel: '.st186[data-g186="active"]', title: L('Active', 'نشطة'), text: L('Asked you for an offer in the dates you picked. Keep them warm with your offers.', 'طلبت منك عرضاً في التواريخ التي اخترتها. حافظ على تواصلك معها بالعروض.') },
+    { ch: L('Your companies', 'شركاتك'), sel: '.st186[data-g186="quiet"]', title: L('Gone quiet', 'تراجع نشاطها'), text: L('Asked you just before your dates, then nothing in them. The early warning: call them today.', 'طلبت منك قبل هذه التواريخ مباشرةً، ثم لم تطلب خلالها. هذا هو الإنذار المبكر: اتصل بها اليوم.') },
+    { ch: L('Your companies', 'شركاتك'), sel: '.st186[data-g186="inactive"]', title: L('Inactive', 'غير نشطة'), text: L('Asked you once, long before your dates, nothing since. A visit to their office can wake them up.', 'طلبت منك مرة قبل هذه التواريخ بفترة طويلة، ولم تطلب شيئاً منذ ذلك الحين. قد تعيدها زيارة لمكتبها.') },
+    { ch: L('Your companies', 'شركاتك'), sel: '.st186[data-g186="never"]', title: L('Never asked', 'لم تطلب أبداً'), text: L('Never asked you for an offer. An orientation at their office is the way in.', 'لم تطلب منك عرضاً قط. الجلسة التعريفية في مكتبها هي الخطوة الأولى.') },
+    { ch: L('Your companies', 'شركاتك'), sel: '.states186', pad: 8, title: L('See the names', 'اطّلع على الأسماء'), text: L('Tap any group to see its companies. The gone quiet ones also show below it.', 'اضغط على أي مجموعة لعرض شركاتها. والشركات التي تراجع نشاطها تظهر أسفلها أيضاً.') },
 
-    { ch: 'Your day', sel: '.ring186', title: 'Your broadcast target', text: function () { return 'Send ' + goal() + ' offers a day, every day, to all your companies as General broadcast. Each counts once. Pick more days and the target grows with them.'; } },
-    { ch: 'Your day', sel: '.path186', title: 'From request to contract', text: 'How your requests became meetings, reservations and contracts. Tap a line for names.' },
+    { ch: L('Your day', 'يومك'), sel: '.ring186', title: L('Your broadcast target', 'مستهدف الرسائل الجماعية'), text: function () { return AR ? 'أرسل ' + goal() + ' عروض يومياً، كل يوم، إلى كل شركاتك رسالةً جماعية. يُحتسب كل عرض مرة واحدة. وكلما اخترت أياماً أكثر، زاد المستهدف معها.'
+      : 'Send ' + goal() + ' offers a day, every day, to all your companies as General broadcast. Each counts once. Pick more days and the target grows with them.'; } },
+    { ch: L('Your day', 'يومك'), sel: '.path186', title: L('From request to contract', 'من الطلب إلى العقد'), text: L('How your requests became meetings, reservations and contracts. Tap a line for names.', 'كيف تحولت طلباتك إلى اجتماعات وحجوزات وعقود. اضغط على أي سطر لعرض الأسماء.') },
 
-    { ch: 'Record your work', sel: '#fab', round: true, pad: 6, title: 'The orange +', text: 'Offers count by themselves. Your visits, meetings and deals: record them with +.' },
-    { ch: 'Record your work', scene: 'sheet', find: function () { return inSheet('.chips'); }, pad: 6, title: 'Choose what happened', text: 'Orientation: a visit to present Moray. Workshop: a session where requests bring no meeting.' },
-    { ch: 'Record your work', scene: 'sheet', find: function () { var a = inSheet('.fld.pick'), b = inSheet('.range'); return a ? (b ? [a, b] : a) : null; }, pad: 6, title: 'The company and the date', text: 'Type the first letters of the company and pick it. Set the date and who came.' },
-    { ch: 'Record your work', scene: 'sheet', find: function () { return inSheet('#rSave'); }, pad: 5, title: 'Save', text: 'It shows on this page at once, and your manager sees it.' },
-    { ch: 'Record your work', find: function () { return card(/What I entered|ما سجلته/); }, title: 'What you entered', text: 'Everything you recorded, newest first. A mistake? Take it back the same day.' },
+    { ch: L('Record your work', 'سجّل عملك'), sel: '#fab', round: true, pad: 6, title: L('The orange +', 'زر + البرتقالي'), text: L('Offers count by themselves. Your visits, meetings and deals: record them with +.', 'العروض تُحتسب تلقائياً. أما زياراتك واجتماعاتك وصفقاتك فسجّلها من زر +.') },
+    { ch: L('Record your work', 'سجّل عملك'), scene: 'sheet', find: function () { return inSheet('.chips'); }, pad: 6, title: L('Choose what happened', 'اختر ما حدث'), text: L('Orientation: a visit to present Moray. Workshop: a session where requests bring no meeting.', 'الجلسة التعريفية: زيارة لتقديم Moray. ورشة العمل: جلسة مع شركة تطلب ولا تُثمر طلباتها اجتماعاً.') },
+    { ch: L('Record your work', 'سجّل عملك'), scene: 'sheet', find: function () { var a = inSheet('.fld.pick'), b = inSheet('.range'); return a ? (b ? [a, b] : a) : null; }, pad: 6, title: L('The company and the date', 'الشركة والتاريخ'), text: L('Type the first letters of the company and pick it. Set the date and who came.', 'اكتب أول حروف اسم الشركة واخترها. حدد التاريخ ومن حضر.') },
+    { ch: L('Record your work', 'سجّل عملك'), scene: 'sheet', find: function () { return inSheet('#rSave'); }, pad: 5, title: L('Save', 'حفظ'), text: L('It shows on this page at once, and your manager sees it.', 'يظهر في هذه الصفحة فوراً، ويراه مديرك.') },
+    { ch: L('Record your work', 'سجّل عملك'), find: function () { return card(/What I entered|ما سجّلته|ما سجلته/); }, title: L('What you entered', 'ما سجّلته'), text: L('Everything you recorded, newest first. A mistake? Take it back the same day.', 'كل ما سجّلته، الأحدث أولاً. هل هناك خطأ؟ اسحبه في اليوم نفسه.') },
 
-    { ch: 'Profile', find: function () { return bar('profile'); }, pad: 2, title: 'Profile', text: 'Your account, what every word means, English or Arabic, and sign out.' },
-    { ch: 'Profile', scene: 'profile', find: function () { return card(/What the words mean|معنى/); }, title: 'What the words mean', text: 'Not sure what a word on the page means? Each one is explained here.' }
+    { ch: L('Profile', 'حسابي'), find: function () { return bar('profile'); }, pad: 2, title: L('Profile', 'حسابي'), text: L('Your account, what every word means, English or Arabic, and sign out.', 'حسابك، ومعنى كل كلمة، والعربية أو الإنجليزية، وتسجيل الخروج.') },
+    { ch: L('Profile', 'حسابي'), scene: 'profile', find: function () { return card(/What the words mean|معنى|معاني/); }, title: L('What the words mean', 'معاني الكلمات'), text: L('Not sure what a word on the page means? Each one is explained here.', 'لست متأكداً من معنى كلمة؟ كل كلمة في الصفحة مشروحة هنا.') }
   ];
 
   var LAST = STEPS.length - 1, i = 0, on = false, ov, hole, note, finger;
@@ -185,16 +200,17 @@
   function head(s) {
     var h = '';
     for (var k = 1; k <= LAST; k++) h += '<i' + (k === i ? ' class="on"' : k < i ? ' class="done"' : '') + '></i>';
-    return '<p class="tour-k">' + s.ch + '</p><p class="tour-dots" aria-label="Step ' + i + ' of ' + LAST + '">' + h + '</p>';
+    return '<p class="tour-k">' + s.ch + '</p><p class="tour-dots" aria-label="' + L('Step ', 'خطوة ') + i + L(' of ', ' من ') + LAST + '">' + h + '</p>';
   }
   function fill(s) {
     var first = i === 0, last = i === LAST;
     note.className = 'tour-note out' + (first ? ' welcome' : '');
-    note.innerHTML = (first ? '<p class="tour-k">Quick tour</p>' : head(s)) + '<h4>' + s.title + '</h4><p class="tour-t">' + (typeof s.text === 'function' ? s.text() : s.text) + '</p>' + (s.extra || '') +
+    if (AR) { note.dir = 'rtl'; note.style.direction = 'rtl'; note.style.textAlign = first ? 'center' : 'right'; }
+    note.innerHTML = (first ? '<p class="tour-k">' + L('Quick tour', 'جولة سريعة') + '</p>' : head(s)) + '<h4>' + s.title + '</h4><p class="tour-t">' + (typeof s.text === 'function' ? s.text() : s.text) + '</p>' + (s.extra || '') +
       '<div class="tour-b">' +
-      (last ? '<span class="tour-gap"></span>' : '<button type="button" data-tour="skip" class="tour-skip">' + (first ? 'Not now' : 'Skip') + '</button>') +
-      (i > 1 ? '<button type="button" data-tour="back" class="tour-back">Back</button>' : '') +
-      '<button type="button" data-tour="' + (last ? 'done' : 'next') + '" class="tour-next">' + (first ? 'Show me' : last ? 'Done' : 'Next') + '</button></div>';
+      (last ? '<span class="tour-gap"></span>' : '<button type="button" data-tour="skip" class="tour-skip">' + (first ? L('Not now', 'ليس الآن') : L('Skip', 'تخطي')) + '</button>') +
+      (i > 1 ? '<button type="button" data-tour="back" class="tour-back">' + L('Back', 'رجوع') + '</button>' : '') +
+      '<button type="button" data-tour="' + (last ? 'done' : 'next') + '" class="tour-next">' + (first ? L('Show me', 'ابدأ الجولة') : last ? L('Done', 'تم') : L('Next', 'التالي')) + '</button></div>';
   }
   function show() { void note.offsetWidth; note.classList.remove('out'); var nx = note.querySelector('.tour-next'); if (nx) nx.focus({ preventScroll: true }); }
 
