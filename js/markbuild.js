@@ -1105,7 +1105,7 @@
       lock.appendChild(mk);
       /* build 155: the line Main Marks asked for under the logo, centred ("Premium offices with view") */
       var f4sub = null;
-      if (mark.sub) { f4sub = el('div', 'mb-subline mb-subline-f4'); f4sub.textContent = mark.sub; lock.appendChild(f4sub); }
+      if (mark.sub) { f4sub = el('div', 'mb-subline mb-subline-f4'); f4sub.textContent = (typeof MM.t === 'function') ? MM.t(mark.sub) : mark.sub; lock.appendChild(f4sub); }
       lock.style.fontSize = (L.width * 0.028).toFixed(2) + 'px';
 
       if (reduced) {

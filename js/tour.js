@@ -31,6 +31,9 @@
      accurate Arabic"): standard Arabic, no loanwords (عرض, رسالة جماعية, اجتماع, جلسة تعريفية, ورشة عمل). L(english, arabic) picks one; the English is unchanged. */
   var AR = !!(window.MM && MM.lang === 'ar');
   function L(en, ar) { return AR ? ar : en; }
+  /* build 201: an Arabic count takes the right form of its noun ("64 عرضاً", never "64 عرض") */
+  function offersAr(t) { var n = parseInt(String(t).replace(/[^0-9]/g, ''), 10), r = n % 100; if (isNaN(n)) return t + ' عرض';
+    return n === 1 ? 'عرض واحد' : n === 2 ? 'عرضان' : t + (r >= 3 && r <= 10 ? ' عروض' : ' عرضاً'); }
   function when() {
     var b = $('.seg186 button[aria-pressed="true"]'), k = b ? b.dataset.r : '';
     return AR ? ({ today: 'اليوم', week: 'هذا الأسبوع', month: 'في آخر 30 يوماً', ever: 'حتى الآن' }[k] || 'في هذه التواريخ')
@@ -48,14 +51,14 @@
     '<div class="tour-mock" aria-hidden="true"><span><b>طلب خاص</b>شركة طلبت منك. يُحتسب لهذه الشركة.</span><span><b>رسالة جماعية</b>للمجموعات. تُحتسب في مستهدف اليوم.</span></div>');
 
   var STEPS = [
-    { center: true, title: L('Your work, counted', 'عملك كله محسوب'), text: L('Most of this page fills by itself as you send offers. Here is how to read it and use it.', 'تمتلئ معظم هذه الصفحة تلقائياً كلما أرسلت عروضاً. إليك طريقة قراءتها والاستفادة منها.') },
+    { center: true, title: L('Your work, counted', 'عملك كله مسجّل'), text: L('Most of this page fills by itself as you send offers. Here is how to read it and use it.', 'تمتلئ معظم هذه الصفحة تلقائياً كلما أرسلت عروضاً. إليك طريقة قراءتها والاستفادة منها.') },
 
     { ch: L('How it fills', 'كيف تمتلئ'), find: function () { return bar('offer'); }, pad: 2, title: L('It starts with an offer', 'البداية من العرض'), text: L('Send offers from Quick Offer. Before each one goes, you choose who it is for:', 'أرسل العروض من «عرض سريع». قبل إرسال أي عرض، تختار لمن هو:'), extra: CHOOSE },
 
     { ch: L('Your results', 'نتائجك'), sel: '.segrow186', title: L('Pick your dates', 'اختر التواريخ'), text: L('Today, this week, 30 days or all time. Every card on this page follows them.', 'اليوم، أو الأسبوع، أو 30 يوماً، أو منذ البداية. كل بطاقة في الصفحة تتبعها.') },
     { ch: L('Your results', 'نتائجك'), sel: '.hero186', title: L('Your sales', 'مبيعاتك'), text: function () { var v = money(); return AR ? (v ? 'مبيعاتك ' + when() + ': ' + v + '.' : 'ما بعته.') + ' الصفقة المشتركة مع زميل تُحتسب بالنصف.'
       : (v ? v + ' sold ' + when() + '.' : 'What you sold.') + ' A deal split with a colleague counts half.'; } },
-    { ch: L('Your results', 'نتائجك'), sel: '.curve186', title: L('Special requests', 'الطلبات الخاصة'), text: function () { var n = txt('.curve186 .big186 b'); return AR ? (n ? n + ' عرض' : 'العروض') + ' لشركات طلبت منك، ' + when() + '. البرتقالي فوق المتقطع: أنت متقدم.'
+    { ch: L('Your results', 'نتائجك'), sel: '.curve186', title: L('Special requests', 'الطلبات الخاصة'), text: function () { var n = txt('.curve186 .big186 b'); return AR ? (n ? offersAr(n) : 'العروض') + ' لشركات طلبت منك، ' + when() + '. البرتقالي فوق المتقطع: أنت متقدم.'
       : (n ? n + ' offers' : 'Offers') + ' to companies that asked you, ' + when() + '. Orange above dashed: ahead.'; } },
     { ch: L('Your results', 'نتائجك'), sel: '.curve186', demo: true, title: L('Read any day', 'اقرأ أي يوم'), text: L('Drag a finger across the graph to read any day. “Open this day” shows who asked.', 'اسحب إصبعك على الرسم البياني لقراءة أي يوم. «افتح هذا اليوم» يعرض من طلب.') },
 
@@ -89,7 +92,7 @@
 
   function el(tag, cls) { var e = document.createElement(tag); if (cls) e.className = cls; return e; }
   function build() {
-    ov = el('div', 'tour-ov'); ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', 'How My activity works');
+    ov = el('div', 'tour-ov'); ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', L('How My activity works', 'كيف تعمل صفحة نشاطي'));
     hole = el('div', 'tour-hole'); note = el('div', 'tour-note'); finger = el('i', 'tour-finger');
     note.setAttribute('aria-live', 'polite');
     ov.appendChild(hole); ov.appendChild(finger); ov.appendChild(note); document.body.appendChild(ov);

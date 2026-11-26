@@ -247,7 +247,7 @@
     /* ---- config: the projects and the lines ---- */
     'North 90th Street, New Cairo': 'شارع التسعين الشمالي، القاهرة الجديدة',
     'South 90 Street, New Cairo': 'شارع التسعين الجنوبي، القاهرة الجديدة',
-    'Fourteen buildings of offices, clinics and serviced apartments, over street-level retail.': 'أربعة عشر مبنى من المكاتب والعيادات والشقق الفندقية، فوق محلات على مستوى الشارع.',
+    'Fourteen buildings of offices, clinics and serviced apartments, over street-level retail.': 'أربعة عشر مبنى من المكاتب والعيادات والشقق الفندقية، فوق محلات على مستوى الطريق.',
     'A purpose-built business destination bringing administrative, clinical and commercial uses into one hub.': 'وجهة أعمال مصممة لتجمع الاستخدامات الإدارية والطبية والتجارية في مركز واحد.',
     '1st Mark of Distinction': '1st Mark of Distinction',
     '2nd Mark of Distinction': '2nd Mark of Distinction',
@@ -283,7 +283,7 @@
     'A lively, walkable hub of shops, cafés and dining.': 'وجهة نابضة بالحياة للتسوق والمقاهي والمطاعم، كلها على مسافة مشي.',
     '43 – 2,444 m²': 'من 43 إلى 2,444 م²',
     'Where': 'الموقع',
-    'Street level and ground floor': 'مستوى الشارع والدور الأرضي',
+    'Street level and ground floor': 'مستوى الطريق والدور الأرضي',
     'From agile studios to corporate headquarters.': 'من الاستوديوهات المرنة إلى المقرات الرئيسية للشركات.',
     '42 – 1,410 m²': 'من 42 إلى 1,410 م²',
     '8 administrative': '8 إدارية',
@@ -335,14 +335,14 @@
     'Light the other {n} match': 'أضئ النتيجة الأخرى ({n})',
     'Light the other {n} matches': 'أضئ النتائج الأخرى ({n})',
     '{n} on hold': '{n} محجوزة مؤقتاً',
-    'Street level': 'مستوى الشارع',
+    'Street level': 'مستوى الطريق',
     /* build 183: Commercial's two tabs and the street level's zones */
     'Ground floor': 'الدور الأرضي',
     'Zone': 'المنطقة',
     'Tap a lit zone, or choose it below': 'اضغط على منطقة مضيئة، أو اخترها بالأسفل',
     'Choose a zone': 'اختر منطقة',
-    '{p} — street level plan': '{p} — مخطط مستوى الشارع',
-    'No street-level shops are available right now.': 'لا توجد محلات متاحة في مستوى الشارع حاليًا.',
+    '{p} — street level plan': '{p} — مخطط مستوى الطريق',
+    'No street-level shops are available right now.': 'لا توجد محلات متاحة في مستوى الطريق حاليًا.',
     'No ground-floor shops are available right now. They will appear here as soon as they are released.': 'لا توجد محلات متاحة في الدور الأرضي حاليًا. ستظهر هنا فور طرحها.',
     '{n} match': '{n} نتيجة',
     '{n} matches': '{n} نتيجة',
@@ -704,7 +704,7 @@
     'Meetings': 'الاجتماعات',
     'Reservations and contracts': 'الحجوزات والعقود',
     '{v} contracted': 'تعاقدات بقيمة {v}',
-    '1 for every {n} requests': 'اجتماع لكل {n} طلبات',
+    '1 for every {n} requests': 'اجتماع واحد مقابل كل {n} من الطلبات',
     'Reservations': 'الحجوزات',
     '{n} cancelled in these dates': 'الملغى في هذه التواريخ: {n}',
     'none cancelled': 'لا إلغاءات',
@@ -989,7 +989,7 @@
     'Ranking': 'الترتيب',
     'The first {n}, by {what}': 'أول {n}، حسب {what}',
     'From request to contract': 'من الطلب إلى العقد',
-    'One meeting for every {n} special requests.': 'اجتماع واحد لكل {n} طلبات خاصة.',
+    'One meeting for every {n} special requests.': 'اجتماع واحد مقابل كل {n} من الطلبات الخاصة.',
     'Of {n} reservations made in these dates, {a} became a contract, {b} were cancelled and {c} are still open.': 'من {n} حجوزات تمت في هذه التواريخ: تحوّل {a} إلى عقد، وأُلغي {b}، وما زال {c} قائماً.',
     '{x} signed in these dates, worth {v}.': 'تم توقيع {x} في هذه التواريخ، بقيمة {v}.',
     '{x} recorded in these dates.': 'المسجّل في هذه التواريخ: {x}.',
@@ -1525,7 +1525,7 @@
     'Maintenance': 'الصيانة',
     'Not on the offer': 'غير موجودة في العرض',
     /* build 155: the line names under each card's logo (Main Marks' design notes), our Arabic */
-    'Premium offices with view': 'مكاتب مميزة بإطلالة',
+    'Premium offices with view': 'مكاتب بإطلالة مميزة',
     'Clinical units': 'الوحدات الطبية',
     'Delivery is set per building.': 'موعد الاستلام محدد لكل مبنى.',
     /* build 155: the inventory download (js/project.js inventoryExport), our Arabic */
@@ -1684,7 +1684,7 @@
   };
 
   /* ---- the sheet's words and config values --------------------------- */
-  var FLOOR = { street: 'مستوى الشارع', ground: 'الأرضي', first: 'الأول', second: 'الثاني', third: 'الثالث',
+  var FLOOR = { street: 'مستوى الطريق', ground: 'الأرضي', first: 'الأول', second: 'الثاني', third: 'الثالث',
     fourth: 'الرابع', fifth: 'الخامس' };
   var USE_ONE = { Clinic: 'عيادة', Admin: 'مكتب', Commercial: 'محل', Serviced: 'شقة فندقية' };
   var USE_MANY = { Clinic: 'العيادات', Admin: 'المكاتب', Commercial: 'المحلات', Serviced: 'الشقق الفندقية' };

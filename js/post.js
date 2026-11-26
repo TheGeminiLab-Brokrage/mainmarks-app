@@ -59,7 +59,7 @@
 
   var MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
   var MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  var FLOOR_AR = { street: 'مستوى الشارع', ground: 'الدور الأرضي', first: 'الدور الأول', second: 'الدور الثاني',
+  var FLOOR_AR = { street: 'مستوى الطريق', ground: 'الدور الأرضي', first: 'الدور الأول', second: 'الدور الثاني',
     third: 'الدور الثالث', fourth: 'الدور الرابع', fifth: 'الدور الخامس' };
   var FLOOR_EN = { street: 'Street level', ground: 'Ground floor', first: '1st floor', second: '2nd floor',
     third: '3rd floor', fourth: '4th floor', fifth: '5th floor' };
@@ -119,7 +119,7 @@
   /* BUILD 155: the single post's words in Main Marks' own layout (caption below). The orange square opens
      every line; the line's name is its card's ("Commercial units", "Premium offices with view"...). */
   var SQ = '🟧 ';
-  var LINE_AR = { 'Commercial units': 'الوحدات التجارية', 'Administrative units': 'الوحدات الإدارية', 'Premium offices with view': 'مكاتب مميزة بإطلالة',
+  var LINE_AR = { 'Commercial units': 'الوحدات التجارية', 'Administrative units': 'الوحدات الإدارية', 'Premium offices with view': 'مكاتب بإطلالة مميزة',
     'Clinical units': 'الوحدات الطبية', 'Serviced apartments': 'الشقق الفندقية' };
   var NEW = {
     en: {

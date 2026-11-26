@@ -129,7 +129,7 @@
     'September', 'October', 'November', 'December'];
   var MONTH_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس',
     'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
-  var FLOOR_AR = { street: 'مستوى الشارع', ground: 'الأرضي', first: 'الأول', second: 'الثاني', third: 'الثالث',
+  var FLOOR_AR = { street: 'مستوى الطريق', ground: 'الأرضي', first: 'الأول', second: 'الثاني', third: 'الثالث',
     fourth: 'الرابع', fifth: 'الخامس' };
 
   var EN = {
@@ -251,7 +251,7 @@
     src: function (pg) { return 'كتيب Moray، صفحة ' + pg; },
     pill: 'عينة · للمراجعة', stamp: 'عينة',
     footer: function (code, K, L) { return L.nameAr + '  ·  عرض ' + K.ar + '  ·  ' + code; },
-    lineSub: function (sub) { return ({ 'Commercial units': 'الوحدات التجارية', 'Administrative units': 'الوحدات الإدارية', 'Premium offices with view': 'مكاتب مميزة بإطلالة',
+    lineSub: function (sub) { return ({ 'Commercial units': 'الوحدات التجارية', 'Administrative units': 'الوحدات الإدارية', 'Premium offices with view': 'مكاتب بإطلالة مميزة',
       'Clinical units': 'الوحدات الطبية', 'Serviced apartments': 'الشقق الفندقية' })[sub] || sub; },
     footerDemo: 'عينة للمراجعة. الأسعار من قائمة Main Marks الحالية، وكل ما هو مكتوب «يُحدد لاحقاً» لم تؤكده Main Marks بعد. هذا ليس عرضاً.',
     unitOffer: function (K) { return 'عرض ' + K.ar; }, unit: function (K, c) { return K.ar + ' ' + c; }, date: 'التاريخ',
@@ -324,7 +324,7 @@
     totalAll: 'الإجمالي شامل وديعة الصيانة',
     assumed: 'افتراضات حتى تؤكدها Main Marks', assume: function (n) { return ASSUME_AR[n] || n; },
     /* 6 */
-    schedule: 'جدول السداد', scheduleTitle: 'كل دفعة بتاريخها',
+    schedule: 'جدول السداد', scheduleTitle: 'جدول الأقساط',
     scheduleSub: function (date, cash, before) {
       return 'من تعاقد بتاريخ ' + date + '. ' +
         (cash ? 'السداد بالكامل عند التعاقد. ' : 'الأقساط كل 3 أشهر، والقسط الأول بعد 3 أشهر من التعاقد، كما في نموذج عقد Main Marks. ') +

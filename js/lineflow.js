@@ -167,7 +167,7 @@
     var canvas = el('div', 'q-canvas');
     var base = new Image();
     base.className = 'q-img q-base';
-    base.alt = t('{p} at night — {l}', { p: p.name, l: l.name });
+    base.alt = t('{p} at night — {l}', { p: p.name, l: t(l.name) });
     base.draggable = false;
     base.src = p.aerial.img;
     canvas.appendChild(base);
@@ -410,7 +410,8 @@
         var bd = el('button', 'q-badge');
         bd.type = 'button';
         bd.hidden = true;
-        bd.style.left = ((Math.min.apply(null, xs) + Math.max.apply(null, xs)) / 2 / STF.w * 100).toFixed(2) + '%';
+        bd.dataset.cx = ((Math.min.apply(null, xs) + Math.max.apply(null, xs)) / 2 / STF.w).toFixed(4);
+        bd.style.left = (bd.dataset.cx * 100).toFixed(2) + '%';
         bd.style.top = ((Math.min.apply(null, ys) + Math.max.apply(null, ys)) / 2 / STF.h * 100).toFixed(2) + '%';
         bd.addEventListener('click', function () { pickZone(P); });
         scanvas.appendChild(bd);
@@ -422,6 +423,19 @@
       var b = byKey((P.sheet || [])[0] || P.id);
       if (b && tabRows(b).some(function (u) { return u.sellable; })) selectBuilding(b.id, true);
     }
+    /* build 200: a zone's name is wider than its old count, and A1 / A2 are thin strips on the plan's edge:
+       each name stays centred on its zone but never crosses the plan's edge (it was cut to "T04–ST08") */
+    function placeBadges() {
+      var cw = scanvas && !scanvas.hidden ? scanvas.clientWidth : 0;
+      if (!cw) return;
+      Object.keys(zoneBadges).forEach(function (id) {
+        var bd = zoneBadges[id];
+        if (bd.hidden) return;
+        var w = bd.offsetWidth, x = parseFloat(bd.dataset.cx) * cw;
+        bd.style.left = Math.max(w / 2 + 4, Math.min(cw - w / 2 - 4, x)).toFixed(1) + 'px';
+      });
+    }
+    window.addEventListener('resize', function () { if (tabbed) placeBadges(); });
     function zoneState() {
       if (!tabbed) return;
       var curB = streetMode() ? buildings.filter(function (x) { return x.id === cur.b; })[0] : null;
@@ -437,9 +451,15 @@
         if (a) g.setAttribute('tabindex', '0'); else g.removeAttribute('tabindex');
         g.setAttribute('aria-label', label);
         zoneBadges[id].hidden = !n;
-        zoneBadges[id].textContent = String(n);
+        /* build 200 (Muhanad, 26 Nov 2026, Main Marks' ask: "the zones are numbered ... main marks want the zones
+           to be named instead of number ... as per the inventory"; then "why not we have it as A1, HA, C1"): the
+           badge carries the BUILDING the zone stands under, as the app names it everywhere (HA, A2, A1, C2, C1,
+           HB, HC, HD); its shop codes and count stay in the list below and in the spoken label */
+        zoneBadges[id].textContent = P.id;
+        zoneBadges[id].dir = 'ltr';
         zoneBadges[id].setAttribute('aria-label', label);
       });
+      placeBadges();
       zsvg.classList.toggle('is-idle', !curB);
       zsvg.classList.toggle('is-searching', !!search.active);
     }
@@ -1353,7 +1373,7 @@
 
       function offerText() {
         var c = current, s = c.s, lines = [];
-        lines.push('*' + l.name + ' · ' + useOne(c.u.type) + ' ' + c.u.code + '*');
+        lines.push('*' + t(l.name) + ' · ' + useOne(c.u.type) + ' ' + c.u.code + '*');   /* build 199: the line's name in the app's language (Arabic read "Administrative units") */
         lines.push(docOf(c.u, c.b).label + ' · ' + floorName(c.u.fid) + ' · ' + t('{a} m²', { a: money(c.u.area) }));
         lines.push(t('Price: {v}', { v: egp(c.u.listPrice) }));
         lines.push(t('Plan: {plan}', { plan: planName(c.pl.label) }) +
