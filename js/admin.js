@@ -1078,7 +1078,16 @@
     return '<div class="range"><label class="fld">' + t('From') + '<input type="date" id="pFrom" value="' + esc(from || '') + '"></label>' +
       '<label class="fld">' + t('Until') + '<input type="date" id="pUntil" value="' + esc(until || '') + '"></label></div><p class="note">' + t('Leave Until empty for no end date.') + '</p>';
   }
-  function said(r, msg) { if (r.why) return bad(t(r.why)); closeSheet(); draw(); toast(msg); return true; }
+  /* build 212: on the real app a plan is saved in the store, so the answer comes later; the sheet's button waits for it */
+  function said(r, msg) {
+    var btns = [].slice.call(document.querySelectorAll('#sheet .btn'));
+    btns.forEach(function (b) { b.disabled = true; });
+    return Promise.resolve(r).then(function (r) {
+      btns.forEach(function (b) { b.disabled = false; });
+      if (r.why) return bad(t(r.why));
+      closeSheet(); draw(); toast(msg); return true;
+    });
+  }
 
   function openPlan(id) {
     var p = pproject(), pl = p.plans.filter(function (x) { return x.id === id; })[0];
@@ -1142,11 +1151,14 @@
     $('pAdd').addEventListener('click', function () {
       var d = planDraft();
       if (d.missing) return bad(t(d.missing));
-      var r = PB.add(pproject().id, d, session.name);
-      if (r.why) return bad(t(r.why));
-      /* a copy: the plan it came from is ended now, or kept, her choice */
-      if (base && PB.stateOf(base) !== 'ended') return askEnd(base, r.plan);
-      said(r, t('Added. Sales agents see it the next time they open the app.'));
+      var btn = $('pAdd'); btn.disabled = true;
+      Promise.resolve(PB.add(pproject().id, d, session.name)).then(function (r) {
+        btn.disabled = false;
+        if (r.why) return bad(t(r.why));
+        /* a copy: the plan it came from is ended now, or kept, her choice */
+        if (base && PB.stateOf(base) !== 'ended') return askEnd(base, r.plan);
+        said(r, t('Added. Sales agents see it the next time they open the app.'));
+      });
     });
   }
   /* what the new-plan sheet holds, as js/planbook.js reads it; { missing } when a number is not one */

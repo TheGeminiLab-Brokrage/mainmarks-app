@@ -1748,6 +1748,12 @@
     'Available and on hold, by line': 'المتاح والمحجوز مؤقتاً، حسب الخط',
     'Units by line': 'الوحدات حسب الخط',
     'The inventory as the app reads it now.': 'المخزون كما يقرؤه التطبيق الآن.',
+    /* build 212: the plans saved on the store (js/planbook.js storeSave) */
+    'The plans were changed on another device. Open the page again.': 'تم تغيير الأنظمة من جهاز آخر. افتح الصفحة مرة أخرى.',
+    'A saved plan keeps its numbers. Copy it into a new plan instead.': 'النظام المحفوظ تبقى أرقامه كما هي. انسخه إلى نظام جديد بدلاً من ذلك.',
+    'A saved plan cannot be removed. End it instead.': 'لا يمكن حذف نظام محفوظ. أنهِه بدلاً من ذلك.',
+    'Only the admin can change the payment plans.': 'المسؤول وحده يمكنه تغيير أنظمة السداد.',
+    'The plans could not be saved. Try again.': 'تعذر حفظ الأنظمة. حاول مرة أخرى.',
     '1 meeting': 'اجتماع واحد', '1 reservation': 'حجز واحد', '1 request': 'طلب واحد', '{n} requests': 'الطلبات {n}'
   };
 

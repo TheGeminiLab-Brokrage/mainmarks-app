@@ -51,6 +51,8 @@
     return f !== 'demo';
   }
   var DEMO = !onStore();
+  /* build 212: on the store, the list as saved (mm_plan_book) and its version; nothing saved yet: null */
+  var live = { version: 0, book: null };
 
   /* the projects whose plans are real (h:rs carries placeholder plans and is out of scope) */
   function projects() { return (CONFIG.projects || []).filter(function (p) { return p.plans && p.plans.length && !p.plansDemo; }); }
@@ -114,7 +116,8 @@
 
   /* ---- the state ----------------------------------------------------- */
   function current() {
-    var s = read();
+    if (!DEMO && live.book) return { seed: SEED, projects: JSON.parse(JSON.stringify(live.book.projects)), log: [] };
+    var s = DEMO ? read() : null;
     if (s) return s;
     s = { seed: SEED, projects: {}, log: [] };
     projects().forEach(function (p) {
@@ -139,6 +142,7 @@
     });
   }
   function save(s, what, id, by) {
+    if (!DEMO) return storeSave(s, what, id);
     s.log.push({ at: new Date().toISOString(), what: what, id: id || null, by: by || '' });
     write(s); apply(s);
     return { ok: true };
@@ -198,13 +202,14 @@
 
   function add(pid, d, by) {
     var s = current(), mine = s.projects[pid];
-    if (!DEMO || !mine) return { why: 'Plans cannot be changed here yet.' };
+    if (!mine) return { why: 'Plans cannot be changed here yet.' };
     var why = problem(d);
     if (why) return { why: why };
     var pl = toPlan(d, newId(mine.plans)), same = numbers(pl);
     if (mine.plans.some(function (x) { return stateOf(x) !== 'ended' && numbers(x) === same; })) return { why: 'A plan with these numbers is already on the list. Change its dates instead.' };
     if (!MM.plans || !MM.plans.worded(pl)) return { why: 'These numbers do not make a plan.' };
     mine.plans.push(pl);
+    if (!DEMO) return storeSave(s, 'add', pl.id).then(function (r) { if (r.ok) r.plan = pl; return r; });
     save(s, 'add', pl.id, by);
     return { ok: true, plan: pl };
   }
@@ -212,7 +217,7 @@
   /* its dates and the unit types it is for: nothing that changes a figure */
   function change(pid, id, o, by) {
     var s = current(), mine = s.projects[pid], pl = find(mine, id);
-    if (!DEMO || !pl) return { why: 'This plan is no longer there. Open the page again.' };
+    if (!pl) return { why: 'This plan is no longer there. Open the page again.' };
     var from = o.from || pl.from || '', until = o.until || '';
     if (from && !isDay(from)) return { why: 'Choose the day it starts.' };
     if (until && (!isDay(until) || (from && until < from))) return { why: 'The end date must be on or after the start.' };
@@ -225,7 +230,7 @@
   /* ended today: offered until yesterday */
   function end(pid, id, by) {
     var s = current(), pl = find(s.projects[pid], id);
-    if (!DEMO || !pl) return { why: 'This plan is no longer there. Open the page again.' };
+    if (!pl) return { why: 'This plan is no longer there. Open the page again.' };
     pl.until = dayBefore(today());
     if (pl.from && pl.from > pl.until) pl.from = pl.until;
     return save(s, 'end', id, by);
@@ -233,7 +238,7 @@
   /* t: { deliveryMonths, maintPct (per cent), dueBefore (months) } */
   function setTerms(pid, t, by) {
     var s = current(), mine = s.projects[pid], pj = project(pid);
-    if (!DEMO || !mine) return { why: 'Plans cannot be changed here yet.' };
+    if (!mine) return { why: 'Plans cannot be changed here yet.' };
     /* build 155: Main Marks gives delivery per building and no maintenance on the offer (11 Nov 2026);
        one figure for the whole project would undo that */
     if (pj && pj.terms && pj.terms.deliveryByBuilding) return { why: 'Delivery is set per building.' };
@@ -255,8 +260,59 @@
 
   if (DEMO) apply(read());
 
+  /* ---- BUILD 212: THE PLANS ON THE REAL STORE (sql 12_plan_book.sql) --------------------------
+     Muhanad, 27 Nov 2026: "Can add a payment plan ... This is not visible". The list is one row of the
+     store (mm_plan_book), saved by the admin only (mm_admin_save_plans), read by every page.
+     HOW A PAGE GETS IT. This file runs before the page draws anything, so it puts the list this phone
+     read last time in place of config's AT ONCE (kept in this browser), then asks the store. When the
+     store's list is not the one used, the new one is kept and the page opens again, once: the next
+     offer is then made on the plans the admin saved. Nothing saved yet: config's plans, as before.
+     The store keeps the rules of build 154 too: a saved plan's numbers never change and a plan is never
+     deleted (MM_PLAN_NUMBERS, MM_PLAN_GONE), and a save on a list that changed since it was read is
+     refused (MM_PLANS_CHANGED), so two admins cannot overwrite each other. */
+  var CACHE = 'mm.planbook.store.v1', AGAIN = 'mm.planbook.reopened', ready = Promise.resolve();
+  function cached() { try { var c = JSON.parse(root.localStorage.getItem(CACHE) || 'null'); return c && c.book && c.book.projects ? c : null; } catch (e) { return null; } }
+  function keepCache(v, book) { try { if (book) root.localStorage.setItem(CACHE, JSON.stringify({ version: v, book: book })); else root.localStorage.removeItem(CACHE); } catch (e) { /* private mode: asked again next time */ } }
+  if (!DEMO) {
+    var had = cached();
+    live.version = had ? had.version : 0; live.book = had ? had.book : null;
+    if (live.book) apply({ projects: live.book.projects });
+    ready = (typeof fetch === 'function' ? fetch(CONFIG.store.url + '/rest/v1/mm_plan_book?select=book,version&id=eq.1', { headers: { apikey: CONFIG.store.key, Authorization: 'Bearer ' + CONFIG.store.key }, cache: 'no-store' })
+      .then(function (r) { if (!r.ok) throw new Error('plans ' + r.status); return r.json(); }) : Promise.reject(new Error('no fetch')))
+      .then(function (rows) {
+        var row = rows && rows[0], book = row && row.book && row.book.projects ? row.book : null, v = row ? row.version : 0;
+        var same = JSON.stringify(book) === JSON.stringify(live.book);
+        live.version = v;
+        if (same) return;
+        keepCache(v, book); live.book = book;
+        /* the page was drawn on other plans: open it again, once (never in a loop) */
+        var last = 0; try { last = +(root.sessionStorage.getItem(AGAIN) || 0); } catch (e) { last = 0; }
+        /* the sign-in page shows no plan, and someone may be typing there: it only keeps the new list */
+        var calm = /(^|[/])(login|index)[.]html$/.test(root.location.pathname || '') || /[/]$/.test(root.location.pathname || '');
+        if (calm && book) apply({ projects: book.projects });
+        else if (Date.now() - last > 30000) { try { root.sessionStorage.setItem(AGAIN, String(Date.now())); } catch (e) { /* nothing kept */ } root.location.reload(); }
+        else if (book) apply({ projects: book.projects });
+      })
+      .catch(function () { /* no line: the plans this phone read last, or config's */ });
+  }
+  /* the admin's save: the whole list, with the version she read */
+  var WHY = { MM_PLANS_CHANGED: 'The plans were changed on another device. Open the page again.', MM_PLAN_NUMBERS: 'A saved plan keeps its numbers. Copy it into a new plan instead.',
+    MM_PLAN_GONE: 'A saved plan cannot be removed. End it instead.', MM_BAD_PLANS: 'These numbers do not make a plan.', MM_NOT_ALLOWED: 'Only the admin can change the payment plans.' };
+  function storeSave(s, what, id) {
+    var book = { projects: s.projects };
+    return ready.then(function () {
+      return MM.auth.call('/rest/v1/rpc/mm_admin_save_plans', { method: 'POST', body: { p_book: book, p_version: live.version, p_what: what, p_id: id || null } });
+    }).then(function (r) {
+      if (r.status >= 300) { var m = String((r.body && (r.body.message || r.body.hint)) || ''), k = Object.keys(WHY).filter(function (x) { return m.indexOf(x) !== -1; })[0]; return { why: k ? WHY[k] : 'The plans could not be saved. Try again.' }; }
+      live.version = Number(r.body) || live.version + 1; live.book = JSON.parse(JSON.stringify(book));
+      keepCache(live.version, live.book); apply({ projects: JSON.parse(JSON.stringify(book.projects)) });
+      return { ok: true };
+    }, function () { return { why: 'No connection. Try again when you are online.' }; });
+  }
+
   MM.planBook = {
-    on: DEMO,                       /* the admin may change plans on this copy */
+    on: true,                       /* build 212: the admin changes plans on the demo (this browser) and on the store (mm_plan_book) */
+    store: !DEMO, ready: function () { return ready; },
     projects: projects, project: project,
     stateOf: stateOf, labelOf: labelOf, problem: problem, toPlan: toPlan, today: today,
     add: add, change: change, end: end, setTerms: setTerms, reset: reset,
