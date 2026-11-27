@@ -3608,3 +3608,10 @@ html[lang="ar"] .mb-logo-sub { letter-spacing: 0; font-family: "IBM Plex Sans Ar
 [dir="rtl"] .mm-tag { text-align: left; }
 /* and its English letter spacing (line 3274 sets every letter-spacing to 0 in Arabic, for Arabic text) */
 [dir="rtl"] .mm-foot .mm-tag, [dir="rtl"] .mm-sig .mm-tag span { letter-spacing: .06em !important; }
+
+/* build 210 (Muhanad, 27 Nov 2026: "make the app responsive to the user screen"): on a tablet or computer the
+   bar is a short pill in the middle, and the plus floated above it in the middle of the page, over the
+   pictures and the floor plan. There it sits beside the bar, level with it, off the content. */
+@media (min-width: 600px) {
+  .sp-fab { bottom: calc(18px + env(safe-area-inset-bottom, 0px)); inset-inline-end: calc(50% - 228px - 64px); }
+}

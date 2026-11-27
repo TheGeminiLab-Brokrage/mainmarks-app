@@ -278,7 +278,7 @@
     'Units': 'الوحدات',
     '453 across three uses': '453 في ثلاثة استخدامات',
     'Offices': 'المكاتب',
-    'Shops': 'المحلات',
+    'Shops': 'وحدات تجارية',
     'Commercial units': 'الوحدات التجارية',
     'A lively, walkable hub of shops, cafés and dining.': 'وجهة نابضة بالحياة للتسوق والمقاهي والمطاعم، كلها على مسافة مشي.',
     '43 – 2,444 m²': 'من 43 إلى 2,444 م²',
@@ -1695,7 +1695,7 @@
   var FLOOR = { street: 'مستوى الطريق', ground: 'الأرضي', first: 'الأول', second: 'الثاني', third: 'الثالث',
     fourth: 'الرابع', fifth: 'الخامس' };
   var USE_ONE = { Clinic: 'عيادة', Admin: 'مكتب', Commercial: 'محل', Serviced: 'شقة فندقية' };
-  var USE_MANY = { Clinic: 'العيادات', Admin: 'المكاتب', Commercial: 'المحلات', Serviced: 'الشقق الفندقية' };
+  var USE_MANY = { Clinic: 'العيادات', Admin: 'المكاتب', Commercial: 'الوحدات التجارية', Serviced: 'الشقق الفندقية' };
   var STATUS = { Available: 'متاحة', 'On hold': 'محجوزة مؤقتاً', Hold: 'محجوزة مؤقتاً', Sold: 'مباعة' };
   var MON_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   var MON_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
