@@ -284,12 +284,22 @@
     return out.join('.') + '@mainmarks-' + ENDING[role] + '.com';
   }
 
+  /* build 211 (Muhanad, 27 Nov 2026): her Analysis tab and Companies > Activity (js/admin-analysis.js) */
+  var AN0 = null;
+  function an() {
+    return AN0 || (AN0 = MM.adminAnalysis({ esc: esc, nm: nm, dayText: dayText, getAll: getAll, session: session, demo: !!BOOK, head: head, draw: function () { draw(); },
+      people: function () { return people; }, teams: function () { return teams; }, companies: function () { return companies; },
+      person: person, team: team, teamLabel: teamLabel, initials: initials, bySeniority: bySeniority, showSheet: showSheet, toast: toast,
+      tab: function () { return tab; }, go: function (k) { tab = k; find = ''; draw(); window.scrollTo(0, 0); } }));
+  }
+
   /* ---- the screen ----------------------------------------------------- */
-  var tab = DEMO && !BOOK ? 'plans' : 'people', filter = 'all', find = '', opener = null;
-  var TABS = (DEMO && !BOOK ? [] : [['people', 'People'], ['companies', 'Companies'], ['history', 'History']]).concat(PB ? [['plans', 'Plans']] : [], [['me', 'Account']]);
+  var tab = DEMO && !BOOK ? 'plans' : 'analysis', filter = 'all', find = '', opener = null;
+  var TABS = (DEMO && !BOOK ? [] : [['analysis', 'Analysis'], ['people', 'People'], ['companies', 'Companies'], ['history', 'History']]).concat(PB ? [['plans', 'Plans']] : [], [['me', 'Account']]);
   var ICON = {
     people: '<path d="M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1"/><circle cx="9.5" cy="7" r="3.5"/><path d="M21 19v-1a4 4 0 0 0-3-3.8M16 3.6a3.5 3.5 0 0 1 0 6.8"/>',
     companies: '<path d="M4 20V6l8-3v17M12 9h8v11M2 20h20M7 9v0M7 13v0M7 17v0M16 13v0M16 17v0"/>',
+    analysis: '<path d="M4 4v16h16"/><path d="M9 16v-4M13.5 16V8.5M18 16V6"/>',
     me: '<circle cx="12" cy="8" r="4"/><path d="M4 20a8 8 0 0 1 16 0"/>',
     history: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
     plans: '<rect x="4" y="3.5" width="16" height="17" rx="2.5"/><path d="M8 8.5h8M8 12.5h8M8 16.5h4.5"/>',
@@ -494,6 +504,8 @@
     /* build 149: sales agents who sent offers to a company she gave to others, waiting for her word */
     var asking = asks.filter(function (a) { return a.status === 'waiting' && company(a.company_id) && person(a.person_id); });
     return head(t('Brokerage companies'), t('{n} companies, {off} switched off', { n: '<b>' + real.length + '</b>', off: '<b>' + (real.length - on) + '</b>' })) +
+      /* build 211: Manage | Activity */
+      an().cswitch() +
       /* build 198: the two ways to add, first on the page; the plus is not shown here */
       '<div class="adm-adds"><button class="btn" type="button" id="cOne">' + t('Add a company') + '</button><button class="btn ghost" type="button" id="cLoad">' + t('Add a list') + '</button></div>' +
       (asking.length ? '<section class="card"><h2>' + t('Asking to serve a company') + ' <em>' + asking.length + '</em></h2><p class="note">' + t('These sales agents sent offers to a company you gave to others. Their offers are saved. Open each one and decide.') + '</p><div class="rows">' + asking.map(function (a) {
@@ -710,20 +722,20 @@
   }
   function draw() {
     var keep = document.activeElement && document.activeElement.id === 'find';
-    $('scr').innerHTML = tab === 'people' ? screenPeople() : tab === 'companies' ? screenCompanies() : tab === 'history' ? screenHistory() : tab === 'plans' ? screenPlans() : screenMe();
+    $('scr').innerHTML = tab === 'analysis' ? an().screen() : tab === 'people' ? screenPeople() : tab === 'companies' ? (an().activity() ? an().companies() : screenCompanies()) : tab === 'history' ? screenHistory() : tab === 'plans' ? screenPlans() : screenMe();
     /* the history is read the first time its tab is opened, not with the accounts */
     if (tab === 'history' && hist.rows === null && !hist.busy && !hist.failed) loadHistory().then(function () { if (tab === 'history') draw(); });
     $('tab').innerHTML = TABS.map(function (x) {
       return '<button type="button" data-tab="' + x[0] + '"' + (tab === x[0] ? ' aria-current="page"' : '') + '>' + svg(x[0]) + '<span>' + t(x[1]) + '</span></button>';
     }).join('');
-    $('tab').className = 'tab ' + ['', '', 'two', 'three', 'four', 'five'][TABS.length];
+    $('tab').className = 'tab ' + ['', '', 'two', 'three', 'four', 'five', 'six'][TABS.length];
     $('tab').hidden = false;
-    $('fab').hidden = tab === 'me' || tab === 'history' || tab === 'companies';
+    $('fab').hidden = tab === 'me' || tab === 'history' || tab === 'companies' || tab === 'analysis';
     $('fab').innerHTML = svg('plus');
     $('fab').setAttribute('aria-label', tab === 'companies' ? t('Add a company') : tab === 'plans' ? t('Add a payment plan') : t('Add a person'));
     var f = keep && $('find');                 /* History and Account have no find box */
     if (f) { f.focus(); f.setSelectionRange(f.value.length, f.value.length); }
-    if (tab === 'companies') listInit();
+    if (tab === 'companies' && !an().activity()) listInit();
     /* build 209: an open team pane shows the numbers just saved */
     if (glassTeam && tab === 'people') openTeamGlass(glassTeam);
   }
@@ -1186,6 +1198,8 @@
 
   /* ---- taps ------------------------------------------------------------ */
   document.addEventListener('click', function (e) {
+    /* build 211: the analysis answers its own taps */
+    if (an().click(e)) return;
     var hit = function (a) { return e.target.closest('[' + a + ']'); };
     var p = hit('data-p'), c = hit('data-c'), f = hit('data-f'), tb = e.target.closest('#tab [data-tab]'), l = hit('data-lang'), tm = hit('data-team');
     /* build 209: the team's pane of glass. A tap outside the pane or on ✕ closes it; a person or "Change the
@@ -1243,7 +1257,7 @@
   /* build 141: "Another plan" shows the two numbers it asks for */
   document.addEventListener('change', function (e) { if (e.target.id === 'rPl' && $('rPlO')) { $('rPlO').hidden = e.target.value !== 'other'; if ($('pErr')) $('pErr').hidden = true; } });
   document.addEventListener('input', function (e) { if ((e.target.id === 'rPd' || e.target.id === 'rPy') && $('pErr')) $('pErr').hidden = true; });
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { if (glassTeam) closeTeamGlass(); else closeSheet(); } });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { if (an().closePane()) return; if (glassTeam) closeTeamGlass(); else closeSheet(); } });
 
   /* for the check script: the email rule, without a browser tap */
   MM.adminSuggestEmail = suggestEmail;

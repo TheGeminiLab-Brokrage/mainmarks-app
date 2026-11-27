@@ -897,3 +897,53 @@ html[dir="rtl"] .cal190-k { letter-spacing: 0; }
 .adm-page .hist .hl { border-top: 0; padding: 11px 12px; border-radius: 12px; background: rgba(255,255,255,.065); }
 .adm-page .hist .hl:nth-child(even) { background: rgba(255,255,255,.03); }
 .adm-page .hist .hl:first-child { padding-top: 11px; }
+
+/* ---- build 211: her Analysis tab and Companies > Activity (js/admin-analysis.js), in the look of People ---- */
+.adm-seg { margin: 2px 0 4px; }
+.adm-seg.two { grid-template-columns: repeat(2, 1fr); }
+.adm-big { margin: 2px 0 0; font-size: 34px; font-weight: 800; line-height: 1.05; letter-spacing: -.02em; color: var(--ink); }
+.adm-big small { font-size: 14px; font-weight: 600; color: var(--mut); letter-spacing: 0; }
+.adm-hl .adm-big { font-size: 40px; }
+.adm-vs { margin: 0; font-size: 12.5px; font-weight: 600; color: var(--mut); }
+.adm-vs.up { color: #2FBF8F; } .adm-vs.down { color: #F2C037; }
+.adm-bar { display: flex; gap: 3px; height: 10px; border-radius: 999px; overflow: hidden; background: rgba(255,255,255,.06); }
+.adm-bar i { display: block; min-width: 4px; }
+.adm-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.adm-grp { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; min-height: 48px; padding: 10px 12px; border-radius: 14px; background: rgba(255,255,255,.065); }
+.adm-grp:nth-child(4n+2), .adm-grp:nth-child(4n+3) { background: rgba(255,255,255,.035); }
+.adm-grp i { width: 9px; height: 9px; border-radius: 50%; }
+.adm-grp span { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.adm-grp b { font-size: 17px; font-weight: 800; color: var(--ink); }
+.adm-grp b::after { content: "\00a0\203A"; color: var(--faint); font-weight: 400; }
+.adm-grp[aria-pressed="true"] { box-shadow: inset 0 0 0 1.5px var(--acc); }
+.adm-grp:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+.adm-groups.wide { margin: 4px 0; }
+.adm-stats.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.adm-stats.four > div:nth-child(2), .adm-stats.four > div:nth-child(3) { background: rgba(255,255,255,.035); }
+.adm-stats.four > div:nth-child(4) { background: rgba(255,255,255,.065); }
+/* rows: shaded, one lighter, the next darker, no hairlines */
+.rows.an { gap: 3px; }
+.rows.an > .row { border-top: 0; padding: 11px 12px; border-radius: 12px; background: rgba(255,255,255,.065); }
+.rows.an > .row:nth-child(even) { background: rgba(255,255,255,.03); }
+.adm-repbtns { display: flex; gap: 6px; grid-row: 1 / span 2; align-self: center; }
+.adm-repbtns .chip { min-height: 36px; padding: 0 14px; }
+/* the team's pane of glass: as People's (#tw) */
+#aw { position: fixed; inset: 0; z-index: 30; display: grid; align-items: center; justify-items: center; padding: 20px 12px; overflow-y: auto;
+  background: rgba(6,6,7,.4); -webkit-backdrop-filter: blur(18px) saturate(1.2); backdrop-filter: blur(18px) saturate(1.2);
+  opacity: 0; visibility: hidden; transition: opacity .28s ease, visibility 0s linear .28s; }
+#aw.on { opacity: 1; visibility: visible; transition: opacity .28s ease; }
+#aw.on .adm-win { transform: none; }
+@media (min-width: 900px) {
+  .adm-page .scr > .adm-seg, .adm-page .scr > .adm-groups, .adm-page .scr > .adm-k-pad { grid-column: 1 / -1; }
+  .adm-groups { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .adm-stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) { #aw { transition: none; } }
+/* build 211: the Manage | Activity switch is two wide; six tabs on the bar (with Plans) fit one row */
+.adm-seg.two .pill186 { width: calc((100% - 6px) / 2); }
+.tab.six { grid-template-columns: repeat(6, 1fr); padding: 5px; }
+.adm-page .tab.six button { font-size: 10px; letter-spacing: -.01em; }
+.adm-page .tab.six button span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.adm-grp { gap: 6px; padding: 10px; }
+.adm-grp span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 400px) { .adm-top .adm-grp b::after { content: none; } }

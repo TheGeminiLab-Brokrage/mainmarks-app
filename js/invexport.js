@@ -112,5 +112,6 @@
     });
   }
 
-  MM.invExport = { projects: projects, download: download };
+  /* build 211: the rows, for the admin's Inventory report (js/admin-analysis.js) */
+  MM.invExport = { projects: projects, download: download, read: function () { return Promise.all(projects().map(readProject)); } };
 }(window));
