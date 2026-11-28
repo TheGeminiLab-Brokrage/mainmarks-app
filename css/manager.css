@@ -1060,3 +1060,39 @@ body.adm-page .sheet h3 { font-size: 22px; font-weight: 800; letter-spacing: -.0
   body.adm-page .adm-quick { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   body.adm-page .scr > .adm-top .adm-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* ==== BUILD 215 (Muhanad, 28 Nov 2026, on his iPhone: "the buttons of the manage activity and the time is very big ... it could
+   look much better ... check all the button like this"). The switches, the director tabs and the filter chips: a slim Apple-style
+   control, the chosen one a soft orange glass pill with orange words, as the chosen tab on the bar. Orange still means chosen;
+   it no longer fills a whole slab. Admin page only. */
+body.adm-page .seg186 { padding: 3px; border-radius: 12px; background: rgba(255,255,255,.055); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+body.adm-page .seg186 button { min-height: 32px; line-height: 32px; padding: 0 2px; font-size: 14px; font-weight: 600; color: var(--mut); border-radius: 9px; }
+body.adm-page .seg186 button[aria-pressed="true"] { color: var(--acc); }
+body.adm-page .pill186 { border-radius: 9px; background: rgba(247,149,30,.16); box-shadow: inset 0 0 0 1px rgba(247,149,30,.42), inset 0 1px 0 rgba(255,255,255,.08); }
+@keyframes ink186adm { from { color: var(--mut); } }
+body.adm-page .seg186 button[aria-pressed="true"] { animation-name: ink186adm; }
+/* the director tabs */
+body.adm-page .adm-dtabs { padding: 3px; gap: 3px; border-radius: 14px; background: rgba(255,255,255,.055); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+body.adm-page .adm-dtabs button { min-height: 42px; padding: 4px 12px; border-radius: 11px; }
+body.adm-page .adm-dtabs button span { font-size: 14px; }
+body.adm-page .adm-dtabs button small { font-size: 12px; }
+body.adm-page .adm-dtabs button[aria-selected="true"] { background: rgba(247,149,30,.16); color: var(--acc); box-shadow: inset 0 0 0 1px rgba(247,149,30,.42); }
+/* the filter chips and the choice chips in a sheet */
+body.adm-page .chip { min-height: 36px; padding: 0 14px; font-size: 14px; font-weight: 600; border-radius: 999px; }
+body.adm-page .chip[aria-pressed="true"] { background: rgba(247,149,30,.16); border-color: rgba(247,149,30,.5); color: var(--acc); }
+
+/* ==== BUILD 216 (Muhanad, 28 Nov 2026, his iPhone pictures of History and People: "you will see an issue in the overlay so this is
+   not what should be in a premium app like ours"). Admin page only.
+   1. A short page: the panel ended halfway down and floated over black; it now always reaches the bottom of the screen.
+   2. A long list: rows showed under and below the floating bar; a dark fade now sits behind it (haze.css had only a 55 % one),
+      solid from the middle of the bar down to the edge of the glass, so nothing shows around it.
+   3. The filter chips ran over the panel's right edge; they stop at the edge and fade out there. */
+body.adm-page { min-height: 0; }
+body.adm-page .scr { box-sizing: border-box; min-height: calc(100dvh - 6px); }
+@media (max-width: 1099px) {
+  body.adm-page::after { height: calc(138px + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(to bottom, rgba(3,3,3,0) 0, rgba(3,3,3,.34) 26px, rgba(3,3,3,.74) 50px, rgba(3,3,3,.94) 72px, #030303 96px); }
+}
+body.adm-page .scr > .chips { margin-inline: -10px; padding-inline: 10px 30px;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 34px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 34px), transparent); }
+html[dir="rtl"] body.adm-page .scr > .chips { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 34px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 34px), transparent); }
