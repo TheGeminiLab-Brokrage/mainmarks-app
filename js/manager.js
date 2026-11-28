@@ -729,8 +729,8 @@
         if (!by[d]) continue;
         out += '<div class="gl-day"><p><span>' + DAY[B.dateOf(d).getDay()] + ' · ' + fmt(d) + '</span><b>' + by[d].length + '</b></p><div class="feed">' + by[d].slice().sort(function (a, b) { return a.t - b.t; }).map(function (e) {
           var how = sentHow(e), tap = !MY && e.k !== 'offer';
-          return '<div' + (tap ? ' class="tap" role="button" tabindex="0" data-e="' + esc(e.id) + '"' : '') + '><time>' + hhmm(e.t) + '</time><span>' + (kinds ? KIND[kindOf(e)] + sentTimes(e) + '<small>' + (MY ? '' : people(e) + ' · ') + detail(e) + '</small>'
-            : e.c !== null ? nm(book[e.c].name) + sentTimes(e) + '<small>' + detail(e) + '</small>' : detail(e) + sentTimes(e)) +
+          return '<div' + (tap ? ' class="tap" role="button" tabindex="0" data-e="' + esc(e.id) + '"' : '') + '><time>' + hhmm(e.t) + '</time><span>' + (kinds ? KIND[kindOf(e)] + sentTimes(e) + corrPill(e, !tap) + '<small>' + (MY ? '' : people(e) + ' · ') + detail(e) + '</small>'
+            : e.c !== null ? nm(book[e.c].name) + sentTimes(e) + corrPill(e, !tap) + '<small>' + detail(e) + '</small>' : detail(e) + sentTimes(e) + corrPill(e, !tap)) +
             (how ? '<small class="how">' + how + '</small>' : '') + '</span></div>';
         }).join('') + '</div></div>';
       }
@@ -809,7 +809,7 @@
     /* build 136: on the manager's page an ENTRY in a feed opens to its own sheet (who entered it, and the
        way to remove it with a reason). An offer is not an entry: it was sent, and it stays as it is. */
     function feed(list, withName) {
-      return '<div class="feed">' + list.map(function (e) { var how = sentHow(e), tap = !MY && e.k !== 'offer'; return '<div' + (tap ? ' class="tap" role="button" tabindex="0" data-e="' + esc(e.id) + '"' : '') + '><time>' + when(e) + '</time><span>' + what(e) + sentTimes(e) + '<small>' + (withName ? people(e) + ' · ' : '') + detail(e) + (e.k === 'cancel' ? ' · ' + WHYL[e.why] : '') + '</small>' + (how ? '<small class="how">' + how + '</small>' : '') + '</span></div>'; }).join('') + '</div>';
+      return '<div class="feed">' + list.map(function (e) { var how = sentHow(e), tap = !MY && e.k !== 'offer'; return '<div' + (tap ? ' class="tap" role="button" tabindex="0" data-e="' + esc(e.id) + '"' : '') + '><time>' + when(e) + '</time><span>' + what(e) + sentTimes(e) + corrPill(e, !tap) + '<small>' + (withName ? people(e) + ' · ' : '') + detail(e) + (e.k === 'cancel' ? ' · ' + WHYL[e.why] : '') + '</small>' + (how ? '<small class="how">' + how + '</small>' : '') + '</span></div>'; }).join('') + '</div>';
     }
     function kv(list) { return '<div class="kv' + (list.length === 4 ? ' k4' : '') + '">' + list.map(function (x) { return '<div><b>' + x[0] + '</b><span>' + x[1] + '</span></div>'; }).join('') + '</div>'; }
 
@@ -1194,7 +1194,7 @@
     }
     function fate(e) { return e.k === 'cancel' ? ' · ' + WHYL[e.why] : e.k !== 'reservation' ? '' : e.end === 'cancel' ? ' · ' + t('later cancelled, {date}', { date: fmt(e.endD) }) : e.end === 'contract' ? ' · ' + t('became a contract') : ' · ' + t('still open'); }
     function dealRow(e) {
-      var inner = '<span class="nm">' + KIND[e.k] + ' · ' + nm(prod(e.p) + ' ' + e.u) + '</span><span class="val">' + mil(e.v) + '<small>' + t('EGP M') + '</small></span><span class="sub">' + nm(book[e.c].name) + ' · ' + people(e) + ' · ' + when(e) + fate(e) + '</span>' + meetFlag(e);
+      var inner = '<span class="nm">' + KIND[e.k] + ' · ' + nm(prod(e.p) + ' ' + e.u) + corrPill(e, MY) + '</span><span class="val">' + mil(e.v) + '<small>' + t('EGP M') + '</small></span><span class="sub">' + nm(book[e.c].name) + ' · ' + people(e) + ' · ' + when(e) + fate(e) + '</span>' + meetFlag(e);
       /* build 136: the manager opens a deal to its own sheet; on a sales agent's page it stays a plain row */
       return MY ? '<div class="row flat' + (e.k === 'cancel' ? ' gone' : '') + '">' + inner + '</div>'
                 : '<button class="row' + (e.k === 'cancel' ? ' gone' : '') + '" type="button" data-e="' + esc(e.id) + '">' + inner + '</button>';
@@ -1388,7 +1388,7 @@
     function visitRow(x) {
       var e = x.e;
       /* build 136: a visit opens to its own sheet, which has the way on to the company's page */
-      return '<button class="row" type="button" data-e="' + esc(e.id) + '"><span class="nm">' + esc(book[e.c].name) + '</span><span class="val d">' + when(e) + '</span><span class="sub">' + people(e) + '</span><span class="mv-out' + (x.f.ok ? ' ok' : '') + '">' + x.f.text + '</span></button>';
+      return '<button class="row" type="button" data-e="' + esc(e.id) + '"><span class="nm">' + esc(book[e.c].name) + corrPill(e) + '</span><span class="val d">' + when(e) + '</span><span class="sub">' + people(e) + '</span><span class="mv-out' + (x.f.ok ? ' ok' : '') + '">' + x.f.text + '</span></button>';
     }
 
     /* ---- A SALESPERSON'S PAGE (build 121; mocked first, round 1 of 2026-10-06) ----------------
@@ -1467,7 +1467,7 @@
       var o = other(e), withWho = !o ? '' : isVisit(e) ? t('went with {name}', { name: nm(o) }) : t('split with {name}', { name: nm(o) });
       var sub = isVisit(e) ? withWho : e.k === 'meeting' ? prod(e.p) + (e.on ? ' · ' + t('Online') : '') : unitText(e) + (withWho ? ' · ' + withWho : '');
       var out = isVisit(e) ? followed(e) : e.k === 'reservation' ? { ok: e.end === 'contract', text: fateOf(e) } : null;
-      return '<button class="row" type="button" data-e="' + esc(e.id) + '"><span class="nm"><span class="k">' + KIND[e.k] + '</span> · ' + esc(book[e.c].name) + (B.removable(e) ? '<span class="new">' + t('new') + '</span>' : '') + '</span><span class="val d">' + when(e) + '</span>' +
+      return '<button class="row" type="button" data-e="' + esc(e.id) + '"><span class="nm"><span class="k">' + KIND[e.k] + '</span> · ' + esc(book[e.c].name) + (B.removable(e) ? '<span class="new">' + t('new') + '</span>' : '') + corrPill(e) + '</span><span class="val d">' + when(e) + '</span>' +
         (sub ? '<span class="sub">' + sub + '</span>' : '') + (out ? '<span class="mv-out' + (out.ok ? ' ok' : '') + '">' + out.text + '</span>' : '') + '</button>';
     }
     function cardEntered() {
@@ -1491,6 +1491,23 @@
        sheet: what it is, whose it is, who entered it and when, and the way to remove it. The rule itself
        is the store's (mm_remove): this sheet only does not offer what the store would refuse. A contract
        has no button for him, and neither has a reservation that has since been signed or cancelled. */
+    /* build 217 (Muhanad, 28 Nov 2026, "yes to all": the sales agent and the manager see a small mark on an entry the admin
+       corrected). The pill is on the row; what changed is in the sheet the entry opens to, or under the pill on an offer. */
+    function corrPill(e, own) {
+      if (!e.corr || !e.corr.length) return '';
+      var fresh = e.corr[0].f === 'added' && e.corr.length === 1, w = fresh ? t('Added') : t('Corrected');
+      return ' <span class="pillg"' + (own ? ' role="button" tabindex="0" data-corr="' + esc(e.id) + '"' : '') + '>' + w + '</span>';
+    }
+    function corrBox(e) {
+      if (!e.corr || !e.corr.length) return '';
+      var last = e.corr[e.corr.length - 1], d = new Date(last.at), when = '';
+      try { when = new Intl.DateTimeFormat(MM.isArabic ? 'ar-EG-u-nu-latn' : 'en-GB', { timeZone: 'Africa/Cairo', day: 'numeric', month: 'short', year: 'numeric' }).format(d); } catch (x) { when = ''; }
+      return '<div class="corr"><p>' + t('Corrected by the admin') + (when ? ' · <bdi>' + esc(when) + '</bdi>' : '') + '</p>' + MM.corrected(e.corr).map(function (w) { return '<span>' + nm(w) + '</span>'; }).join('') + '</div>';
+    }
+    function openCorr(id) {
+      var e = events.filter(function (x) { return x.id === id; })[0]; if (!e) return;
+      showSheet('<div><h3>' + KIND[kindOf(e)] + (e.u ? ' · ' + nm(e.u) : '') + '</h3><p class="role">' + (book[e.c] ? nm(book[e.c].name) + ' · ' : '') + fmt(e.d) + '</p></div>' + corrBox(e));
+    }
     function openTeamEntry(e) {
       var rows = [[t('Brokerage company'), nm(book[e.c].name)], [t('Date'), fmt(e.d) + ' ' + B.dateOf(e.d).getFullYear()]], at, act;
       if (e.u) rows.push([t('Unit'), nm(prod(e.p) + ' ' + e.u) + (e.area ? ' · ' + t('{n} m²', { n: e.area }) : '')]); else if (e.p) rows.push([t('Unit type'), prod(e.p)]);
@@ -1512,7 +1529,7 @@
       else act = '<label class="fld">' + t('Why is it being removed') + '<input id="rmWhy" type="text" maxlength="200" autocomplete="off"></label><p class="note bad" id="rErr" hidden></p>' +
         '<button class="btn" type="button" id="rmGo" data-id="' + esc(e.id) + '">' + t('Remove this entry') + '</button>' +
         '<p class="note">' + t('A reason is required. To correct an entry, remove it, then record it again with the plus. The removal and its reason are kept on record.') + '</p>';
-      showSheet('<div><h3>' + KIND[kindOf(e)] + '</h3><p class="role">' + nm(book[e.c].name) + ' · ' + fmt(e.d) + '</p></div><div class="facts">' + rows.map(function (r) { return '<div><span>' + r[0] + '</span><b>' + r[1] + '</b></div>'; }).join('') + '</div>' +
+      showSheet('<div><h3>' + KIND[kindOf(e)] + '</h3><p class="role">' + nm(book[e.c].name) + ' · ' + fmt(e.d) + '</p></div><div class="facts">' + rows.map(function (r) { return '<div><span>' + r[0] + '</span><b>' + r[1] + '</b></div>'; }).join('') + '</div>' + corrBox(e) +
         '<div class="form">' + act + '<button class="btn ghost" type="button" data-c="' + e.c + '">' + t('Open the company’s page') + '</button></div>');
     }
     function removeTeamEntry(id) {
@@ -1628,7 +1645,7 @@
       if (isVisit(e)) rows.push([t('What followed'), followed(e).text]);
       if (e.k === 'reservation') rows.push([t('Today'), fateOf(e)]);
       rows = rows.concat(meetFacts(e));                                   /* build 145 */
-      showSheet('<div><h3>' + KIND[e.k] + '</h3><p class="role">' + nm(book[e.c].name) + ' · ' + fmt(e.d) + '</p></div><div class="facts">' + rows.map(function (r) { return '<div><span>' + r[0] + '</span><b>' + r[1] + '</b></div>'; }).join('') + '</div>' +
+      showSheet('<div><h3>' + KIND[e.k] + '</h3><p class="role">' + nm(book[e.c].name) + ' · ' + fmt(e.d) + '</p></div><div class="facts">' + rows.map(function (r) { return '<div><span>' + r[0] + '</span><b>' + r[1] + '</b></div>'; }).join('') + '</div>' + corrBox(e) +
         (B.removable(e) ? '<button class="btn ghost" type="button" data-rm="' + esc(e.id) + '">' + t('Remove this entry') + '</button>' : '') +
         '<p class="note">' + t('You can correct an entry on the day you made it. After that, your manager corrects it.') + '</p>');
     }
@@ -3093,6 +3110,7 @@
       else if (hit('data-pc')) pickChoose(+hit('data-pc').dataset.pc);
       else if (hit('data-rm')) removeEntry(hit('data-rm').dataset.rm);
       else if (hit('data-rec')) { myRec.company = +hit('data-rec').dataset.rec; openMyRecord(); }
+      else if (hit('data-corr')) { closeGlass(); openCorr(hit('data-corr').dataset.corr); }
       else if (hit('data-e')) { closeGlass(); openEntry(hit('data-e').dataset.e); }
       else if (e.target.closest('#wipe')) { B.reset(); location.reload(); }
       else if (l) { if (l.dataset.lang !== MM.lang) MM.setLang(l.dataset.lang); }

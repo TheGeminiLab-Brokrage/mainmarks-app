@@ -176,6 +176,13 @@
     /* the crossing's second line names where it lands */
     var line = document.querySelector('.xf-select');
     if (line && /^start.html/.test(next)) line.textContent = t('Choose where to go');
+    /* build 217 (Muhanad, 28 Nov 2026: "when teh user sign in the animation should be acsses approved something like that not
+       choose a project"): the admin lands on her own page and chooses no project */
+    if (/^admin.html/.test(next)) {
+      var okd = document.querySelector('.xf-granted');
+      if (okd) okd.textContent = t('Access approved');
+      if (line) line.textContent = t('Welcome');
+    }
     /* Reduced motion still gets the hand-over, just none of the
        theatre: a plain 250ms cross-fade, no lines and no message.
        MM.xfade.cross reads the preference itself. */

@@ -238,6 +238,7 @@
         '<div class="rows an">' + rows + '</div>' +
         '<button class="btn ghost" type="button" data-an-rep="team:' + esc(id) + '" data-an-as="pdf">' + t('This team’s report (PDF)') + '</button></div>';
       document.documentElement.classList.add('is-locked');
+      if (rows.length > 5) { var rw = w.querySelector('.rows'); if (rw) { rw.classList.add('win'); rw.tabIndex = 0; } }
       requestAnimationFrame(function () { w.classList.add('on'); var x = w.querySelector('.adm-wx'); if (x) x.focus({ preventScroll: true }); });
     }
     function closeTeam() {
@@ -260,7 +261,7 @@
         '<div class="adm-groups wide">' + ['active', 'quiet', 'inactive', 'never'].map(function (k) {
           return '<button type="button" class="adm-grp" data-an-state="' + k + '" aria-pressed="' + (cstate === k) + '"><i style="background:' + SDOT[k] + '"></i><span>' + STATE[k] + '</span><b>' + st[k].length + '</b></button>';
         }).join('') + '</div>' +
-        '<section class="card"><h2>' + STATE[cstate] + ' <em>' + list.length + '</em></h2><p class="note">' + STATE_NOTE[cstate] + '</p><div class="rows an">' +
+        '<section class="card"><h2>' + STATE[cstate] + ' <em>' + list.length + '</em></h2><p class="note">' + STATE_NOTE[cstate] + '</p><div class="rows an' + (list.length > 5 ? ' win tall" tabindex="0' : '') + '">' +
         (list.length ? list.slice(0, CAPN).map(function (x) {
           var sub = cstate === 'never' ? t('No request yet') : cstate === 'active' ? many(Object.keys(x.b.agents).length, 'agent') : t('Last request {date}', { date: X.dayText(x.b.last) });
           return '<button class="row" type="button" data-an-co="' + esc(x.c.id) + '"><span class="nm">' + nm(x.c.name) + '</span><span class="sub">' + sub + '</span><span class="val">' + (cstate === 'active' ? x.b.inR : x.b.n) + '<small>' + t('requests') + '</small></span></button>';
@@ -278,7 +279,7 @@
         '<div class="rows an adm-hist">' + (mine.length ? mine.map(function (e) {
           var p = X.person(e.person_id), tm = X.team(e.team_id), bits = [X.dayText(e.on_date), p ? p.name : '', tm ? X.teamLabel(tm) : ''];
           if (e.unit_code) bits.push(e.unit_code);
-          return '<div class="row flat"><span class="nm">' + esc(KIND[kindOf(e)] || e.kind) + '</span><span class="sub">' + esc(bits.filter(Boolean).join(' · ')) + '</span><span class="val code">' + (e.value && e.kind !== 'offer' ? esc(egp(e.value)) : '') + '</span></div>';
+          return '<button class="row" type="button" data-ent="' + esc(e.id) + '"><span class="nm">' + esc(KIND[kindOf(e)] || e.kind) + '</span><span class="sub">' + esc(bits.filter(Boolean).join(' · ')) + '</span><span class="val code">' + (e.value && e.kind !== 'offer' ? esc(egp(e.value)) : '') + '</span></button>';
         }).join('') : '<p class="note">' + t('Nothing recorded with this company yet.') + '</p>') + '</div></div>');
     }
 

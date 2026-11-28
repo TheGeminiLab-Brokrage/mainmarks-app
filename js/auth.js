@@ -747,6 +747,35 @@
     else nums = (d === 0 ? 'بدون مقدم' : 'مقدم ' + iso(d + '%')) + ' · ' + (y === 1 ? 'سنة واحدة' : y === 2 ? 'سنتان' : iso(y) + (y >= 3 && y <= 10 ? ' سنوات' : ' سنة'));
     return id === 'other' ? t('Another plan') + ' · ' + nums : nums;
   }
+  /* build 217: WHAT THE ADMIN CORRECTED, in words, for the "Corrected" mark (the sales agent, the manager) and the admin's
+     history: one string a change, "Company: A → B". The store keeps { f, a, b } (mm_edit_diff). */
+  function corrected(list) {
+    var t = MM.t, ar = MM.isArabic, arrow = ar ? ' ← ' : ' → ';
+    var KIND = { offer: t('Special request'), broadcast: t('Broadcast'), orientation: t('Orientation'), workshop: t('Workshop'), meeting: t('Meeting'), reservation: t('Reservation'), contract: t('Contract'), cancel: t('Cancelled reservation') };
+    var NAME = { kind: t('What'), company: t('Company'), person: t('Sales agent'), person2: t('Second name'), date: t('Date'), time: t('Time'), units: t('Units, plans'), unit: t('Unit'), plan: t('Payment plan'), price: t('Price'), online: t('Where'), channel: t('Sent as'), why: t('Reason') };
+    var day = function (s) { var p = String(s).split('-'); try { return new Intl.DateTimeFormat(ar ? 'ar-EG-u-nu-latn' : 'en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]))); } catch (e) { return String(s); } };
+    var word = function (f, v) {
+      if (v === null || v === undefined || v === '') return f === 'company' ? t('No company') : t('Nothing');
+      if (f === 'kind') return KIND[v] || v;
+      if (f === 'date') return day(v);
+      if (f === 'price') return t('EGP {n}', { n: Math.round(Number(v)).toLocaleString('en-US') });
+      if (f === 'plan') { var p = String(v).split('|'); return planText(p[0], p[1], p[2]); }
+      if (f === 'units') return String(v).split('+').map(function (x) { var i = x.indexOf(':'); return i < 0 ? x : x.slice(0, i) + ' (' + planText(x.slice(i + 1)) + ')'; }).join(ar ? '، ' : ', ');
+      if (f === 'online') return v === 'online' ? t('Online') : t('In person');
+      if (f === 'channel') return v === 'post' ? t('WhatsApp post') : t('Offer PDF');
+      if (f === 'why') return t(v);
+      return String(v);
+    };
+    return (list || []).map(function (c) { return c.f === 'added' ? t('Added by the admin') : (NAME[c.f] || c.f) + (ar ? ': ' : ': ') + word(c.f, c.a) + arrow + word(c.f, c.b); });
+  }
+  MM.corrected = corrected;
+  /* build 217: what was searched for in Find a unit, kept for the admin's reports (mm_log_search). Nothing is typed for it,
+     nothing waits for it, and on a demo or with no signal it is simply not kept. */
+  function logSearch(o) {
+    var s = current();
+    if (!real() || !s || !s.real || !o || !o.key) return;
+    call('/rest/v1/rpc/mm_log_search', { method: 'POST', body: { p_key: o.key, p_project: o.project, p_line: o.line, p_criteria: o.criteria, p_found: o.found } }).then(function () {}, function () {});
+  }
   MM.contractPlan = { list: contractPlans, options: planOptions, field: planField, read: planRead, text: planText, number: typedNumber };
 
   MM.auth = {
@@ -757,6 +786,7 @@
     companyAsk: companyAsk,
     loadCompanies: loadCompanies,
     logOffer: logOffer,
+    logSearch: logSearch,
     wrongNames: wrongNames,
     mayPropose: mayPropose,
     offerLeaving: offerLeaving,

@@ -462,6 +462,8 @@
          with the sales agent's note */
       if (r.kind === 'meeting' && typeof r.online === 'boolean') e.on = r.online;
       if (r.no_meeting) { e.nm = r.no_meeting; if (r.note) e.note = r.note; }
+      /* build 217: what the admin corrected on this row since */
+      if (r.corrected && r.corrected.length) e.corr = r.corrected;
       e.made = r.made_on;
       e.mine = r.created_by === me.id;
       /* build 140, AN OFFER A SALES MANAGER SENT HIMSELF (Muhanad, 2026-10-10). It is saved in the manager's

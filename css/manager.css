@@ -1096,3 +1096,75 @@ body.adm-page .scr { box-sizing: border-box; min-height: calc(100dvh - 6px); }
 body.adm-page .scr > .chips { margin-inline: -10px; padding-inline: 10px 30px;
   -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 34px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 34px), transparent); }
 html[dir="rtl"] body.adm-page .scr > .chips { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 34px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 34px), transparent); }
+
+/* ==== BUILD 217 (Muhanad, 28 Nov 2026): HER CORRECTIONS, LISTS IN WINDOWS, MAIN MARKS' FOOTER ====
+   1. "any list is should not go to the whole page like the payment plan it should be in a windoe": a list of more than
+      five rows scrolls in its own window; the bottom edge fades while there is more.
+   2. An entry: every part of it is a line she taps to change; changed lines are tinted, the old value struck above.
+   3. The Corrected mark, on the sales agent's and the manager's pages too (.pillg, .corr: not scoped).
+   4. Main Marks' footer, as on the sales side (build 155). */
+.pillg { display: inline-block; margin-inline-start: 6px; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; line-height: 1.6; letter-spacing: 0; text-transform: none; color: var(--mut); background: rgba(255,255,255,.1); white-space: nowrap; vertical-align: 1px; }
+.pillg.r { color: #FF6961; background: rgba(255,105,97,.13); }
+.pillg[data-corr] { cursor: pointer; position: relative; }
+.pillg[data-corr]::after { content: ""; position: absolute; inset: -14px -10px; }
+.corr { display: grid; gap: 3px; padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,.06); }
+.corr p { margin: 0 0 3px; font-size: 12px; color: var(--mut); }
+.corr span { font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; }
+/* the window */
+body.adm-page .win { display: block; position: relative; max-height: 400px; overflow-y: auto; -webkit-overflow-scrolling: touch; border-radius: 16px; padding: 6px; background: rgba(0,0,0,.28); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.28) transparent; }
+body.adm-page .win::-webkit-scrollbar { width: 5px; }
+body.adm-page .win::-webkit-scrollbar-thumb { background: rgba(255,255,255,.28); border-radius: 3px; }
+body.adm-page .win.more { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 34px), rgba(0,0,0,.18)); mask-image: linear-gradient(to bottom, #000 calc(100% - 34px), rgba(0,0,0,.18)); }
+body.adm-page .win:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+body.adm-page .win.tall { max-height: max(258px, calc(100dvh - var(--over, 430px) - env(safe-area-inset-bottom, 0px))); }
+body.adm-page .rows.win > .row + .row, body.adm-page .difs.win > div + div, body.adm-page .ops.win > .op + .op, body.adm-page .adm-mgrs.win > .adm-mgr + .adm-mgr { margin-top: 3px; }
+body.adm-page .adm-mgrs.win { display: block; }
+body.adm-page .win .hist-day { position: sticky; top: -6px; z-index: 1; margin: 0 -6px 4px; padding: 10px 14px 6px; background: #101011; }
+body.adm-page .win .hist + .hist-day { margin-top: 6px; }
+body.adm-page .adm-listcard { padding: 10px; }
+body.adm-page .adm-found { display: grid; gap: 14px; align-content: start; padding: 12px; }
+body.adm-page .adm-found .adm-dir-teams { border-inline-start: 0; padding-inline-start: 0; margin-inline-start: 0; }
+body.adm-page #hBody { min-width: 0; }
+@media (min-width: 900px) { body.adm-page .scr > #hBody, body.adm-page .scr > .win, body.adm-page .scr > .adm-foot { grid-column: 1 / -1; } }
+/* an entry */
+.fxs { display: grid; gap: 3px; }
+.fx { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: 108px minmax(0, 1fr) auto; gap: 12px; align-items: center; min-height: 50px; padding: 9px 14px; border-radius: 14px; background: rgba(255,255,255,.07); }
+.fx:nth-child(even) { background: rgba(255,255,255,.035); }
+div.fx { cursor: default; grid-template-columns: 108px minmax(0, 1fr); }
+.fx > span { font-size: 14px; color: var(--mut); }
+.fx > b { font-size: 16px; font-weight: 600; text-align: end; overflow-wrap: anywhere; }
+.fx > b s { display: block; font-size: 13px; font-weight: 500; color: var(--faint); }
+.fx > b em { font-style: normal; color: var(--faint); font-weight: 500; }
+.fx > i { font-style: normal; color: var(--faint); font-size: 17px; }
+.fx.ch { box-shadow: inset 0 0 0 1px rgba(247,149,30,.55); background: rgba(247,149,30,.1); }
+.fx[disabled] { cursor: default; } .fx[disabled] > i { visibility: hidden; }
+.ops { display: grid; gap: 3px; }
+body.adm-page .ops.win { max-height: 46dvh; }
+.op { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 48px; padding: 8px 14px; border-radius: 12px; background: rgba(255,255,255,.07); font-size: 16px; font-weight: 600; }
+.op:nth-child(even) { background: rgba(255,255,255,.035); }
+.op small { font-size: 14px; font-weight: 500; color: var(--mut); text-align: end; }
+.op[aria-pressed="true"] { color: var(--acc); box-shadow: inset 0 0 0 1px rgba(247,149,30,.5); }
+.op[disabled], .btn[disabled] { opacity: .45; }
+.unx { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 44px; gap: 6px; }
+.unx.one { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
+.unx button { all: unset; box-sizing: border-box; cursor: pointer; min-height: 48px; padding: 6px 12px; border-radius: 12px; background: rgba(255,255,255,.08); display: grid; align-content: center; font-size: 15px; font-weight: 600; line-height: 1.25; }
+.unx button small { font-size: 12px; font-weight: 500; color: var(--mut); }
+.unx button.x2 { place-content: center; padding: 0; color: var(--mut); }
+.difs { display: grid; gap: 3px; }
+.difs > div { display: grid; gap: 2px; padding: 10px 14px; border-radius: 14px; background: rgba(255,255,255,.07); font-size: 15px; }
+.difs > div:nth-child(even) { background: rgba(255,255,255,.035); }
+.difs span { font-size: 13px; color: var(--mut); } .difs s { color: var(--faint); } .difs b { font-weight: 600; } .difs p { margin: 0; overflow-wrap: anywhere; }
+.effect { padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(255,255,255,.14); font-size: 15px; line-height: 1.55; color: var(--mut); } .effect b { color: var(--ink); }
+.txtb { all: unset; box-sizing: border-box; cursor: pointer; min-height: 44px; display: flex; align-items: center; justify-content: center; width: 100%; font-size: 15px; font-weight: 600; color: #FF6961; }
+.txtb.n { color: var(--acc); }
+.fx:focus-visible, .op:focus-visible, .unx button:focus-visible, .txtb:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+body.adm-page .adm-quick > .adm-qa:last-child:nth-child(odd) { grid-column: 1 / -1; min-height: 64px; }
+/* the footer */
+.adm-foot { display: flex; justify-content: center; align-items: center; min-height: 44px; padding: 6px 0 0; }
+.adm-foot .mm-sig { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.adm-foot .mm-sig > img { height: 16px; width: auto; display: block; flex: none; }
+.adm-foot .mm-tag { display: grid; font-family: 'Gilda Display', Georgia, serif; font-size: 10px; line-height: 1.2; letter-spacing: .06em; text-transform: uppercase; color: #fff; white-space: nowrap; }
+html[dir="rtl"] .adm-foot .mm-sig { direction: ltr; }
+html[dir="rtl"] .adm-foot .mm-tag { text-align: left; }
+html[lang="ar"] .adm-foot .mm-tag span { letter-spacing: .06em !important; }
+@media (min-width: 1100px) { body.adm-page .win { max-height: 460px; } body.adm-page .adm-quick > .adm-qa:last-child:nth-child(odd) { grid-column: auto; min-height: 96px; } }

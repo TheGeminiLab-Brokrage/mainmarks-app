@@ -896,6 +896,27 @@
                   best: ans ? ans.list[0].u.code : pinned,
                   kind: ans ? ans.kind : (pinned ? 'available' : null) };
       listeners.forEach(function (fn) { fn(out); });
+      noteSearch(on, total);
+    }
+    /* build 217: the search as it stands, told once it has stood still for five seconds (a chip tapped on the way to another
+       is not a search). Only what the sales agent chose; the units themselves are not in it. */
+    var noted = null, noteT = null;
+    function noteSearch(on, total) {
+      clearTimeout(noteT);
+      if (!on || !o.onSearch) { if (!on) noted = null; return; }
+      noteT = setTimeout(function () {
+        var c = {}, f = {};
+        if (S.sizes.length) c.sizes = S.sizes.slice().sort();
+        if (S.floors.length) c.floors = S.floors.slice().sort();
+        if (S.min) c.min = S.min; if (S.max) c.max = S.max;
+        if (S.cash !== null) c.cash = S.cash; if (S.quarter !== null) c.quarter = S.quarter;
+        Object.keys(S.facets).forEach(function (k) { if (S.facets[k].length) f[k] = S.facets[k].slice().sort(); });
+        if (Object.keys(f).length) c.facets = f;
+        var key = JSON.stringify(c);
+        if (key === '{}' || key === noted || key.length > 280) return;
+        noted = key;
+        o.onSearch(c, key, units.filter(function (u) { return u.sellable && match(u); }).length);
+      }, 5000);
     }
 
     function setOpen(open) {

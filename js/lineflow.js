@@ -142,6 +142,7 @@
       project: p,
       useWord: useMany(types[0]),
       filters: l.filters,             /* this product's own questions (build 112) */
+      onSearch: function (c, key, found) { if (MM.auth.logSearch) MM.auth.logSearch({ key: l.id + '|' + key, project: p.id, line: l.id, criteria: c, found: found }); },   /* build 217 */
       nameOf: function (key) { var b = byKey(key); return b ? b.label : t('Building {b}', { b: key }); }
     }) : null;
     if (finder) wrap.appendChild(finder.node);

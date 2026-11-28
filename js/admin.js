@@ -64,11 +64,15 @@
     MM_NOT_YOURSELF: 'You cannot do this to your own account.',
     MM_NOT_ALLOWED: 'This account is not an admin account.',
     MM_NOT_SIGNED_IN: 'This account is not an admin account.',
+    /* build 217: correcting an entry */
+    MM_BAD_DATE: 'This date has not come yet.', MM_BAD_TIME: 'This time has not come yet.', MM_SAME_PERSON: 'The two names are the same person.', MM_SALES_AGENT_ONLY: 'An entry belongs to a sales agent.',
+    MM_VISIT_ALREADY_RECORDED: 'This visit is already recorded for that day.', MM_NO_UNIT: 'Choose the unit.', MM_BAD_UNIT: 'This unit code cannot be read. Choose it from the list.', MM_NO_PRICE: 'Type the price.',
+    MM_UNIT_CONTRACTED: 'This unit already has a contract.', MM_BEFORE_RESERVATION: 'A contract or a cancellation cannot be before its reservation.', MM_NO_CHANGE: 'Nothing is different.', MM_ALREADY_THERE: 'This entry is already back.', MM_BAD_KIND: 'This cannot be changed into that.',
     /* build 136: removing an entry */
-    MM_NO_REASON: 'Write why it is being removed.',
+    MM_NO_REASON: 'Tap a reason, or write one.',
     MM_NO_SUCH_ENTRY: 'This entry is no longer there. Open the page again.',
     MM_RESERVATION_NOT_OPEN: 'This reservation has been signed or cancelled since. Open the page again.',
-    MM_UNIT_RESERVED: 'The unit has been reserved again since, so this cancellation can no longer be removed.',
+    MM_UNIT_RESERVED: 'This unit is reserved by another entry.',
     /* build 141: adding the plan to a contract */
     MM_NO_PLAN: 'Pick the payment plan the customer signed.',
     MM_BAD_PLAN: 'Type the down payment, from 0 to 100, and the years, up to 30.',
@@ -118,20 +122,14 @@
     return m ? t('{name}’s team', { name: m.name }) : tm.name;
   }
 
-  /* ---- THE HISTORY (build 136) -----------------------------------------
-     Muhanad, 2026-10-09: a wrong entry is corrected by the manager for his team and by the admin for
-     everybody, a contract by the admin only, and every such change "should reads in a place ... in
-     nehal account and the director account and the cco to make sure there is no minpulation". Agreed
-     on a mock (2026-10-10): the place is this tab. It is the store's own record (mm_audit), which the
-     store writes in the same step as the change and which nobody can write to, the admin included.
-     One line for each entry recorded, cancelled, taken back the same day by the person who made it,
-     or removed with a reason. An offer is not in it: an offer is never removed.
-     It is also where she removes a wrong entry: a line whose entry still stands opens with the
-     reason field and the button. The store asks "is this the admin?" itself (mm_remove).
-     The lines come 200 at a time, the newest first. Which entries still stand is read whole, page by
-     page: the store hands over one page of rows per question and says nothing when it stops. */
-  var HPAGE = 200;
-  var hist = { rows: null, standing: {}, more: false, filter: 'all', busy: false, failed: false, plans: false };
+  /* THE HISTORY and every correction are js/admin-entry.js since build 217 (it was here since build 136: the lines of
+     the store's own record, where an offer never was, and a removal was the only correction). */
+  var EN0 = null;
+  function en() {
+    return EN0 || (EN0 = MM.adminEntry({ $: $, esc: esc, nm: nm, dayText: dayText, whenAt: whenAt, partAt: partAt, head: function (h, s) { return head(h, s); }, call: MM.auth.call, rpc: rpc, why: why,
+      people: function () { return people; }, companies: function () { return companies; }, person: person, team: team, teamLabel: teamLabel, showSheet: showSheet, closeSheet: closeSheet, toast: toast, edges: edges,
+      sheetNote: function (m) { var n = document.querySelector('#sheet .note'); if (n) n.textContent = m; }, refresh: function () { an().refresh(); if (tab !== 'history') draw(); } }));
+  }
   function getAll(path) {
     var out = [];
     var next = function (from) {
@@ -143,141 +141,13 @@
     };
     return next(0);
   }
-  function loadHistory(older) {
-    var from = older && hist.rows ? hist.rows.length : 0;
-    hist.busy = true;
-    return Promise.all([
-      MM.auth.call('/rest/v1/mm_audit?select=id,at,by_id,action,detail&action=in.(record,cancel,take_back,remove,hand_over,set_plan)&order=id.desc&limit=' + HPAGE + '&offset=' + from),
-      /* build 141: with each standing entry, the plan a contract was signed on and its unit type. A
-         store that has not had the build 141 file pasted yet has no such column and refuses the
-         question: it is then asked the way it was before, and no contract is offered a plan to add. */
-      older ? Promise.resolve(null) : getAll('/rest/v1/mm_events?select=id,kind,ended,product,plan,plan_down,plan_years&kind=neq.offer&order=id.asc').then(function (rows) { hist.plans = true; return rows; }, function () {
-        hist.plans = false;
-        return getAll('/rest/v1/mm_events?select=id,kind,ended&kind=neq.offer&order=id.asc');
-      })
-    ]).then(function (r) {
-      if (r[0].status !== 200 || !Array.isArray(r[0].body)) throw new Error('store');
-      hist.rows = (older && hist.rows ? hist.rows : []).concat(r[0].body);
-      hist.more = r[0].body.length === HPAGE;
-      if (r[1]) { hist.standing = {}; r[1].forEach(function (e) { hist.standing[e.id] = e; }); }
-      hist.busy = false; hist.failed = false;
-    }).catch(function () { hist.busy = false; hist.failed = true; });
-  }
-  var KINDL = { offer: t('Special request'), orientation: t('Orientation'), workshop: t('Workshop'), meeting: t('Meeting'), reservation: t('Reservation'), contract: t('Contract'), cancel: t('Cancelled reservation') };
-  var ACT = { record: ['rec', t('Recorded')], cancel: ['', t('Cancelled')], take_back: ['tb', t('Taken back the same day')], remove: ['rm', t('Removed')], hand_over: ['ho', t('Handed over')], set_plan: ['rec', t('Plan added')] };
-  var PRODL = { 'Commercial': t('Commercial'), 'Offices': t('Offices'), 'The Fourth': 'The Fourth', 'Clinics': t('Clinics'), 'Serviced apartments': t('Serviced apartments') };
-  var WHYL = { 'Client withdrew': t('Client withdrew'), 'Payment not made': t('Payment not made'), 'Moved to another unit': t('Moved to another unit'), 'Other': t('Other') };
   var LOCALE = AR ? 'ar-EG-u-nu-latn' : 'en-GB';
   function companyName(id) { var c = companies.filter(function (x) { return x.id === id; })[0]; return c ? c.name : t('a company no longer listed'); }
   function money(v) { return t('EGP {n}', { n: Math.round(Number(v)).toLocaleString('en-US') }); }
   /* a moment the store gives, as the day and the time in Cairo; a day the store gives, as it is */
   function whenAt(stamp) { try { return new Intl.DateTimeFormat(LOCALE, { timeZone: 'Africa/Cairo', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(stamp)); } catch (e) { return ''; } }
   function dayText(iso) { var p = String(iso || '').split('-'); try { return p.length === 3 ? new Intl.DateTimeFormat(LOCALE, { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]))) : ''; } catch (e) { return String(iso || ''); } }
-  function histTitle(d) { return [KINDL[d.kind] || d.kind, d.unit_code, d.company_id ? companyName(d.company_id) : '', d.value && d.kind !== 'offer' ? money(d.value) : ''].filter(Boolean).join(' · '); }
-  function histIs(h, f) { return f === 'all' || (f === 'contract' ? !!h.detail && h.detail.kind === 'contract' : h.action === f); }
-  /* build 140, A HAND-OVER (Muhanad, 2026-10-10): an offer a sales manager sent himself and then handed to
-     the sales agent it was for, "highlited in the audit history". The line says who sent it and to whom
-     it went; on a change, from whom, and the reason the manager wrote. */
-  function handed(h) {
-    var d = h.detail || {}, sent = person(d.sent_by || h.by_id), to = person(d.person_id), from = person(d.from_person_id);
-    return [sent ? t('Sent by {name}', { name: nm(sent.name) }) : '',
-      to ? (from ? t('From {a} to {b}', { a: nm(from.name), b: nm(to.name) }) : t('Handed to {name}', { name: nm(to.name) })) : ''].filter(Boolean);
-  }
-  /* build 214: a line under its day, the time on the right; "Recorded" is most lines, so only the other kinds are named;
-     "by" is said only when somebody else did it */
   function partAt(stamp, o) { try { o.timeZone = 'Africa/Cairo'; return new Intl.DateTimeFormat(LOCALE, o).format(new Date(stamp)); } catch (e) { return ''; } }
-  function histLine(h) {
-    var d = h.detail || {}, a = ACT[h.action] || ['', h.action], by = person(h.by_id), who = person(d.person_id), who2 = person(d.person2_id);
-    var bits = [who ? nm(who.name) + (who2 ? ' + ' + nm(who2.name) : '') : '', by && (!who || by.id !== who.id) ? t('by {name}', { name: nm(by.name) }) : ''].filter(Boolean);
-    if (h.action === 'hand_over') bits = handed(h);
-    return '<button class="hl" type="button" data-h="' + esc(h.id) + '">' + (h.action === 'record' ? '' : '<span class="k ' + a[0] + '">' + a[1] + '</span>') + '<b><span>' + esc(histTitle(d)) + '</span><bdi class="hl-t">' + esc(partAt(h.at, { hour: '2-digit', minute: '2-digit', hour12: false })) + '</bdi></b><small>' + bits.join(' · ') + '</small>' +
-      ((h.action === 'remove' || h.action === 'hand_over') && d.reason ? '<q>' + esc(d.reason) + '</q>' : (h.action === 'cancel' && d.why ? '<small>' + (WHYL[d.why] || esc(d.why)) + '</small>' : (h.action === 'set_plan' && d.plan ? '<small>' + nm(MM.contractPlan.text(d.plan, d.plan_down, d.plan_years)) + '</small>' : ''))) + '</button>';
-  }
-  function screenHistory() {
-    var html = head(t('History'), t('Every entry, the newest first. Tap one to correct it.'));
-    if (hist.rows === null) return html + '<p class="note center">' + (hist.failed ? t('The history could not be opened. Check the connection and open the page again.') : t('Opening the history…')) + '</p>';
-    var shown = hist.rows.filter(function (h) { return histIs(h, hist.filter); });
-    html += '<div class="chips">' + [['all', t('All')], ['remove', t('Removed')], ['take_back', t('Taken back')], ['cancel', t('Cancelled')], ['hand_over', t('Handed over')], ['contract', t('Contracts')]].map(function (c) {
-      /* a count is shown only when every line is on the page: a count of the first 200 would be a wrong number */
-      return '<button class="chip" type="button" data-hf="' + c[0] + '" aria-pressed="' + (hist.filter === c[0]) + '">' + c[1] + (hist.more ? '' : ' ' + hist.rows.filter(function (h) { return histIs(h, c[0]); }).length) + '</button>';
-    }).join('') + '</div>';
-    var days = [];
-    shown.forEach(function (h) { var k = partAt(h.at, { day: 'numeric', month: 'long', year: 'numeric' }); if (!days.length || days[days.length - 1].k !== k) days.push({ k: k, rows: [] }); days[days.length - 1].rows.push(h); });
-    html += shown.length ? '<section class="card adm-days">' + days.map(function (g) { return '<p class="hist-day"><bdi>' + esc(g.k) + '</bdi></p><div class="hist">' + g.rows.map(histLine).join('') + '</div>'; }).join('') + '</section>' : '<p class="note center">' + t('Nothing here yet.') + '</p>';
-    if (hist.more) html += '<button class="btn ghost" type="button" id="hMore">' + t('Show older lines') + '</button>';
-    return html;
-  }
-  function openHistory(id) {
-    var h = (hist.rows || []).filter(function (x) { return String(x.id) === String(id); })[0]; if (!h) return;
-    var d = h.detail || {}, a = ACT[h.action] || ['', h.action], by = person(h.by_id), who = person(d.person_id), who2 = person(d.person2_id), live = hist.standing[d.id], act = '';
-    var rows = [[t('Brokerage company'), nm(d.company_id ? companyName(d.company_id) : '')], [t('Date'), '<bdi>' + esc(dayText(d.on_date)) + '</bdi>']];
-    if (d.unit_code) rows.push([t('Unit'), nm((d.product ? (PRODL[d.product] || d.product) + ' ' : '') + d.unit_code) + (d.area ? ' · ' + t('{n} m²', { n: Number(d.area) }) : '')]);
-    else if (d.product) rows.push([t('Unit type'), PRODL[d.product] || esc(d.product)]);
-    /* an offer carries the unit's list price, which is no deal: it is not shown as one (build 140) */
-    if (d.value && d.kind !== 'offer') rows.push([d.kind === 'contract' ? t('Contract price') : t('Reservation price'), money(d.value)]);
-    /* build 141: the plan a contract was signed on. A line keeps the contract as it was when the line
-       was written; a plan the admin added since is read from the contract as it stands today. */
-    var plan = d.plan ? d : (live && live.plan ? live : null);
-    if (d.kind === 'contract') rows.push([t('Payment plan'), plan ? nm(MM.contractPlan.text(plan.plan, plan.plan_down, plan.plan_years)) : t('Not recorded')]);
-    if (who) rows.push([t('Sales agent'), nm(who.name) + (who2 ? ' + ' + nm(who2.name) : '')]);
-    if (d.why) rows.push([t('Reason'), WHYL[d.why] || esc(d.why)]);
-    if (h.action === 'hand_over') {
-      var sent = person(d.sent_by || h.by_id), from = person(d.from_person_id);
-      if (sent) rows.push([t('Sent by'), nm(sent.name)]);
-      if (from) rows.push([t('Taken from'), nm(from.name)]);
-    }
-    rows.push([a[1], (by ? nm(by.name) + ' · ' : '') + '<bdi>' + esc(whenAt(h.at)) + '</bdi>']);
-    if (h.action === 'hand_over' && d.reason) rows.push([t('Why it was changed'), esc(d.reason)]);
-    if (h.action === 'remove') rows.push([t('Why it was removed'), esc(d.reason || '')]);
-    if (h.action === 'record' || h.action === 'cancel') {
-      if (!live) act = '<p class="note">' + t('This entry has since been removed or taken back. It is no longer counted.') + '</p>';
-      else if (live.kind === 'reservation' && live.ended) act = '<p class="note">' + (live.ended === 'contract' ? t('This reservation was signed. Remove its contract first.') : t('This reservation was cancelled. Remove the cancellation first.')) + '</p>';
-      else act = addPlan(live) + '<label class="fld">' + t('Why is it being removed') + '<input id="hWhy" type="text" maxlength="200" autocomplete="off"></label><p class="note bad" id="aErr" hidden></p>' +
-        '<button class="btn' + (addPlan(live) ? ' ghost' : '') + '" type="button" id="hGo" data-id="' + esc(d.id) + '">' + t('Remove this entry') + '</button>' +
-        '<p class="note">' + t('A reason is required. The removal and its reason stay in this history. To correct the entry, the sales agent or their manager records it again.') + '</p>';
-    }
-    var facts = '<div class="facts">' + rows.map(function (r) { return '<div><span>' + r[0] + '</span><b>' + r[1] + '</b></div>'; }).join('') + '</div>';
-    var title = KINDL[d.kind] || esc(d.kind || ''), sub = a[1] + (d.company_id ? ' · ' + nm(companyName(d.company_id)) : '');
-    /* build 214: an entry she can correct opens as two steps: what it is, then how to correct it */
-    if (live && /id="hGo"/.test(act)) return flow(title, sub, [
-      { label: t('The entry'), q: t('Is this the entry to correct?'), html: facts },
-      { label: t('Correct'), last: true, q: t('How do you correct it?'), html: act.split('<p class="note bad" id="aErr" hidden></p>').join('') }]);
-    showSheet('<div><h3>' + title + '</h3><p class="role">' + sub + '</p></div>' + facts + '<div class="form">' + act + '</div>');
-  }
-  /* build 141, A CONTRACT RECORDED BEFORE THE PLAN WAS ASKED FOR (Muhanad, 2026-10-11: such a contract
-     stays as it is, shown with no plan, and the admin can add the plan). The line of a contract that
-     still stands and has no plan opens with the plan line of the Record form (MM.contractPlan,
-     js/auth.js) and its own button, above the way to remove it. The store asks "is this the admin?"
-     itself, saves the plan and writes the line of the history in one step (mm_set_plan). A plan that
-     is saved is not changed here: a wrong one is corrected like anything else on a contract, removed
-     with a reason and recorded again. */
-  function addPlan(live) {
-    if (!hist.plans || !live || live.kind !== 'contract' || live.plan) return '';
-    return MM.contractPlan.field(live.product || undefined, '') + '<p class="note bad" id="pErr" hidden></p>' +
-      '<button class="btn" type="button" id="hPlan" data-id="' + esc(live.id) + '" data-product="' + esc(live.product || '') + '">' + t('Save the payment plan') + '</button>' +
-      '<p class="note">' + t('This contract was recorded with no payment plan. Once saved, the plan is in the history and is not changed here.') + '</p>';
-  }
-  function savePlan(btn) {
-    var no = function (msg) { var n = $('pErr'); if (n) { n.textContent = msg; n.hidden = false; } };
-    var pl = MM.contractPlan.read($('rPl').value, btn.dataset.product || undefined, $('rPd').value, $('rPy').value);
-    if (pl.missing) return no(pl.missing === 'plan' ? t('Pick the payment plan the customer signed.') : t('Type the down payment, from 0 to 100, and the years, up to 30.'));
-    btn.disabled = true; $('pErr').hidden = true;
-    rpc('mm_set_plan', { p_contract: btn.dataset.id, p_plan: pl.id, p_plan_down: pl.down, p_plan_years: pl.years }).then(function (r) {
-      btn.disabled = false;
-      if (r.status >= 300) return no(why(r));
-      closeSheet();
-      loadHistory().then(function () { draw(); toast(t('Saved. The plan is in the history.')); });
-    }, function () { btn.disabled = false; no(t('No connection. Try again when you are online.')); });
-  }
-  function removeEntry(btn) {
-    var why = ($('hWhy') ? $('hWhy').value : '').replace(/\s+/g, ' ').trim();
-    if (why.length < 3) return bad(t('Write why it is being removed.'));
-    send(btn, rpc('mm_remove', { p_id: btn.dataset.id, p_reason: why }), function () {
-      closeSheet();
-      loadHistory().then(function () { draw(); toast(t('Removed. It is in the history with your reason.')); });
-    });
-  }
-
   /* ---- the email, from the name and the role -------------------------
      First two names, small letters, a dot between. "Abd el-Rahman Saleh"
      is abdelrahman.saleh: a particle joins the name it belongs to. */
@@ -326,7 +196,7 @@
   /* build 214: the line "Name · Admin" is gone (her initials say who she is); the + sits at the top beside them
      instead of floating over the page, and History and Account have a way back to Home */
   function head(h, sub) {
-    var add = tab === 'people' ? t('Add a person') : tab === 'plans' && PB ? t('Add a payment plan') : tab === 'companies' && !an().activity() ? t('Add a company') : '';
+    var add = tab === 'people' ? t('Add a person') : tab === 'plans' && PB ? t('Add a payment plan') : tab === 'companies' && !an().activity() ? t('Add a company') : tab === 'history' ? t('Add a missing entry') : '';
     var back = tab === 'history' || tab === 'me';
     return '<div class="hd my adm-hd">' + (back ? '<button class="adm-back" type="button" data-go-tab="home">' + (AR ? '› ' : '‹ ') + t('Home') + '</button>' : '') + '<h1>' + h + '</h1><div class="adm-acts">' +
       (add ? '<button class="adm-act plus" type="button" id="topAdd" aria-label="' + esc(add) + '">' + svg('plus') + '</button>' : '') +
@@ -452,8 +322,9 @@
       '<div class="adm-stats small"><div><b>' + cnt(function (p) { return p.active; }) + '</b><span>' + t('active') + '</span></div><div><b>' + cnt(needsHer) + '</b><span>' + t('Needs a look') + '</span></div><div><b>' + cnt(function (p) { return !p.active; }) + '</b><span>' + t('Switched off') + '</span></div></div>' +
       (tp.all.length ? '<div class="rows">' + (tp.mgr ? personRow(tp.mgr, t('Manager')) : '') + tp.agents.map(function (p) { return personRow(p); }).join('') + '</div>' : '<p class="note">' + t('Nobody is in this team yet.') + '</p>') +
       '<button class="btn ghost" type="button" data-team="' + esc(tm.id) + '">' + t('Change the manager or director') + '</button></div>';
+    windows(box);
     document.documentElement.classList.add('is-locked');
-    requestAnimationFrame(function () { box.classList.add('on'); var x = $('twX'); if (x) x.focus({ preventScroll: true }); });
+    requestAnimationFrame(function () { box.classList.add('on'); edges(); var x = $('twX'); if (x) x.focus({ preventScroll: true }); });
   }
   function closeTeamGlass(keepLock) {
     var box = $('tw'); if (!box || !glassTeam) return;
@@ -472,12 +343,11 @@
     var html = head(t('People'), t('{n} accounts, {off} switched off', { n: '<b>' + people.length + '</b>', off: '<b>' + (people.length - on) + '</b>' })) +
       '<label class="fld adm-find"><input id="find" type="search" autocomplete="off" placeholder="' + esc(t('Find a name or an email')) + '" value="' + esc(find) + '"></label>' +
       '<div class="chips">' + [['all', t('Everyone')], ['sales', t('Sales agents')], ['sales_manager', t('Managers')], ['lead', t('Directors and CCO')], ['off', t('Switched off')]].map(function (c) { return '<button class="chip" type="button" data-f="' + c[0] + '" aria-pressed="' + (filter === c[0]) + '">' + c[1] + '</button>'; }).join('') + '</div>';
-    var quiet = find || filter !== 'all', any = false;
+    var quiet = find || filter !== 'all', any = false, top = html; html = '';
     /* switched off: one plain list, whoever they were */
     if (filter === 'off') {
       var off = people.filter(showsUp).sort(byName);
-      if (off.length) html += '<section class="card"><div class="rows">' + off.map(function (p) { return personRow(p); }).join('') + '</div></section>';
-      return html + (off.length ? '' : '<p class="note center">' + t('Nobody matches.') + '</p>');
+      return top + (off.length ? '<section class="card adm-listcard"><div class="rows win tall" tabindex="0">' + off.map(function (p) { return personRow(p); }).join('') + '</div></section>' : '<p class="note center">' + t('Nobody matches.') + '</p>');
     }
     /* the CCO sees every team: first */
     var ccos = people.filter(function (p) { return p.role === 'cco' && p.active && showsUp(p); }).sort(byName);
@@ -509,9 +379,8 @@
       var admins = people.filter(function (p) { return p.role === 'admin' && p.active && showsUp(p); }).sort(byName);
       if (admins.length) { any = true; html += '<section class="card"><h2>' + t('Admins') + '</h2><div class="rows">' + admins.map(function (p) { return personRow(p); }).join('') + '</div></section>'; }
     }
-    if (!any) html += '<p class="note center">' + t('Nobody matches.') + '</p>';
-    if (!quiet) html += '<button class="btn ghost" type="button" id="addTeam">' + t('Add a team') + '</button>';
-    return html;
+    if (!any) return top + '<p class="note center">' + t('Nobody matches.') + '</p>';
+    return top + '<div class="win tall adm-found" tabindex="0">' + html + '</div>';
   }
   function screenCompanies() {
     /* build 127: names sales agents sent that are not on the list wait here for her; a spelling she
@@ -538,13 +407,12 @@
       }).join('') + '</div></section>' : '') +
       /* build 198 (Muhanad: "the admin can add brokerage companies, not only by adding a list, but also adding individual companies") */
       '<label class="fld adm-find"><input id="find" type="search" autocomplete="off" placeholder="' + esc(t('Find a company')) + '" value="' + esc(find) + '"></label>' +
-      /* build 214: one list in the page's own scroll (a list scrolling inside a scrolling page is hard to steer with a
-         thumb), drawn a part at a time: about two thousand companies are coming (Muhanad, 2026-10-10) */
-      (shown.length ? '<section class="card"><div class="rows an" id="cbox">' + (listRows = shown).slice(0, listShown).map(companyRow).join('') + '</div>' +
-          (shown.length > listShown ? '<button class="btn ghost" type="button" id="cMore">' + t('Show {n} more', { n: Math.min(LIST_PART, shown.length - listShown) }) + '</button>' : '') + '</section>'
+      /* build 217, his word on windows: the list in its own tall window (it was the page's own scroll since 214), drawn a
+         part at a time as she scrolls: about two thousand companies are coming (Muhanad, 2026-10-10) */
+      (shown.length ? '<section class="card adm-listcard"><div class="rows an win tall" id="cbox" tabindex="0">' + (listRows = shown).slice(0, LIST_PART).map(companyRow).join('') + '</div></section>'
         : '<p class="note center">' + (companies.length ? t('No company matches.') : t('No company is on the list yet. Add the first one with the plus.')) + '</p>');
   }
-  var LIST_FIRST = 6, LIST_PART = 40, listRows = [], listShown = LIST_PART;
+  var LIST_PART = 40, listRows = [];
   function companyRow(c) {
     var given = (circle[c.id] || []).length;
     return '<button class="row' + (c.active ? '' : ' gone') + '" type="button" data-c="' + esc(c.id) + '"><span class="nm">' + nm(c.name) + '</span><span class="val code">' + (c.active ? '' : '<span class="adm-flag off">' + t('Switched off') + '</span>') +
@@ -707,25 +575,15 @@
     });
   }
 
-  /* the box ends exactly where the seventh row starts; more rows are drawn as she scrolls inside it */
-  function listFit() {
-    var box = $('cbox'), r = box && box.classList.contains('inbox') ? box.children[LIST_FIRST] : null;
-    if (!r) return;
-    box.style.maxHeight = '';
-    box.style.maxHeight = Math.round(r.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop) + 'px';
-  }
+  /* more rows are drawn as she scrolls inside the window */
   function listInit() {
-    var box = $('cbox');
-    if (!box || !box.classList.contains('inbox')) return;
-    listFit();
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(listFit);
+    var box = $('cbox'); if (!box) return;
     box.addEventListener('scroll', function () {
       var from = box.children.length;
-      if (from >= listRows.length || box.scrollTop + box.clientHeight < box.scrollHeight - 240) return;
+      if (from >= listRows.length || box.scrollTop + box.clientHeight < box.scrollHeight - 300) return;
       box.insertAdjacentHTML('beforeend', listRows.slice(from, from + LIST_PART).map(companyRow).join(''));
     });
   }
-  window.addEventListener('resize', listFit);
   function screenMe() {
     return head(t('Account')) +
       '<section class="card"><div class="facts"><div><span>' + t('Name') + '</span><b>' + nm(session.name) + '</b></div><div><span>' + t('Email') + '</span><b><bdi>' + esc(session.email) + '</bdi></b></div>' +
@@ -759,14 +617,25 @@
         : '<p class="adm-big adm-clear">' + t('All clear') + '</p><p class="note">' + t('Nothing is waiting for your decision.') + '</p>') + '</section>' +
       an().glance() +
       '<section class="card adm-quickcard"><h2>' + t('Quick actions') + '</h2><div class="adm-quick">' +
-        qa('person', 'people', t('Add a person')) + qa('company', 'companies', t('Add a company')) + qa('history', 'fix', t('Correct an entry')) +
+        qa('person', 'people', t('Add a person')) + qa('company', 'companies', t('Add a company')) + qa('history', 'fix', t('Correct an entry')) + qa('entry', 'plus', t('Add a missing entry')) +
         (MM.invExport && MM.invExport.projects().length ? qa('inventory', 'dl', t('Download the inventory')) : '') + '</div></section>';
   }
+  /* build 217 (Muhanad, 28 Nov 2026: "any list is should not go to the whole page like the payment plan it should be in a
+     windoe and that window is scroll able"): a list of more than five rows that is taller than a window by a good part
+     (a window that scrolls by 17 px is a nuisance) scrolls in its own window; a list that is the
+     page (the companies, the history, People filtered) has one tall window. The bottom edge fades while there is more. */
+  function windows(box) { [].forEach.call(box.querySelectorAll('.rows, .adm-mgrs'), function (r) { if (r.children.length > 5 && r.scrollHeight > 470 && !r.closest('.win') && !r.closest('.adm-pickbox') && !r.closest('.adm-reps')) { r.classList.add('win'); r.tabIndex = 0; } }); }
+  function edges() { [].forEach.call(document.querySelectorAll('.win'), function (w) { w.classList.toggle('more', w.scrollHeight - w.clientHeight - w.scrollTop > 12); }); }
+  document.addEventListener('scroll', function (e) { var w = e.target; if (w && w.classList && w.classList.contains('win')) w.classList.toggle('more', w.scrollHeight - w.clientHeight - w.scrollTop > 12); }, true);
+  window.addEventListener('resize', edges);
+  /* build 217 ("make sure that the app has the main marks fotter down as it is in the app other views"): Main Marks' own
+     footer, as on the sign-in, the projects and every line page (build 155): the name, then BESPOKE / EXPERIENCES */
+  var FOOT = '<footer class="adm-foot mm-foot"><div class="mm-sig"><img src="img/mainmarks-name-colon.svg" alt="Main Marks"><span class="mm-tag"><span>Bespoke</span><span>Experiences</span></span></div></footer>';
   function draw() {
     var keep = document.activeElement && document.activeElement.id === 'find';
-    $('scr').innerHTML = tab === 'home' ? screenHome() : tab === 'analysis' ? an().screen() : tab === 'people' ? screenPeople() : tab === 'companies' ? (an().activity() ? an().companies() : screenCompanies()) : tab === 'history' ? screenHistory() : tab === 'plans' ? screenPlans() : screenMe();
-    /* the history is read the first time its tab is opened, not with the accounts */
-    if (tab === 'history' && hist.rows === null && !hist.busy && !hist.failed) loadHistory().then(function () { if (tab === 'history') draw(); });
+    $('scr').innerHTML = tab === 'home' ? screenHome() : tab === 'analysis' ? an().screen() : tab === 'people' ? screenPeople() : tab === 'companies' ? (an().activity() ? an().companies() : screenCompanies()) : tab === 'history' ? en().screen() : tab === 'plans' ? screenPlans() : screenMe();
+    $('scr').insertAdjacentHTML('beforeend', FOOT);
+    windows($('scr')); listInit(); edges();
     $('tab').innerHTML = TABS.map(function (x) {
       return '<button type="button" data-tab="' + x[0] + '"' + ((tab === 'history' ? 'home' : tab) === x[0] ? ' aria-current="page"' : '') + '>' + svg(x[0]) + '<span>' + t(x[1]) + '</span></button>';
     }).join('');
@@ -787,6 +656,7 @@
     if (!$('sheet').classList.contains('on')) opener = document.activeElement;
     $('sheet').innerHTML = '<span class="grab"></span><button class="x" id="closeSheet" type="button" aria-label="' + esc(t('Close')) + '">✕</button>' + html;
     $('sheet').scrollTop = 0;
+    windows($('sheet')); edges();
     $('sheet').classList.add('on'); $('veil').classList.add('on');
     document.documentElement.classList.add('is-locked');
     $('closeSheet').addEventListener('click', closeSheet);
@@ -1381,6 +1251,7 @@
   document.addEventListener('click', function (e) {
     /* build 211: the analysis answers its own taps */
     if (an().click(e)) return;
+    if (en().click(e)) return;
     var hit = function (a) { return e.target.closest('[' + a + ']'); };
     var p = hit('data-p'), c = hit('data-c'), f = hit('data-f'), tb = e.target.closest('#tab [data-tab]'), l = hit('data-lang'), tm = hit('data-team');
     /* build 209: the team's pane of glass. A tap outside the pane or on ✕ closes it; a person or "Change the
@@ -1403,20 +1274,14 @@
     }
     if (hit('data-addc')) { if (hit('data-addc').dataset.addc === 'list') openLoad(); else openNewCompany(); return; }
     if (e.target.closest('#toMe')) { tab = 'me'; find = ''; draw(); window.scrollTo(0, 0); return; }
-    if (hit('data-go-tab')) { tab = hit('data-go-tab').dataset.goTab; find = ''; if (tab === 'history') hist.failed = false; draw(); window.scrollTo(0, 0); return; }
-    if (e.target.closest('#topAdd')) { if (tab === 'companies') openAddChoice(); else if (tab === 'plans') openNewPlan(null); else openAddPerson(); return; }
-    if (e.target.closest('#cMore')) {
-      var mb = e.target.closest('#cMore'), box = $('cbox'), from = listShown;
-      listShown += LIST_PART;
-      if (box) box.insertAdjacentHTML('beforeend', listRows.slice(from, listShown).map(companyRow).join(''));
-      if (listShown >= listRows.length) mb.remove(); else mb.textContent = t('Show {n} more', { n: Math.min(LIST_PART, listRows.length - listShown) });
-      return;
-    }
+    if (hit('data-go-tab')) { tab = hit('data-go-tab').dataset.goTab; find = ''; if (tab === 'history') en().opened(); draw(); window.scrollTo(0, 0); return; }
+    if (e.target.closest('#topAdd')) { if (tab === 'companies') openAddChoice(); else if (tab === 'plans') openNewPlan(null); else if (tab === 'history') en().add(); else openAddPerson(); return; }
     if (hit('data-qa')) {
       var q = hit('data-qa').dataset.qa;
       if (q === 'person') openAddPerson();
       else if (q === 'company') openNewCompany();
-      else if (q === 'history') { tab = 'history'; hist.failed = false; draw(); window.scrollTo(0, 0); }
+      else if (q === 'history') { tab = 'history'; en().opened(); draw(); window.scrollTo(0, 0); }
+      else if (q === 'entry') en().add();
       else if (q === 'inventory') {
         var qb = hit('data-qa'); if (qb.disabled) return;
         qb.disabled = true; toast(t('Preparing the inventory…'));
@@ -1427,12 +1292,7 @@
     if (hit('data-dir')) { dirPick = hit('data-dir').dataset.dir; $('scr').classList.remove('in'); draw(); var dt = document.querySelector('.adm-dtabs [aria-selected="true"]'); if (dt) { dt.focus({ preventScroll: true }); dt.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } return; }
     if (hit('data-mt')) { openTeamGlass(hit('data-mt').dataset.mt); return; }
     if (e.target.closest('#veil')) closeSheet();
-    else if (tb) { tab = tb.dataset.tab; find = ''; if (tab === 'history') hist.failed = false; draw(); window.scrollTo(0, 0); }
-    else if (hit('data-hf')) { hist.filter = hit('data-hf').dataset.hf; draw(); }
-    else if (e.target.closest('#hGo')) removeEntry(e.target.closest('#hGo'));
-    else if (e.target.closest('#hPlan')) savePlan(e.target.closest('#hPlan'));
-    else if (e.target.closest('#hMore')) { e.target.closest('#hMore').disabled = true; loadHistory(true).then(draw); }
-    else if (hit('data-h')) openHistory(hit('data-h').dataset.h);
+    else if (tb) { tab = tb.dataset.tab; find = ''; draw(); window.scrollTo(0, 0); }
     /* build 149: a sales agent ticked or not; a request to serve a company */
     else if (hit('data-pick')) { var pk = hit('data-pick'); pk.setAttribute('aria-pressed', String(pk.getAttribute('aria-pressed') !== 'true')); pickWords(); if ($('aErr')) $('aErr').hidden = true; }
     else if (hit('data-ask')) { var ak = hit('data-ask').dataset.ask.split('|'); openAsk(ak[0], ak[1]); }
@@ -1448,7 +1308,7 @@
     else if (e.target.closest('#pTerms')) openTerms();
     else if (e.target.closest('#cLoad')) openLoad();
     else if (e.target.closest('#cOne')) openCompany(null);
-    else if (e.target.closest('#aPractice')) { BOOK.reset(); if (PB) PB.reset(); hist.rows = null; again(t('The practice data is back as it was.')); }
+    else if (e.target.closest('#aPractice')) { BOOK.reset(); if (PB) PB.reset(); en().reset(); an().refresh(); again(t('The practice data is back as it was.')); }
     else if (e.target.closest('#pReset')) { PB.reset(); draw(); toast(t('The original plans are back.')); }
     else if (e.target.closest('#fab')) { if (tab === 'companies') openCompany(null); else if (tab === 'plans') openNewPlan(null); else openAddPerson(); }
     else if (e.target.closest('#invDl')) {
@@ -1458,7 +1318,7 @@
     }
     else if (e.target.closest('#out')) { MM.auth.signOut(); location.replace('login.html'); }
   });
-  document.addEventListener('input', function (e) { if (e.target.id === 'find') { find = e.target.value; listShown = LIST_PART; draw(); } });
+  document.addEventListener('input', function (e) { if (e.target.id === 'find') { find = e.target.value; draw(); } });
   /* build 154: the new plan's name and example follow what she types */
   document.addEventListener('input', function (e) { if ($('pPrev') && $('sheet').contains(e.target)) { if ($('aErr')) $('aErr').hidden = true; planPreview(); } });
   /* build 149: finding a sales agent in the list of ticks hides the others; it never draws the page again */
