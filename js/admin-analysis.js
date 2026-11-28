@@ -39,7 +39,7 @@
   MM.adminAnalysis = function (X) {
     var t = MM.t, esc = X.esc, nm = X.nm, AR = MM.isArabic;
     var ev = null, busy = false, failed = false;
-    var lastP = null, lastV = null, period = 'month', cview = 'manage', cstate = 'active', dirPick = null, paneTeam = null, opener = null;
+    var lastP = null, lastV = null, lastF = null, repAs = 'pdf', period = 'month', cview = 'manage', cstate = 'active', dirPick = null, paneTeam = null, opener = null;
     var PERIODS = [['today', t('Today'), 0], ['week', t('7 days'), 6], ['month', t('30 days'), 29], ['all', t('All time'), null]];
 
     /* ---- the rows ---- */
@@ -126,7 +126,8 @@
     }
     /* one and many, in both languages (the Arabic keys carry the number after the word) */
     /* the keys, for the Arabic check: t('{n} meetings') t('{n} reservations') t('{n} requests') */
-    var MANY = { meeting: [t('1 meeting'), '{n} meetings'], reservation: [t('1 reservation'), '{n} reservations'], request: [t('1 request'), '{n} requests'] };
+    /* t('{n} sales agents') t('{n} sent nothing') */
+    var MANY = { meeting: [t('1 meeting'), '{n} meetings'], reservation: [t('1 reservation'), '{n} reservations'], request: [t('1 request'), '{n} requests'], agent: [t('1 sales agent'), '{n} sales agents'], idle: [t('1 sent nothing'), '{n} sent nothing'] };
     function many(n, w) { return n === 1 ? MANY[w][0] : t(MANY[w][1], { n: n }); }
     function egp(v) { return t('EGP {n}', { n: short(v) }); }
     function versus(now, was, money) {
@@ -194,19 +195,26 @@
       var cards = tms.map(function (tm) {
         var n = tally(now, null, tm.id), mg = X.person(tm.manager_id), ppl = members(tm).filter(function (p) { return p.active; });
         var quiet = ppl.filter(function (p) { var x = tally(now, p.id); return !x.special && !x.broadcast; }).length;
-        return '<button class="adm-mgr" type="button" data-an-team="' + esc(tm.id) + '">' + (quiet ? '<span class="adm-dot" title="' + esc(t('Sales agents with nothing sent')) + '">' + quiet + '</span>' : '') +
+        /* build 214: a row of one list; the badge says what it counts (it was a bare number with a hover title) */
+        return '<button class="adm-mgr" type="button" data-an-team="' + esc(tm.id) + '">' +
           '<span class="adm-av">' + esc(X.initials(mg ? mg.name : tm.name)) + '</span><span class="adm-mgr-nm">' + nm(X.teamLabel(tm)) + '</span>' +
-          '<span class="adm-mgr-sub">' + many(n.special, 'request') + ' · ' + many(n.meeting, 'meeting') + '</span>' +
+          '<span class="adm-mgr-sub">' + many(n.special, 'request') + ' · ' + many(n.meeting, 'meeting') + (quiet ? '<span class="adm-dot">' + many(quiet, 'idle') + '</span>' : '') + '</span>' +
           '<span class="adm-mgr-n"><b>' + short(n.value) + '</b> ' + t('EGP sales') + '</span></button>';
       }).join('');
       return '<p class="adm-k adm-k-pad">' + t('By director') + '</p>' + tabs + '<div class="adm-dpane"><p class="adm-k adm-k-pad">' + t('Teams') + '</p><div class="adm-mgrs">' + (cards || '<p class="note">' + t('No team yet.') + '</p>') + '</div></div>';
     }
+    function formatSwitch() {
+      var at = repAs === 'xlsx' ? 1 : 0, was = lastF === null ? at : lastF; lastF = at;
+      return '<div class="seg186 adm-seg two" role="group" aria-label="' + esc(t('Format')) + '"><span class="pill186" style="--a:' + was + ';--b:' + at + '"></span><button type="button" data-an-fmt="pdf" aria-pressed="' + (repAs === 'pdf') + '">PDF</button><button type="button" data-an-fmt="xlsx" aria-pressed="' + (repAs === 'xlsx') + '">Excel</button></div>';
+    }
+    var DL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>';
     function reportsCard() {
       var R = [['team', t('Team activity'), t('Every director, team and sales agent')], ['companies', t('Companies'), t('Active, gone quiet, inactive, never asked')],
         ['sales', t('Sales'), t('Reservations and contracts, by team and agent')], ['inventory', t('Inventory'), t('Available and on hold, by line and building')]];
-      return '<section class="card"><h2>' + t('Reports') + '</h2><p class="note">' + t('For the dates chosen above, in the language of the app.') + '</p><div class="rows an adm-reps">' + R.map(function (x) {
+      /* build 214: choose PDF or Excel once; one button a report (eight small buttons were 36 px) */
+      return '<section class="card" id="anReports"><h2>' + t('Reports') + '</h2><p class="note">' + t('For the dates chosen above.') + '</p>' + formatSwitch() + '<div class="rows an adm-reps">' + R.map(function (x) {
         return '<div class="row flat"><span class="nm">' + x[1] + '</span><span class="sub">' + x[2] + '</span><span class="val adm-repbtns">' +
-          '<button class="chip" type="button" data-an-rep="' + x[0] + '" data-an-as="pdf">PDF</button><button class="chip" type="button" data-an-rep="' + x[0] + '" data-an-as="xlsx">Excel</button></span></div>';
+          '<button class="adm-dl" type="button" data-an-rep="' + x[0] + '" data-an-as="' + repAs + '" aria-label="' + esc(t('Download {name}', { name: x[1] })) + '">' + DL + '</button></span></div>';
       }).join('') + '</div></section>';
     }
 
@@ -246,15 +254,15 @@
       return '<div class="seg186 adm-seg two" role="group" aria-label="' + esc(t('Brokerage companies')) + '"><span class="pill186" style="--a:' + was + ';--b:' + at + '"></span><button type="button" data-an-cv="manage" aria-pressed="' + (cview === 'manage') + '">' + t('Manage') + '</button><button type="button" data-an-cv="activity" aria-pressed="' + (cview === 'activity') + '">' + t('Activity') + '</button></div>';
     }
     function companies() {
-      if (!ev) { ready(X.draw); return X.head(t('Brokerage companies')) + companiesSwitch() + waitBox(); }
+      if (!ev) { ready(X.draw); return X.head(t('Companies')) + companiesSwitch() + waitBox(); }
       var r = range(), st = states(r), list = st[cstate], CAPN = 300;
-      return X.head(t('Brokerage companies'), t('Showing {dates} · every team', { dates: '<b>' + rangeText(r) + '</b>' })) + companiesSwitch() + dateSwitch() +
+      return X.head(t('Companies'), t('Showing {dates} · every team', { dates: '<b>' + rangeText(r) + '</b>' })) + companiesSwitch() + dateSwitch() +
         '<div class="adm-groups wide">' + ['active', 'quiet', 'inactive', 'never'].map(function (k) {
           return '<button type="button" class="adm-grp" data-an-state="' + k + '" aria-pressed="' + (cstate === k) + '"><i style="background:' + SDOT[k] + '"></i><span>' + STATE[k] + '</span><b>' + st[k].length + '</b></button>';
         }).join('') + '</div>' +
         '<section class="card"><h2>' + STATE[cstate] + ' <em>' + list.length + '</em></h2><p class="note">' + STATE_NOTE[cstate] + '</p><div class="rows an">' +
         (list.length ? list.slice(0, CAPN).map(function (x) {
-          var sub = cstate === 'never' ? t('No request yet') : cstate === 'active' ? t('{n} requests in these dates · {a} sales agents', { n: x.b.inR, a: Object.keys(x.b.agents).length }) : t('Last request {date}', { date: X.dayText(x.b.last) });
+          var sub = cstate === 'never' ? t('No request yet') : cstate === 'active' ? many(Object.keys(x.b.agents).length, 'agent') : t('Last request {date}', { date: X.dayText(x.b.last) });
           return '<button class="row" type="button" data-an-co="' + esc(x.c.id) + '"><span class="nm">' + nm(x.c.name) + '</span><span class="sub">' + sub + '</span><span class="val">' + (cstate === 'active' ? x.b.inR : x.b.n) + '<small>' + t('requests') + '</small></span></button>';
         }).join('') + (list.length > CAPN ? '<p class="note">' + t('{n} more. The Companies report holds them all.', { n: list.length - CAPN }) + '</p>' : '') : '<p class="note">' + t('No company in this group.') + '</p>') +
         '</div></section>';
@@ -419,6 +427,7 @@
       }
       if ((x = h('data-an-p'))) { period = x.dataset.anP; X.draw(); return true; }
       if ((x = h('data-an-cv'))) { cview = x.dataset.anCv; X.draw(); return true; }
+      if ((x = h('data-an-fmt'))) { repAs = x.dataset.anFmt; var card = document.getElementById('anReports'); if (card) card.outerHTML = reportsCard(); else X.draw(); return true; }
       if ((x = h('data-an-state'))) { cstate = x.dataset.anState; if (X.tab() !== 'companies') { cview = 'activity'; X.go('companies'); } else X.draw(); return true; }
       if ((x = h('data-an-dir'))) { dirPick = x.dataset.anDir; X.draw(); return true; }
       if ((x = h('data-an-team'))) { openTeam(x.dataset.anTeam); return true; }
@@ -428,8 +437,21 @@
       return false;
     }
 
+    /* ==== HOME (build 214): this month at a glance, whatever dates the Analysis tab shows ==== */
+    function glance() {
+      if (!ev) { ready(X.draw); return waitBox(); }
+      var keep = period; period = 'month';
+      var r = range(), b = before(r), n = tally(ev.filter(function (e) { return inR(e, r); })), w = tally(ev.filter(function (e) { return inR(e, b); })), st = states(r), sw = states(b), all = listed().length;
+      var html = '<section class="adm-top adm-hl adm-glance"><p class="adm-k">' + t('The last 30 days') + '</p>' +
+        '<div class="adm-two"><div><p class="adm-big"><small>' + (AR ? 'جنيه' : 'EGP') + '</small> ' + short(n.value) + '</p><p class="adm-cap">' + t('Sales') + '</p>' + versus(n.value, w.value, true) + '</div>' +
+        '<div><p class="adm-big">' + st.active.length + ' <small>' + t('of {n}', { n: all }) + '</small></p><p class="adm-cap">' + t('Active companies') + '</p>' + versus(st.active.length, sw.active.length) + '</div></div>' +
+        '<button class="also adm-link" type="button" data-go-tab="analysis">' + t('Open Analysis') + '</button></section>';
+      period = keep;
+      return html;
+    }
+
     return {
-      screen: screen, companies: companies, cswitch: companiesSwitch, activity: function () { return cview === 'activity'; }, click: click, closePane: closeTeam,
+      screen: screen, glance: glance, companies: companies, cswitch: companiesSwitch, activity: function () { return cview === 'activity'; }, click: click, closePane: closeTeam,
       refresh: function () { ev = null; failed = false; },
       /* for checks */
       _describe: function (k) { return ev ? describe(k) : null; }, _states: function () { return ev ? states(range()) : null; }, _set: function (p) { period = p; }

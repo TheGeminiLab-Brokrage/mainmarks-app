@@ -947,3 +947,116 @@ html[dir="rtl"] .cal190-k { letter-spacing: 0; }
 .adm-grp { gap: 6px; padding: 10px; }
 .adm-grp span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 400px) { .adm-top .adm-grp b::after { content: none; } }
+
+/* ==== BUILD 214 (Muhanad, 28 Nov 2026): HER PAGE AS EASY AS THE SALES SIDE ====
+   Home first and five tabs; the + and her initials at the top; glass pop-ups that walk her through a job one step at a
+   time; every tap target 44 pt, no text under 11, secondary text 14 to 15 (Apple's guidelines, the review of 28 Nov). */
+/* sizes: the admin page only */
+body.adm-page .tab button span { font-size: 11px; }
+body.adm-page .tab.five button { font-size: 11px; }
+body.adm-page .chip { min-height: 44px; font-size: 15px; padding-inline: 16px; }
+body.adm-page .seg186 button { min-height: 44px; font-size: 15px; }
+body.adm-page .scr .row { min-height: 48px; }
+body.adm-page .scr .row .nm { font-size: 16px; }
+body.adm-page .scr .row .sub, body.adm-page .adm-mgr-sub, body.adm-page .hist .hl small { font-size: 14px; }
+body.adm-page .scr .note, body.adm-page .showing { font-size: 15px; line-height: 1.45; }
+body.adm-page .sheet .role, body.adm-page .sheet .note { font-size: 14px; line-height: 1.45; }
+body.adm-page .scr .card > h2, body.adm-page .adm-k { font-size: 13px; letter-spacing: .08em; }
+body.adm-page .adm-stats span { font-size: 13px; }
+body.adm-page .adm-flag { font-size: 12px; padding: 4px 10px; }
+body.adm-page .scr > .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: -16px; padding-inline: 16px; }
+body.adm-page .scr > .chips::-webkit-scrollbar { display: none; }
+body.adm-page .scr > .chips .chip { flex: none; }
+/* a fall is red; yellow stays "gone quiet" (one colour, one meaning) */
+body.adm-page .adm-vs.down { color: #FF6961; }
+/* the header: the title, then the + and her initials on the right */
+.adm-hd { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+.adm-hd h1 { min-width: 0; overflow-wrap: anywhere; }
+.adm-acts { display: flex; gap: 10px; }
+.adm-act { all: unset; box-sizing: border-box; cursor: pointer; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-size: 15px; font-weight: 700; color: var(--ink);
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16); }
+.adm-act.plus { background: var(--acc); border-color: var(--acc); color: #000; }
+.adm-act svg { width: 22px; height: 22px; }
+.adm-act:focus-visible, .adm-back:focus-visible, .fl-choice:focus-visible, .adm-qa:focus-visible, .adm-dl:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+.adm-back { all: unset; cursor: pointer; grid-column: 1 / -1; min-height: 44px; display: inline-flex; align-items: center; font-size: 15px; font-weight: 600; color: var(--acc); }
+/* Home */
+.adm-wait .rows { margin-top: 6px; }
+.adm-clear { color: #2FBF8F; }
+.adm-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.adm-glance .adm-big { font-size: 30px; }
+.adm-cap { margin: 2px 0 4px; font-size: 13px; color: var(--mut); }
+.adm-glance .adm-link { justify-self: start; min-height: 44px; }
+.adm-quick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.adm-qa { all: unset; box-sizing: border-box; cursor: pointer; display: grid; gap: 10px; align-content: space-between; min-height: 96px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,.065); font-size: 15px; font-weight: 600; line-height: 1.3; color: var(--ink); }
+.adm-qa:nth-child(4n+2), .adm-qa:nth-child(4n+3) { background: rgba(255,255,255,.035); }
+.adm-qa svg { width: 24px; height: 24px; color: var(--acc); }
+.adm-qa:active { transform: scale(.98); }
+.adm-qa[disabled] { opacity: .5; }
+/* teams and managers: one list of rows, shaded, no orphan card */
+body.adm-page .adm-mgrs { display: flex; flex-direction: column; gap: 3px; }
+body.adm-page .adm-mgr { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; grid-template-rows: auto auto; column-gap: 12px; row-gap: 2px; align-items: center; align-content: center;
+  min-height: 64px; padding: 12px 14px; border-radius: 14px; border: 0; box-shadow: none; background: rgba(255,255,255,.065); }
+body.adm-page .adm-mgr:nth-child(even) { background: rgba(255,255,255,.03); }
+body.adm-page .adm-mgr .adm-av { grid-row: 1 / 3; width: 40px; height: 40px; font-size: 14px; margin: 0; }
+body.adm-page .adm-mgr-nm { grid-column: 2; font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.adm-page .adm-mgr-sub { grid-column: 2; }
+body.adm-page .adm-mgr-n { grid-column: 3; grid-row: 1 / 3; margin: 0; padding: 0; text-align: end; font-size: 13px; }
+body.adm-page .adm-mgr-n b { display: block; font-size: 20px; }
+body.adm-page .adm-dot { position: static; display: inline-block; min-width: 0; height: auto; margin-inline-start: 8px; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #fff; background: #C9221A; vertical-align: 1px; }
+/* reports: the format once, one round button a report */
+.adm-dl { all: unset; box-sizing: border-box; cursor: pointer; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.05); color: var(--ink); }
+.adm-dl svg { width: 20px; height: 20px; }
+.adm-dl[disabled] { opacity: .45; }
+/* history: lines under their day, the time on the right */
+.adm-days { display: grid; gap: 6px; }
+.hist-day { margin: 10px 4px 0; font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--mut); }
+.hist-day:first-child { margin-top: 0; }
+.adm-page .hist .hl b { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.hl-t { flex: none; font-size: 14px; font-weight: 500; color: var(--mut); font-variant-numeric: tabular-nums; }
+/* the company list grows with a button, in the page's own scroll */
+#cMore { margin-top: 8px; }
+/* THE GLASS: every pop-up is the team pane's glass, a floating sheet on a phone */
+body.adm-page .veil.on { background: rgba(6,6,7,.42); -webkit-backdrop-filter: blur(18px) saturate(1.2); backdrop-filter: blur(18px) saturate(1.2); }
+body.adm-page .sheet { left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); width: auto; max-width: 560px; margin-inline: auto; max-height: calc(100dvh - 24px);
+  border-radius: 32px !important; border: 1px solid rgba(255,255,255,.18) !important; padding: 12px 18px 20px;
+  background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.04)), rgba(28,28,30,.62) !important;
+  -webkit-backdrop-filter: blur(34px) saturate(1.8); backdrop-filter: blur(34px) saturate(1.8);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 30px 80px rgba(0,0,0,.6) !important; }
+body.adm-page .sheet .x { width: 44px; height: 44px; top: 12px; inset-inline-end: 12px; background: rgba(255,255,255,.12); border: 0; }
+body.adm-page .sheet h3 { font-size: 22px; font-weight: 800; letter-spacing: -.01em; padding-inline-end: 52px; }
+/* the steps: their names on a line, as the sales side's PROJECT, BUILDING & UNIT, OFFER */
+.fl-top { display: grid; gap: 8px; }
+.fl-line { list-style: none; margin: 4px 0 2px; padding: 0; padding-inline-end: 52px; display: flex; flex-wrap: wrap; align-items: center; row-gap: 4px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+.fl-line li { display: flex; align-items: center; white-space: nowrap; }
+.fl-line li + li::before { content: ""; width: 14px; height: 1px; margin-inline: 7px; background: rgba(255,255,255,.25); }
+.fl-line li.done { color: var(--mut); }
+.fl-line li.now { color: var(--ink); }
+.fl-line li.now span::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-inline-end: 6px; vertical-align: 1px; background: var(--acc); }
+.fl-step { display: grid; gap: 10px; animation: flIn .32s cubic-bezier(.2,.8,.2,1) both; }
+.fl-step[hidden], .fl-nav[hidden], .fl-nav [hidden] { display: none !important; }
+@keyframes flIn { from { opacity: 0; transform: translateY(10px); } }
+.fl-q { margin: 2px 0 2px; font-size: 18px; font-weight: 700; color: var(--ink); }
+.fl-choice { all: unset; box-sizing: border-box; cursor: pointer; display: grid; gap: 3px; width: 100%; min-height: 60px; padding: 13px 16px; border-radius: 16px;
+  background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1); transition: border-color .2s, background .2s, transform .15s; }
+.fl-choice .nm { font-size: 17px; font-weight: 700; color: var(--ink); }
+.fl-choice .sub { font-size: 14px; color: var(--mut); line-height: 1.4; }
+.fl-choice[aria-pressed="true"] { border-color: var(--acc); background: rgba(247,149,30,.12); box-shadow: inset 0 0 0 1px var(--acc); }
+.fl-choice:active { transform: scale(.985); }
+.fl-list { display: grid; gap: 6px; }
+.fl-nav { display: flex; gap: 10px; margin-top: 4px; }
+.fl-nav .btn { flex: 1; }
+.btn.adm-danger-solid { background: #C9221A; color: #fff; }
+.adm-out { color: #FF6961 !important; border-color: rgba(255,105,97,.45) !important; }
+@media (prefers-reduced-motion: reduce) { .fl-step { animation: none; } .fl-choice { transition: none; } }
+/* a laptop: a menu down the side, the page held to a readable width, the two headline cards side by side */
+@media (min-width: 1100px) {
+  body.adm-page { padding-inline-start: 232px; }
+  body.adm-page .tab { position: fixed; left: 20px; right: auto; top: 20px; bottom: 20px; width: 196px; height: auto; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 4px; padding: 14px 10px; border-radius: 24px; margin: 0; box-shadow: 0 14px 34px rgba(0,0,0,.55); }
+  html[dir="rtl"] body.adm-page .tab { left: auto; right: 20px; }
+  body.adm-page .tab button { display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 12px; height: 44px; min-height: 44px; padding: 0 14px; flex: none; }
+  body.adm-page .tab button span { font-size: 15px; }
+  body.adm-page .tab button::before, body.adm-page .tab button::after { display: none; }
+  body.adm-page .scr { width: min(calc(100% - 24px), 1120px); }
+  body.adm-page .adm-quick { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  body.adm-page .scr > .adm-top .adm-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

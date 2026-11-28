@@ -183,22 +183,27 @@
     return [sent ? t('Sent by {name}', { name: nm(sent.name) }) : '',
       to ? (from ? t('From {a} to {b}', { a: nm(from.name), b: nm(to.name) }) : t('Handed to {name}', { name: nm(to.name) })) : ''].filter(Boolean);
   }
+  /* build 214: a line under its day, the time on the right; "Recorded" is most lines, so only the other kinds are named;
+     "by" is said only when somebody else did it */
+  function partAt(stamp, o) { try { o.timeZone = 'Africa/Cairo'; return new Intl.DateTimeFormat(LOCALE, o).format(new Date(stamp)); } catch (e) { return ''; } }
   function histLine(h) {
     var d = h.detail || {}, a = ACT[h.action] || ['', h.action], by = person(h.by_id), who = person(d.person_id), who2 = person(d.person2_id);
-    var bits = [who ? nm(who.name) + (who2 ? ' + ' + nm(who2.name) : '') : '', by ? t('by {name}', { name: nm(by.name) }) : '', '<bdi>' + esc(whenAt(h.at)) + '</bdi>'].filter(Boolean);
-    if (h.action === 'hand_over') bits = handed(h).concat(['<bdi>' + esc(whenAt(h.at)) + '</bdi>']);
-    return '<button class="hl" type="button" data-h="' + esc(h.id) + '"><span class="k ' + a[0] + '">' + a[1] + '</span><b>' + esc(histTitle(d)) + '</b><small>' + bits.join(' · ') + '</small>' +
+    var bits = [who ? nm(who.name) + (who2 ? ' + ' + nm(who2.name) : '') : '', by && (!who || by.id !== who.id) ? t('by {name}', { name: nm(by.name) }) : ''].filter(Boolean);
+    if (h.action === 'hand_over') bits = handed(h);
+    return '<button class="hl" type="button" data-h="' + esc(h.id) + '">' + (h.action === 'record' ? '' : '<span class="k ' + a[0] + '">' + a[1] + '</span>') + '<b><span>' + esc(histTitle(d)) + '</span><bdi class="hl-t">' + esc(partAt(h.at, { hour: '2-digit', minute: '2-digit', hour12: false })) + '</bdi></b><small>' + bits.join(' · ') + '</small>' +
       ((h.action === 'remove' || h.action === 'hand_over') && d.reason ? '<q>' + esc(d.reason) + '</q>' : (h.action === 'cancel' && d.why ? '<small>' + (WHYL[d.why] || esc(d.why)) + '</small>' : (h.action === 'set_plan' && d.plan ? '<small>' + nm(MM.contractPlan.text(d.plan, d.plan_down, d.plan_years)) + '</small>' : ''))) + '</button>';
   }
   function screenHistory() {
-    var html = head(t('History'), t('Everything recorded, taken back, cancelled, removed or handed over, the newest first. Nobody can change a line.'));
+    var html = head(t('History'), t('Every entry, the newest first. Tap one to correct it.'));
     if (hist.rows === null) return html + '<p class="note center">' + (hist.failed ? t('The history could not be opened. Check the connection and open the page again.') : t('Opening the history…')) + '</p>';
     var shown = hist.rows.filter(function (h) { return histIs(h, hist.filter); });
     html += '<div class="chips">' + [['all', t('All')], ['remove', t('Removed')], ['take_back', t('Taken back')], ['cancel', t('Cancelled')], ['hand_over', t('Handed over')], ['contract', t('Contracts')]].map(function (c) {
       /* a count is shown only when every line is on the page: a count of the first 200 would be a wrong number */
       return '<button class="chip" type="button" data-hf="' + c[0] + '" aria-pressed="' + (hist.filter === c[0]) + '">' + c[1] + (hist.more ? '' : ' ' + hist.rows.filter(function (h) { return histIs(h, c[0]); }).length) + '</button>';
     }).join('') + '</div>';
-    html += shown.length ? '<section class="card"><div class="hist">' + shown.map(histLine).join('') + '</div></section>' : '<p class="note center">' + t('Nothing here yet.') + '</p>';
+    var days = [];
+    shown.forEach(function (h) { var k = partAt(h.at, { day: 'numeric', month: 'long', year: 'numeric' }); if (!days.length || days[days.length - 1].k !== k) days.push({ k: k, rows: [] }); days[days.length - 1].rows.push(h); });
+    html += shown.length ? '<section class="card adm-days">' + days.map(function (g) { return '<p class="hist-day"><bdi>' + esc(g.k) + '</bdi></p><div class="hist">' + g.rows.map(histLine).join('') + '</div>'; }).join('') + '</section>' : '<p class="note center">' + t('Nothing here yet.') + '</p>';
     if (hist.more) html += '<button class="btn ghost" type="button" id="hMore">' + t('Show older lines') + '</button>';
     return html;
   }
@@ -229,10 +234,15 @@
       else if (live.kind === 'reservation' && live.ended) act = '<p class="note">' + (live.ended === 'contract' ? t('This reservation was signed. Remove its contract first.') : t('This reservation was cancelled. Remove the cancellation first.')) + '</p>';
       else act = addPlan(live) + '<label class="fld">' + t('Why is it being removed') + '<input id="hWhy" type="text" maxlength="200" autocomplete="off"></label><p class="note bad" id="aErr" hidden></p>' +
         '<button class="btn' + (addPlan(live) ? ' ghost' : '') + '" type="button" id="hGo" data-id="' + esc(d.id) + '">' + t('Remove this entry') + '</button>' +
-        '<p class="note">' + t('A reason is required. The removal and its reason stay in this history. To correct the entry, the sales agent or his manager records it again.') + '</p>';
+        '<p class="note">' + t('A reason is required. The removal and its reason stay in this history. To correct the entry, the sales agent or their manager records it again.') + '</p>';
     }
-    showSheet('<div><h3>' + (KINDL[d.kind] || esc(d.kind || '')) + '</h3><p class="role">' + a[1] + (d.company_id ? ' · ' + nm(companyName(d.company_id)) : '') + '</p></div>' +
-      '<div class="facts">' + rows.map(function (r) { return '<div><span>' + r[0] + '</span><b>' + r[1] + '</b></div>'; }).join('') + '</div><div class="form">' + act + '</div>');
+    var facts = '<div class="facts">' + rows.map(function (r) { return '<div><span>' + r[0] + '</span><b>' + r[1] + '</b></div>'; }).join('') + '</div>';
+    var title = KINDL[d.kind] || esc(d.kind || ''), sub = a[1] + (d.company_id ? ' · ' + nm(companyName(d.company_id)) : '');
+    /* build 214: an entry she can correct opens as two steps: what it is, then how to correct it */
+    if (live && /id="hGo"/.test(act)) return flow(title, sub, [
+      { label: t('The entry'), q: t('Is this the entry to correct?'), html: facts },
+      { label: t('Correct'), last: true, q: t('How do you correct it?'), html: act.split('<p class="note bad" id="aErr" hidden></p>').join('') }]);
+    showSheet('<div><h3>' + title + '</h3><p class="role">' + sub + '</p></div>' + facts + '<div class="form">' + act + '</div>');
   }
   /* build 141, A CONTRACT RECORDED BEFORE THE PLAN WAS ASKED FOR (Muhanad, 2026-10-11: such a contract
      stays as it is, shown with no plan, and the admin can add the plan). The line of a contract that
@@ -294,9 +304,15 @@
   }
 
   /* ---- the screen ----------------------------------------------------- */
-  var tab = DEMO && !BOOK ? 'plans' : 'analysis', filter = 'all', find = '', opener = null;
-  var TABS = (DEMO && !BOOK ? [] : [['analysis', 'Analysis'], ['people', 'People'], ['companies', 'Companies'], ['history', 'History']]).concat(PB ? [['plans', 'Plans']] : [], [['me', 'Account']]);
+  /* build 214 (Muhanad, 28 Nov 2026: "why the analysis tab is the first one ... her experience in the app should be the
+     best"; he chose Home first and five tabs). Her day is decisions, so Home opens with what waits for her. History opens
+     from Home (Correct an entry), her account from her initials at the top of every screen. */
+  var tab = DEMO && !BOOK ? 'plans' : 'home', filter = 'all', find = '', opener = null;
+  var TABS = (DEMO && !BOOK ? [] : [['home', 'Home'], ['companies', 'Companies'], ['people', 'People'], ['analysis', 'Analysis']]).concat(PB ? [['plans', 'Plans']] : []);
   var ICON = {
+    home: '<path d="M4 10.5 12 4l8 6.5V20H4z"/><path d="M10 20v-5h4v5"/>',
+    dl: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
+    fix: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
     people: '<path d="M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1"/><circle cx="9.5" cy="7" r="3.5"/><path d="M21 19v-1a4 4 0 0 0-3-3.8M16 3.6a3.5 3.5 0 0 1 0 6.8"/>',
     companies: '<path d="M4 20V6l8-3v17M12 9h8v11M2 20h20M7 9v0M7 13v0M7 17v0M16 13v0M16 17v0"/>',
     analysis: '<path d="M4 4v16h16"/><path d="M9 16v-4M13.5 16V8.5M18 16V6"/>',
@@ -307,8 +323,15 @@
   };
   function svg(k) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[k] + '</svg>'; }
 
+  /* build 214: the line "Name · Admin" is gone (her initials say who she is); the + sits at the top beside them
+     instead of floating over the page, and History and Account have a way back to Home */
   function head(h, sub) {
-    return '<div class="hd my"><p class="eyebrow">' + nm(session.name) + ' · ' + t('Admin') + '</p><h1>' + h + '</h1></div>' + (sub ? '<p class="showing">' + sub + '</p>' : '');
+    var add = tab === 'people' ? t('Add a person') : tab === 'plans' && PB ? t('Add a payment plan') : tab === 'companies' && !an().activity() ? t('Add a company') : '';
+    var back = tab === 'history' || tab === 'me';
+    return '<div class="hd my adm-hd">' + (back ? '<button class="adm-back" type="button" data-go-tab="home">' + (AR ? '› ' : '‹ ') + t('Home') + '</button>' : '') + '<h1>' + h + '</h1><div class="adm-acts">' +
+      (add ? '<button class="adm-act plus" type="button" id="topAdd" aria-label="' + esc(add) + '">' + svg('plus') + '</button>' : '') +
+      (tab === 'me' ? '' : '<button class="adm-act me" type="button" id="toMe" aria-label="' + esc(t('Account')) + '">' + esc(initials(session.name)) + '</button>') +
+      '</div></div>' + (sub ? '<p class="showing">' + sub + '</p>' : '');
   }
   function matches(text) { return !find || String(text).toLowerCase().indexOf(find.toLowerCase()) !== -1; }
 
@@ -377,9 +400,8 @@
     return '<button class="adm-mgr' + (tp.mgr && !tp.mgr.active ? ' gone' : '') + '" type="button" data-mt="' + esc(tm.id) + '">' +
       '<span class="adm-av" aria-hidden="true">' + esc(initials(who)) + '</span>' +
       '<span class="adm-mgr-nm">' + nm(who) + '</span>' +
-      '<span class="adm-mgr-sub">' + (tp.mgr ? t('Manager') : t('No manager yet')) + '</span>' +
-      '<span class="adm-mgr-n"><b>' + n + '</b> ' + t('active') + (off ? ' · ' + off + ' ' + t('off') : '') + '</span>' +
-      (alert ? '<span class="adm-dot" title="' + esc(t('Needs a look: {n}', { n: alert })) + '">' + alert + '</span>' : '') + '</button>';
+      '<span class="adm-mgr-sub">' + (tp.mgr ? t('Manager') : t('No manager yet')) + (alert ? '<span class="adm-dot">' + t('{n} to check', { n: alert }) + '</span>' : '') + '</span>' +
+      '<span class="adm-mgr-n"><b>' + n + '</b> ' + t('active') + (off ? ' · ' + off + ' ' + t('off') : '') + '</span></button>';
   }
   function treePeople() {
     var html = '';
@@ -503,28 +525,26 @@
     var on = real.filter(function (c) { return c.active; }).length;
     /* build 149: sales agents who sent offers to a company she gave to others, waiting for her word */
     var asking = asks.filter(function (a) { return a.status === 'waiting' && company(a.company_id) && person(a.person_id); });
-    return head(t('Brokerage companies'), t('{n} companies, {off} switched off', { n: '<b>' + real.length + '</b>', off: '<b>' + (real.length - on) + '</b>' })) +
+    return head(t('Companies'), t('{n} companies, {off} switched off', { n: '<b>' + real.length + '</b>', off: '<b>' + (real.length - on) + '</b>' })) +
       /* build 211: Manage | Activity */
       an().cswitch() +
-      /* build 198: the two ways to add, first on the page; the plus is not shown here */
-      '<div class="adm-adds"><button class="btn" type="button" id="cOne">' + t('Add a company') + '</button><button class="btn ghost" type="button" id="cLoad">' + t('Add a list') + '</button></div>' +
-      (asking.length ? '<section class="card"><h2>' + t('Asking to serve a company') + ' <em>' + asking.length + '</em></h2><p class="note">' + t('These sales agents sent offers to a company you gave to others. Their offers are saved. Open each one and decide.') + '</p><div class="rows">' + asking.map(function (a) {
+      /* build 214: the two ways to add are in the + at the top */
+      (asking.length ? '<section class="card"><h2>' + t('Asking to serve a company') + ' <em>' + asking.length + '</em></h2><p class="note">' + t('Offers sent to a company given to someone else.') + '</p><div class="rows an">' + asking.map(function (a) {
         return '<button class="row" type="button" data-ask="' + esc(a.company_id + '|' + a.person_id) + '"><span class="nm">' + nm(person(a.person_id).name) + '</span><span class="sub">' + t('{company} · given to {names}', { company: nm(company(a.company_id).name), names: servedText(a.company_id) }) + '</span><span class="val code"><span class="adm-flag">' + t('Decide') + '</span></span></button>';
       }).join('') + '</div></section>' : '') +
-      (waiting.length ? '<section class="card"><h2>' + t('Waiting for your approval') + ' <em>' + waiting.length + '</em></h2><p class="note">' + t('Sales agents sent offers to these names, which are not on the list. Open each one and decide.') + '</p><div class="rows">' + waiting.map(function (c) {
+      (waiting.length ? '<section class="card"><h2>' + t('Waiting for your approval') + ' <em>' + waiting.length + '</em></h2><p class="note">' + t('Names that are not on the list yet.') + '</p><div class="rows an">' + waiting.map(function (c) {
         var by = person(c.proposed_by);
         return '<button class="row" type="button" data-c="' + esc(c.id) + '"><span class="nm">' + nm(c.name) + '</span><span class="sub">' + (by ? t('Sent by {name}', { name: nm(by.name) }) : '') + '</span><span class="val code"><span class="adm-flag">' + t('Decide') + '</span></span></button>';
       }).join('') + '</div></section>' : '') +
       /* build 198 (Muhanad: "the admin can add brokerage companies, not only by adding a list, but also adding individual companies") */
       '<label class="fld adm-find"><input id="find" type="search" autocomplete="off" placeholder="' + esc(t('Find a company')) + '" value="' + esc(find) + '"></label>' +
-      /* build 138: the list opens on its first six and scrolls inside its card, as the manager's does
-         (js/manager.js, build 137), and is drawn a part at a time: about two thousand companies are
-         coming (Muhanad, 2026-10-10), and every letter typed in "Find a company" draws this page again. */
-      (shown.length ? '<section class="card"><div class="rows' + (shown.length > LIST_FIRST ? ' inbox" tabindex="0" role="region" aria-label="' + esc(t('Brokerage companies')) : '') + '" id="cbox">' + (listRows = shown).slice(0, LIST_PART).map(companyRow).join('') + '</div>' +
-          (shown.length > LIST_FIRST ? '<p class="inbox-hint">' + t('{n} more · scroll the list', { n: shown.length - LIST_FIRST }) + '</p>' : '') + '</section>'
+      /* build 214: one list in the page's own scroll (a list scrolling inside a scrolling page is hard to steer with a
+         thumb), drawn a part at a time: about two thousand companies are coming (Muhanad, 2026-10-10) */
+      (shown.length ? '<section class="card"><div class="rows an" id="cbox">' + (listRows = shown).slice(0, listShown).map(companyRow).join('') + '</div>' +
+          (shown.length > listShown ? '<button class="btn ghost" type="button" id="cMore">' + t('Show {n} more', { n: Math.min(LIST_PART, shown.length - listShown) }) + '</button>' : '') + '</section>'
         : '<p class="note center">' + (companies.length ? t('No company matches.') : t('No company is on the list yet. Add the first one with the plus.')) + '</p>');
   }
-  var LIST_FIRST = 6, LIST_PART = 40, listRows = [];
+  var LIST_FIRST = 6, LIST_PART = 40, listRows = [], listShown = LIST_PART;
   function companyRow(c) {
     var given = (circle[c.id] || []).length;
     return '<button class="row' + (c.active ? '' : ' gone') + '" type="button" data-c="' + esc(c.id) + '"><span class="nm">' + nm(c.name) + '</span><span class="val code">' + (c.active ? '' : '<span class="adm-flag off">' + t('Switched off') + '</span>') +
@@ -707,41 +727,63 @@
   }
   window.addEventListener('resize', listFit);
   function screenMe() {
-    return head(t('Your account')) +
+    return head(t('Account')) +
       '<section class="card"><div class="facts"><div><span>' + t('Name') + '</span><b>' + nm(session.name) + '</b></div><div><span>' + t('Email') + '</span><b><bdi>' + esc(session.email) + '</bdi></b></div>' +
       '<div><span>' + t('Language') + '</span><b><span class="chips"><button class="chip" type="button" data-lang="en" lang="en" aria-pressed="' + !AR + '">English</button><button class="chip" type="button" data-lang="ar" lang="ar" aria-pressed="' + AR + '">العربية</button></span></b></div></div>' +
-      (DEMO ? '' : '<a class="btn ghost" href="login.html?change=1">' + t('Change password') + '</a>') + '<button class="btn ghost" type="button" id="out">' + t('Sign out') + '</button></section>' +
-      /* build 197: the inventory download lives here, for the admin only (js/invexport.js) */
-      (MM.invExport && MM.invExport.projects().length ? '<section class="card"><h2>' + t('The inventory') + '</h2><p class="note">' + t('Every available unit and every unit on hold, as the app reads it now.') + '</p>' +
-      '<p class="note bad" id="invErr" hidden>' + t('The inventory could not be read. Try again.') + '</p><button class="btn" type="button" id="invDl">' + t('Download the inventory (Excel)') + '</button></section>' : '') +
+      (DEMO ? '' : '<a class="btn ghost" href="login.html?change=1">' + t('Change password') + '</a>') + '</section>' +
+      /* build 214: the inventory download is on Home (Quick actions) and in Analysis › Reports */
       (BOOK ? '<section class="card"><h2>' + t('Practice data') + '</h2><p class="note">' + t('This demo keeps what you change on this phone only. Nothing is sent anywhere.') + '</p><button class="btn ghost" type="button" id="aPractice">' + t('Start the practice again') + '</button></section>' : '') +
       '<section class="card"><h2>' + t('How this page works') + '</h2>' +
-      (DEMO ? '' : '<p class="note">' + t('Nothing is ever deleted. A person who leaves is switched off: he can no longer sign in, and everything he recorded stays with his team. A company that is switched off leaves the lists and keeps its history.') + '</p>' +
+      (DEMO ? '' : '<p class="note">' + t('Nothing is ever deleted. A person who leaves is switched off: they can no longer sign in, and everything they recorded stays with their team. A company that is switched off leaves the lists and keeps its history.') + '</p>' +
       '<p class="note">' + t('A password is shown once, when the account is made or reset. Nobody can read it afterwards, not even here.') + '</p>') +
-      (PB ? '<p class="note">' + t('The numbers of a payment plan never change once it is saved. For other numbers, copy it into a new plan and end the old one. Offers and contracts already made keep the plan they were made on.') + '</p>' : '') + '</section>';
+      /* build 214: since build 213 a plan's numbers can be changed and a plan removed */
+      (PB ? '<p class="note">' + t('A payment plan can be changed or removed. Offers and contracts already made keep the numbers they were made on.') + '</p>' : '') + '</section>' +
+      '<button class="btn ghost adm-out" type="button" id="out">' + t('Sign out') + '</button>';
+  }
+
+  /* ---- BUILD 214, HOME: what waits for her, this month at a glance, the jobs she does most ---- */
+  function qa(k, icon, label) { return '<button class="adm-qa" type="button" data-qa="' + k + '">' + svg(icon) + '<span>' + label + '</span></button>'; }
+  function screenHome() {
+    var waiting = companies.filter(function (c) { return c.pending; });
+    var asking = asks.filter(function (a) { return a.status === 'waiting' && company(a.company_id) && person(a.person_id); });
+    var blocked = people.filter(function (p) { return p.active && p.wrong_names >= 3; });
+    var decide = '<span class="val code"><span class="adm-flag">' + t('Decide') + '</span></span>';
+    var rows = waiting.map(function (c) { var by = person(c.proposed_by); return '<button class="row" type="button" data-c="' + esc(c.id) + '"><span class="nm">' + nm(c.name) + '</span><span class="sub">' + t('A name not on the list') + (by ? ' · ' + nm(by.name) : '') + '</span>' + decide + '</button>'; })
+      .concat(asking.map(function (a) { return '<button class="row" type="button" data-ask="' + esc(a.company_id + '|' + a.person_id) + '"><span class="nm">' + nm(person(a.person_id).name) + '</span><span class="sub">' + t('Asks to serve {company}', { company: nm(company(a.company_id).name) }) + '</span>' + decide + '</button>'; }))
+      .concat(blocked.map(function (p) { return '<button class="row" type="button" data-p="' + esc(p.id) + '"><span class="nm">' + nm(p.name) + '</span><span class="sub">' + t('Blocked after 3 wrong spellings') + '</span>' + decide + '</button>'; }));
+    var n = rows.length, today = '';
+    try { today = new Intl.DateTimeFormat(LOCALE, { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Africa/Cairo' }).format(new Date()); } catch (e) { /* no date line */ }
+    return head(t('Home'), today ? '<bdi>' + esc(today) + '</bdi>' : '') +
+      '<section class="adm-top adm-wait"><p class="adm-k">' + t('Waiting for you') + '</p>' +
+      (n ? '<p class="adm-big">' + n + ' <small>' + (n === 1 ? t('decision') : t('decisions')) + '</small></p><div class="rows an">' + rows.join('') + '</div>'
+        : '<p class="adm-big adm-clear">' + t('All clear') + '</p><p class="note">' + t('Nothing is waiting for your decision.') + '</p>') + '</section>' +
+      an().glance() +
+      '<section class="card adm-quickcard"><h2>' + t('Quick actions') + '</h2><div class="adm-quick">' +
+        qa('person', 'people', t('Add a person')) + qa('company', 'companies', t('Add a company')) + qa('history', 'fix', t('Correct an entry')) +
+        (MM.invExport && MM.invExport.projects().length ? qa('inventory', 'dl', t('Download the inventory')) : '') + '</div></section>';
   }
   function draw() {
     var keep = document.activeElement && document.activeElement.id === 'find';
-    $('scr').innerHTML = tab === 'analysis' ? an().screen() : tab === 'people' ? screenPeople() : tab === 'companies' ? (an().activity() ? an().companies() : screenCompanies()) : tab === 'history' ? screenHistory() : tab === 'plans' ? screenPlans() : screenMe();
+    $('scr').innerHTML = tab === 'home' ? screenHome() : tab === 'analysis' ? an().screen() : tab === 'people' ? screenPeople() : tab === 'companies' ? (an().activity() ? an().companies() : screenCompanies()) : tab === 'history' ? screenHistory() : tab === 'plans' ? screenPlans() : screenMe();
     /* the history is read the first time its tab is opened, not with the accounts */
     if (tab === 'history' && hist.rows === null && !hist.busy && !hist.failed) loadHistory().then(function () { if (tab === 'history') draw(); });
     $('tab').innerHTML = TABS.map(function (x) {
-      return '<button type="button" data-tab="' + x[0] + '"' + (tab === x[0] ? ' aria-current="page"' : '') + '>' + svg(x[0]) + '<span>' + t(x[1]) + '</span></button>';
+      return '<button type="button" data-tab="' + x[0] + '"' + ((tab === 'history' ? 'home' : tab) === x[0] ? ' aria-current="page"' : '') + '>' + svg(x[0]) + '<span>' + t(x[1]) + '</span></button>';
     }).join('');
     $('tab').className = 'tab ' + ['', '', 'two', 'three', 'four', 'five', 'six'][TABS.length];
     $('tab').hidden = false;
-    $('fab').hidden = tab === 'me' || tab === 'history' || tab === 'companies' || tab === 'analysis';
+    $('fab').hidden = true;                    /* build 214: the + is at the top of the screen */
     $('fab').innerHTML = svg('plus');
     $('fab').setAttribute('aria-label', tab === 'companies' ? t('Add a company') : tab === 'plans' ? t('Add a payment plan') : t('Add a person'));
     var f = keep && $('find');                 /* History and Account have no find box */
     if (f) { f.focus(); f.setSelectionRange(f.value.length, f.value.length); }
-    if (tab === 'companies' && !an().activity()) listInit();
     /* build 209: an open team pane shows the numbers just saved */
     if (glassTeam && tab === 'people') openTeamGlass(glassTeam);
   }
 
   /* ---- sheets ---------------------------------------------------------- */
   function showSheet(html) {
+    FL = null;
     if (!$('sheet').classList.contains('on')) opener = document.activeElement;
     $('sheet').innerHTML = '<span class="grab"></span><button class="x" id="closeSheet" type="button" aria-label="' + esc(t('Close')) + '">✕</button>' + html;
     $('sheet').scrollTop = 0;
@@ -750,6 +792,7 @@
     $('closeSheet').addEventListener('click', closeSheet);
   }
   function closeSheet() {
+    FL = null;
     $('sheet').classList.remove('on'); $('veil').classList.remove('on');
     /* build 209: a person opened from a team's pane of glass goes back to that pane */
     if (backTo) { var b = backTo; backTo = null; if (team(b)) { openTeamGlass(b); return; } }
@@ -757,6 +800,60 @@
     if (opener && document.contains(opener)) opener.focus({ preventScroll: true });
   }
   var toastT;
+  /* ---- BUILD 214, THE STEPS (Muhanad, 28 Nov 2026: "glassy pop ups easy to understand and easy to walk through"; he
+     chose one step at a time). A job opens in the glass sheet with its steps named on a line at the top, as the sales
+     side's PROJECT, BUILDING & UNIT, OFFER: one question a step, Back and Next under it, the job's own button on the last.
+     Every step is in the sheet from the start and only one shows, so what she typed stays when she goes back.
+     A step: { label, q (the question), html, check() -> words or null, next() -> step, skip() -> true, choose (a tap on a
+     choice moves on), pick(button), show(), last (its own button), dot (which name on the line) }. */
+  var FL = null;
+  function choice(attr, val, title, sub, on) {
+    return '<button class="fl-choice" type="button" ' + attr + '="' + esc(val) + '" aria-pressed="' + !!on + '"><span class="nm">' + title + '</span>' + (sub ? '<span class="sub">' + sub + '</span>' : '') + '</button>';
+  }
+  function flow(title, sub, steps, dots) {
+    dots = dots || steps.map(function (x) { return x.label; });
+    showSheet('<div class="fl-top"><ol class="fl-line">' + dots.map(function (d, i) { return '<li data-fl-dot="' + i + '"><span>' + d + '</span></li>'; }).join('') + '</ol>' +
+      '<h3>' + title + '</h3>' + (sub ? '<p class="role">' + sub + '</p>' : '') + '</div><div class="form">' +
+      steps.map(function (x, i) { return '<div class="fl-step" data-fl="' + i + '"' + (i ? ' hidden' : '') + '>' + (x.q ? '<p class="fl-q">' + x.q + '</p>' : '') + x.html + '</div>'; }).join('') +
+      '<p class="note bad" id="aErr" hidden></p><div class="fl-nav"><button class="btn ghost" type="button" id="flBack">' + t('Back') + '</button><button class="btn" type="button" id="flNext">' + t('Next') + '</button></div></div>');
+    FL = { at: 0, steps: steps, path: [0] };
+    flowShow(0);
+  }
+  function flowShow(i) {
+    if (!FL) return;
+    FL.at = i;
+    var st = FL.steps[i], dot = st.dot != null ? st.dot : i;
+    [].forEach.call(document.querySelectorAll('#sheet [data-fl]'), function (x) { x.hidden = +x.dataset.fl !== i; });
+    [].forEach.call(document.querySelectorAll('#sheet [data-fl-dot]'), function (x) {
+      var k = +x.dataset.flDot; x.className = k < dot ? 'done' : k === dot ? 'now' : '';
+      if (k === dot) x.setAttribute('aria-current', 'step'); else x.removeAttribute('aria-current');
+    });
+    $('flBack').hidden = FL.path.length < 2;
+    $('flNext').hidden = !!st.last || !!st.choose;
+    $('flNext').parentNode.hidden = $('flBack').hidden && $('flNext').hidden;
+    $('aErr').hidden = true; $('sheet').scrollTop = 0;
+    if (st.show) st.show();
+    var f = !st.choose && document.querySelector('#sheet [data-fl="' + i + '"] input[type="text"], #sheet [data-fl="' + i + '"] input[type="email"]');
+    if (f && !f.value) setTimeout(function () { try { f.focus({ preventScroll: true }); } catch (e) { /* no focus */ } }, 350);
+  }
+  function flowNext(to) {
+    if (!FL) return;
+    var st = FL.steps[FL.at], err = st.check ? st.check() : null;
+    if (err) return bad(err);
+    var nx = to != null ? to : st.next ? st.next() : FL.at + 1;
+    while (FL.steps[nx] && FL.steps[nx].skip && FL.steps[nx].skip()) nx++;
+    if (!FL.steps[nx]) return;
+    FL.path.push(nx); flowShow(nx);
+  }
+  function flowBack() { if (!FL || FL.path.length < 2) return; FL.path.pop(); flowShow(FL.path[FL.path.length - 1]); }
+  /* a question before something that cannot be taken back, in the sheet itself (it was the browser's own box) */
+  function confirmIn(title, text, label, danger, go, back) {
+    showSheet('<div><h3>' + title + '</h3></div><div class="form"><p class="note">' + text + '</p><p class="note bad" id="aErr" hidden></p>' +
+      '<button class="btn' + (danger ? ' adm-danger-solid' : '') + '" type="button" id="cfYes">' + label + '</button><button class="btn ghost" type="button" id="cfNo">' + t('Cancel') + '</button></div>');
+    $('cfYes').addEventListener('click', function () { go($('cfYes')); });
+    $('cfNo').addEventListener('click', back);
+  }
+
   function toast(msg) { var n = $('toast'); n.textContent = msg; n.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(function () { n.classList.remove('on'); }, 3200); }
   function bad(msg) { var n = $('aErr'); n.textContent = msg; n.hidden = false; }
   /* one save at a time: the button waits for the store's answer */
@@ -792,39 +889,46 @@
     $('aDone').addEventListener('click', closeSheet);
   }
 
+  /* build 214: four steps. The role first (what they will see), then the name, the team, and the account to check. */
+  /* the keys, for the Arabic check: t('Sees their own activity only.') t('Sees their own team only.') t('Sees the teams they lead.') t('Sees every team.') t('Sees everything and can change every account.') */
+  var ROLE_WHAT = { sales: 'Sees their own activity only.', sales_manager: 'Sees their own team only.', director: 'Sees the teams they lead.', cco: 'Sees every team.', admin: 'Sees everything and can change every account.' };
   function openAddPerson() {
-    var role = 'sales', touched = false;
+    var role = null, teamId = null, touched = false;
     if (!teams.length) return openTeam(null, t('Make the first team, then add its people.'));
-    showSheet('<div><h3>' + t('Add a person') + '</h3><p class="role">' + t('The email is made from the name. The password is made for you and shown once.') + '</p></div><div class="form">' +
-      roleChips(role) +
-      '<label class="fld">' + t('Full name, in English letters') + '<input id="aName" type="text" autocomplete="off" autocapitalize="words" spellcheck="false"></label>' +
-      '<div class="range"><label class="fld">' + t('Job title') + '<input id="aTitle" type="text" autocomplete="off"></label><label class="fld">' + t('Staff code') + '<input id="aStaff" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="MMD"></label></div>' +
-      '<label class="fld" id="aTeamBox">' + t('Team') + '<select id="aTeam">' + teamOptions('', t('Choose the team')) + '</select></label>' +
-      '<label class="fld">' + t('Sign-in email') + '<input id="aEmail" type="email" dir="ltr" autocomplete="off" autocapitalize="off" spellcheck="false"></label>' +
-      '<p class="note" id="aHint"></p><p class="note bad" id="aErr" hidden></p><button class="btn" type="button" id="aSave">' + t('Make the account') + '</button></div>');
-    function hint() {
-      $('aTeamBox').hidden = !!NO_TEAM[role];
-      $('aHint').textContent = role === 'sales_manager' ? t('A manager sees his own team only. To make him the manager of a team, choose it here, then set him as its manager on the team.') : role === 'admin' ? t('An admin sees everything and can change every account. Add one only for someone you trust with that.') : role === 'director' ? t('A director sees the teams he leads. Choose them on each team, under Change the manager or director.') : role === 'cco' ? t('The CCO sees every team.') : t('A sales agent sees his own activity only.');
-    }
-    function suggest() { if (!touched) $('aEmail').value = suggestEmail($('aName').value, role); }
+    function suggest() { if (!touched && role) $('aEmail').value = suggestEmail($('aName').value, role); }
+    flow(t('Add a person'), '', [
+      { label: t('Role'), q: t('What will they do?'), choose: true, html: ROLES.map(function (r) { return choice('data-role', r, roleName(r), t(ROLE_WHAT[r]), false); }).join(''),
+        pick: function (b) {
+          role = b.dataset.role;
+          /* the ending follows the role, even on an email she corrected by hand */
+          var at = $('aEmail').value.split('@')[0];
+          if (touched && at) $('aEmail').value = at + '@mainmarks-' + ENDING[role] + '.com'; else suggest();
+        } },
+      { label: t('Name'), q: t('Who are they?'), html: '<label class="fld">' + t('Full name, in English letters') + '<input id="aName" type="text" autocomplete="off" autocapitalize="words" spellcheck="false"></label>' +
+          '<div class="range"><label class="fld">' + t('Job title') + '<input id="aTitle" type="text" autocomplete="off"></label><label class="fld">' + t('Staff code') + '<input id="aStaff" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="MMD"></label></div>',
+        check: function () { return $('aName').value.trim() ? null : t('Enter the name.'); } },
+      { label: t('Team'), q: t('Which team are they in?'), choose: true, skip: function () { return !!NO_TEAM[role]; },
+        html: teams.slice().sort(byTeamOrder).map(function (x) { var d = person(x.director_id); return choice('data-fl-team', x.id, nm(teamLabel(x)), d ? nm(d.name) : '', false); }).join('') +
+          choice('data-fl-team', '', t('No team yet'), t('For a manager whose team is not made yet.'), false),
+        pick: function (b) { teamId = b.dataset.flTeam || null; },
+        check: function () { return role === 'sales' && !teamId ? t('A sales agent needs a team.') : null; } },
+      { label: t('Account'), last: true, q: t('Check and make the account'),
+        html: '<div class="facts" id="aSum"></div><label class="fld">' + t('Sign-in email') + '<input id="aEmail" type="email" dir="ltr" autocomplete="off" autocapitalize="off" spellcheck="false"></label>' +
+          '<p class="note">' + t('The password is made for you and shown once.') + '</p><button class="btn" type="button" id="aSave">' + t('Make the account') + '</button>',
+        show: function () {
+          var tm = NO_TEAM[role] ? null : team(teamId);
+          $('aSum').innerHTML = '<div><span>' + t('Name') + '</span><b>' + nm($('aName').value.replace(/\s+/g, ' ').trim()) + '</b></div><div><span>' + t('Role') + '</span><b>' + roleName(role) + '</b></div>' +
+            (NO_TEAM[role] ? '' : '<div><span>' + t('Team') + '</span><b>' + (tm ? nm(teamLabel(tm)) : t('No team yet')) + '</b></div>');
+        } }
+    ], [t('Role'), t('Name'), t('Team'), t('Account')]);
     $('aName').addEventListener('input', suggest);
     $('aEmail').addEventListener('input', function () { touched = !!$('aEmail').value; });
-    $('aRole').addEventListener('click', function (e) {
-      var b = e.target.closest('[data-role]'); if (!b) return;
-      role = b.dataset.role;
-      Array.prototype.forEach.call($('aRole').children, function (c) { c.setAttribute('aria-pressed', c === b); });
-      /* the ending follows the role, even on an email she corrected by hand */
-      var at = $('aEmail').value.split('@')[0];
-      if (touched && at) $('aEmail').value = at + '@mainmarks-' + ENDING[role] + '.com'; else suggest();
-      hint();
-    });
-    hint();
     $('aSave').addEventListener('click', function () {
-      var name = $('aName').value.replace(/\s+/g, ' ').trim(), email = $('aEmail').value.trim().toLowerCase(), teamId = NO_TEAM[role] ? null : ($('aTeam').value || null);
+      var name = $('aName').value.replace(/\s+/g, ' ').trim(), email = $('aEmail').value.trim().toLowerCase(), tId = NO_TEAM[role] ? null : teamId;
       if (!name) return bad(t('Enter the name.'));
-      if (role === 'sales' && !teamId) return bad(t('Choose the team.'));
+      if (role === 'sales' && !tId) return bad(t('Choose the team.'));
       if (!email) return bad(t('This email does not fit the role. Check the part after the @.'));
-      send($('aSave'), rpc('mm_admin_add_person', { p_email: email, p_name: name, p_title: $('aTitle').value.trim(), p_staff: $('aStaff').value.trim() || null, p_role: role, p_team: teamId }), function (rows) {
+      send($('aSave'), rpc('mm_admin_add_person', { p_email: email, p_name: name, p_title: $('aTitle').value.trim(), p_staff: $('aStaff').value.trim() || null, p_role: role, p_team: tId }), function (rows) {
         var made = rows[0];
         again().then(function () { showPassword(t('The account is made'), { name: name, email: email }, made.password); });
       });
@@ -842,37 +946,42 @@
       (p.wrong_names > 0 ? '<div><span>' + t('New company names') + '</span><b>' + (p.wrong_names >= 3 ? t('Blocked after 3 wrong spellings') : t('Wrong spellings: {n} of 3', { n: p.wrong_names })) + '</b></div>' : '') + '</div>' +
       '<p class="note bad" id="aErr" hidden></p>' +
       /* build 154, his pick: the undo of that block (the demo until the database step) */
-      (p.wrong_names >= 3 ? '<button class="btn" type="button" id="aUnblock">' + t('Let him send new company names again') + '</button><p class="note">' + t('His count of wrong spellings goes back to 0. Everything he sent stays as it is.') + '</p>' : '') +
+      (p.wrong_names >= 3 ? '<button class="btn" type="button" id="aUnblock">' + t('Let {name} send new company names again', { name: esc(p.name) }) + '</button><p class="note">' + t('The count of wrong spellings goes back to 0. Everything already sent stays as it is.') + '</p>' : '') +
       '<button class="btn ghost" type="button" id="aEdit">' + t('Change the name, title, role or team') + '</button>' +
       '<button class="btn ghost" type="button" id="aReset">' + t('Reset the password') + '</button>' +
       (self ? '' : '<button class="btn' + (p.active ? ' ghost adm-danger' : '') + '" type="button" id="aOnOff">' + (p.active ? t('Switch this account off') : t('Switch this account on again')) + '</button>') +
-      '<p class="note">' + (p.active ? t('Switching off stops the sign-in at once. Nothing he recorded is removed.') : t('Switched off: he cannot sign in. Everything he recorded is still with his team.')) + '</p></div>');
+      '<p class="note">' + (p.active ? t('Switching off stops the sign-in at once. Nothing recorded under this account is removed.') : t('Switched off: this account cannot sign in. Everything recorded under it is still with its team.')) + '</p></div>');
     $('aEdit').addEventListener('click', function () { openEdit(p); });
     if ($('aUnblock')) $('aUnblock').addEventListener('click', function () {
       send($('aUnblock'), rpc('mm_admin_unblock', { p_person: p.id }), function () { closeSheet(); again(t('{name} can send new company names again.', { name: p.name })); });
     });
+    /* build 214: the question is asked in the glass sheet (it was the browser's own box) */
     $('aReset').addEventListener('click', function () {
-      if (!window.confirm(t('Make a new password for {name}? The one he has stops working.', { name: p.name }))) return;
-      send($('aReset'), rpc('mm_admin_reset_password', { p_person: p.id }), function (pw) { again().then(function () { showPassword(t('A new password'), p, pw); }); });
+      confirmIn(t('A new password'), t('Make a new password for {name}? The current one stops working.', { name: nm(p.name) }), t('Make a new password'), false, function (btn) {
+        send(btn, rpc('mm_admin_reset_password', { p_person: p.id }), function (pw) { again().then(function () { showPassword(t('A new password'), p, pw); }); });
+      }, function () { openPerson(p.id); });
     });
     if ($('aOnOff')) $('aOnOff').addEventListener('click', function () {
-      if (p.active && !window.confirm(t('Switch off {name}? He will not be able to sign in.', { name: p.name }))) return;
       /* build 209: the message follows what was asked, read before the change (the practice data changes p itself) */
       var wasOn = !!p.active;
-      send($('aOnOff'), rpc('mm_admin_set_active', { p_person: p.id, p_active: !wasOn }), function () {
-        closeSheet(); again(wasOn ? t('{name} is switched off.', { name: p.name }) : t('{name} can sign in again.', { name: p.name }));
-      });
+      var go = function (btn) {
+        send(btn, rpc('mm_admin_set_active', { p_person: p.id, p_active: !wasOn }), function () {
+          closeSheet(); again(wasOn ? t('{name} is switched off.', { name: p.name }) : t('{name} can sign in again.', { name: p.name }));
+        });
+      };
+      if (!wasOn) return go($('aOnOff'));
+      confirmIn(t('Switch this account off'), t('Switch off {name}? This account will not be able to sign in.', { name: nm(p.name) }), t('Switch it off'), true, go, function () { openPerson(p.id); });
     });
   }
 
   function openEdit(p) {
     var role = p.role, self = p.id === session.id;
-    showSheet('<div><h3>' + nm(p.name) + '</h3><p class="role">' + t('The sign-in email does not change. What he sees follows the role chosen here.') + '</p></div><div class="form">' +
+    showSheet('<div><h3>' + nm(p.name) + '</h3><p class="role">' + t('The sign-in email does not change. What this person sees follows the role chosen here.') + '</p></div><div class="form">' +
       (self ? '' : roleChips(role)) +
       '<label class="fld">' + t('Full name, in English letters') + '<input id="aName" type="text" autocomplete="off" value="' + esc(p.name) + '"></label>' +
       '<label class="fld">' + t('Job title') + '<input id="aTitle" type="text" autocomplete="off" value="' + esc(p.title) + '"></label>' +
       '<label class="fld" id="aTeamBox">' + t('Team') + '<select id="aTeam">' + teamOptions(p.team_id, t('Not in a team')) + '</select></label>' +
-      '<p class="note">' + t('Moving a person to another team moves everything he recorded with him: his new manager sees it, his old manager no longer does.') + '</p>' +
+      '<p class="note">' + t('Moving a person to another team moves everything they recorded with them: the new manager sees it, the old manager no longer does.') + '</p>' +
       '<p class="note bad" id="aErr" hidden></p><button class="btn" type="button" id="aSave">' + t('Save') + '</button></div>');
     if ($('aRole')) $('aRole').addEventListener('click', function (e) {
       var b = e.target.closest('[data-role]'); if (!b) return;
@@ -893,12 +1002,12 @@
   function openTeam(tm, lead) {
     var managers = people.filter(function (p) { return p.active && p.role === 'sales_manager'; });
     var directors = people.filter(function (p) { return p.active && p.role === 'director'; });
-    showSheet('<div><h3>' + (tm ? nm(teamLabel(tm)) : t('Add a team')) + '</h3><p class="role">' + (lead || t('A team is one sales manager and the people under him. He sees his own team only.')) + '</p></div><div class="form">' +
+    showSheet('<div><h3>' + (tm ? nm(teamLabel(tm)) : t('Add a team')) + '</h3><p class="role">' + (lead || t('A team is one sales manager and the people under them. The manager sees their own team only.')) + '</p></div><div class="form">' +
       '<label class="fld">' + t('Its manager') + '<select id="aMgr"><option value="">' + t('No manager yet') + '</option>' + managers.map(function (p) { return '<option value="' + esc(p.id) + '"' + (tm && tm.manager_id === p.id ? ' selected' : '') + '>' + esc(p.name) + '</option>'; }).join('') + '</select></label>' +
-      (managers.length ? '' : '<p class="note">' + t('There is no sales manager account yet. Make the team now and choose its manager after you add him.') + '</p>') +
+      (managers.length ? '' : '<p class="note">' + t('There is no sales manager account yet. Make the team now and choose its manager after you add them.') + '</p>') +
       /* build 154, his pick: the director a team reports to. Build 198: on the real store too, and on a new team */
       '<label class="fld">' + t('Its director') + '<select id="aDir"><option value="">' + t('No director yet') + '</option>' + directors.map(function (p) { return '<option value="' + esc(p.id) + '"' + (tm && tm.director_id === p.id ? ' selected' : '') + '>' + esc(p.name) + '</option>'; }).join('') + '</select></label>' +
-      (directors.length ? '' : '<p class="note">' + t('There is no director account yet. Add one with the plus on People, then choose him here.') + '</p>') +
+      (directors.length ? '' : '<p class="note">' + t('There is no director account yet. Add one on People, then choose them here.') + '</p>') +
       /* build 198: the team is called after its manager; a name is asked only for a team with no manager yet */
       (tm ? '' : '<label class="fld" id="aNameBox" hidden>' + t('Team name') + '<input id="aName" type="text" autocomplete="off"></label>') +
       '<p class="note bad" id="aErr" hidden></p><button class="btn" type="button" id="aSave">' + (tm ? t('Save') : t('Make the team')) + '</button></div>');
@@ -921,18 +1030,31 @@
      to a company that is not on the list. */
   function openPending(c) {
     var by = person(c.proposed_by), who = by ? by.name : t('the sales agent');
-    var listed = companies.filter(function (x) { return x.active && !x.pending; });
-    showSheet('<div><h3>' + nm(c.name) + '</h3><p class="role">' + (by ? t('Sent by {name}', { name: nm(by.name) }) + ' · ' : '') + t('Not on the list yet') + '</p></div><div class="form">' +
-      '<p class="sec">' + t('It is a new company') + '</p>' +
-      '<label class="fld">' + t('Company name') + '<input id="aName" type="text" autocomplete="off" value="' + esc(c.name) + '"></label>' +
-      /* build 149 (his answer: "Nehal picks each time"): for everyone, or for the sales agent who sent it */
-      '<button class="btn" type="button" id="aSave">' + t('Add it for everyone') + '</button>' +
-      (by && by.active && by.role === 'sales' ? '<button class="btn ghost" type="button" id="aOnly">' + t('Add it for {name} only', { name: esc(by.name) }) + '</button>' : '') +
-      '<p class="sec">' + t('It is a listed company, spelled differently') + '</p>' +
-      '<label class="fld">' + t('Which company is it') + '<select id="aInto"><option value="">' + t('Choose a company') + '</option>' + listed.map(function (x) { return '<option value="' + esc(x.id) + '">' + esc(x.name) + '</option>'; }).join('') + '</select></label>' +
-      '<p class="note">' + t('The offers move onto that company. This counts as a wrong spelling for {name}: {n} of 3. After three, {name} can no longer send to a company that is not on the list.', { name: nm(who), n: ((by && by.wrong_names) || 0) + 1 }) + '</p>' +
-      '<button class="btn ghost adm-danger" type="button" id="aMerge">' + t('Move it to that company') + '</button>' +
-      '<p class="note bad" id="aErr" hidden></p></div>');
+    var listed = companies.filter(function (x) { return x.active && !x.pending; }), kind = null, into = null;
+    /* build 214: two steps. What is it (a new company, or a listed one spelled differently), then the answer. The listed
+       company is found by typing, as the Record form finds one (about two thousand are coming). */
+    flow(nm(c.name), (by ? t('Sent by {name}', { name: nm(by.name) }) + ' · ' : '') + t('Not on the list yet'), [
+      { label: t('What it is'), q: t('What is this name?'), choose: true,
+        html: choice('data-fl-kind', 'new', t('A new company'), t('It is not on the list. Add it.'), false) + choice('data-fl-kind', 'same', t('A listed company, spelled differently'), t('The offers move onto that company.'), false),
+        pick: function (b) { kind = b.dataset.flKind; }, next: function () { return kind === 'same' ? 2 : 1; } },
+      { label: t('Decide'), dot: 1, last: true, q: t('Check the name, then add it'),
+        html: '<label class="fld">' + t('Company name') + '<input id="aName" type="text" autocomplete="off" value="' + esc(c.name) + '"></label>' +
+          /* build 149 (his answer: "Nehal picks each time"): for everyone, or for the sales agent who sent it */
+          '<button class="btn" type="button" id="aSave">' + t('Add it for everyone') + '</button>' +
+          (by && by.active && by.role === 'sales' ? '<button class="btn ghost" type="button" id="aOnly">' + t('Add it for {name} only', { name: esc(by.name) }) + '</button>' : '') },
+      { label: t('Decide'), dot: 1, last: true, q: t('Which company is it?'),
+        html: '<label class="fld adm-find"><input id="aIntoFind" type="search" autocomplete="off" placeholder="' + esc(t('Find a company')) + '"></label><div class="fl-list" id="aIntoList"></div>' +
+          '<p class="note">' + t('The offers move onto that company. This counts as a wrong spelling for {name}: {n} of 3. After three, {name} can no longer send to a company that is not on the list.', { name: nm(who), n: ((by && by.wrong_names) || 0) + 1 }) + '</p>' +
+          '<button class="btn adm-danger-solid" type="button" id="aMerge">' + t('Move it to that company') + '</button>',
+        pick: function (b) { into = b.dataset.flInto; } }
+    ], [t('What it is'), t('Decide')]);
+    var intoList = function () {
+      var q = $('aIntoFind').value, f = MM.nameFind(listed, q, function (x) { return x.name; }), list = f ? f.map(function (x) { return x.item; }) : listed;
+      $('aIntoList').innerHTML = list.slice(0, 30).map(function (x) { return choice('data-fl-into', x.id, nm(x.name), '', x.id === into); }).join('') +
+        (list.length > 30 ? '<p class="note">' + t('{n} more. Type to narrow the list.', { n: list.length - 30 }) + '</p>' : '') + (list.length ? '' : '<p class="note">' + t('No company matches.') + '</p>');
+    };
+    intoList();
+    $('aIntoFind').addEventListener('input', intoList);
     /* the name as she corrected it is saved first, still waiting; then approved with who serves it */
     var approve = function (btn, only) {
       var name = $('aName').value.replace(/\s+/g, ' ').trim();
@@ -945,7 +1067,7 @@
     $('aSave').addEventListener('click', function () { approve($('aSave'), false); });
     if ($('aOnly')) $('aOnly').addEventListener('click', function () { approve($('aOnly'), true); });
     $('aMerge').addEventListener('click', function () {
-      var into = $('aInto').value, target = companies.filter(function (x) { return x.id === into; })[0];
+      var target = companies.filter(function (x) { return x.id === into; })[0];
       if (!target) return bad(t('Choose which company it is.'));
       send($('aMerge'), rpc('mm_admin_merge_company', { p_company: c.id, p_into: into }), function (n) {
         closeSheet(); again(t('Moved to {company}. {name}: wrong spelling {n} of 3.', { company: target.name, name: who, n: n }));
@@ -953,7 +1075,32 @@
     });
   }
 
+  /* build 214: the + on Companies: one company or a list */
+  function openAddChoice() {
+    showSheet('<div><h3>' + t('Add to the list') + '</h3></div><div class="form">' +
+      choice('data-addc', 'one', t('One company'), t('Type its name.'), false) + choice('data-addc', 'list', t('A list of companies'), t('Paste a column from a sheet, or choose a CSV file.'), false) + '</div>');
+  }
+  /* build 214: a new company in two steps: its name, then who serves it */
+  function openNewCompany() {
+    flow(t('Add a company'), '', [
+      { label: t('Name'), q: t('What is it called?'), html: '<label class="fld">' + t('Company name') + '<input id="aName" type="text" autocomplete="off"></label>',
+        check: function () { return $('aName').value.trim() ? null : t('Enter the name.'); } },
+      { label: t('Who serves it'), last: true, q: t('Who serves it?'),
+        html: choice('data-who', 'all', t('Everyone'), t('It appears at once in every sales agent\'s list of companies.'), true) +
+          choice('data-who', 'some', t('Only some sales agents'), t('Only the sales agents you choose, their managers and directors see it.'), false) +
+          '<div id="aSome" hidden>' + agentPicker([]) + '</div><button class="btn" type="button" id="aSave">' + t('Add the company') + '</button>',
+        pick: function (b) { $('aSome').hidden = b.dataset.who !== 'some'; } }
+    ]);
+    $('aSave').addEventListener('click', function () {
+      var name = $('aName').value.replace(/\s+/g, ' ').trim();
+      if (!name) return bad(t('Enter the name.'));
+      var some = !$('aSome').hidden ? picked() : null;
+      if (some && !some.length) return bad(t('Choose at least one sales agent, or choose Everyone.'));
+      send($('aSave'), rpc('mm_admin_add_company', some ? { p_name: name, p_agents: some } : { p_name: name }), function () { closeSheet(); again(some ? t('{name} is on the list, given to {who}.', { name: name, who: whoNames(some) }) : t('{name} is on the list.', { name: name })); });
+    });
+  }
   function openCompany(c) {
+    if (!c) return openNewCompany();
     if (c && c.pending) return openPending(c);
     var given = c ? (circle[c.id] || []).length : 0;
     showSheet('<div><h3>' + (c ? nm(c.name) : t('Add a company')) + '</h3><p class="role">' + (c ? (!c.active ? t('Switched off: it is not offered any more. Its history is kept.') : given ? t('Given to some sales agents. Their managers and directors see it too.') : t('On the lists every sales agent chooses from.')) : t('It appears at once in every sales agent\'s list of companies.')) + '</p></div><div class="form">' +
@@ -1024,7 +1171,7 @@
     Object.keys(by).forEach(function (b) { (g[by[b]] = g[by[b]] || []).push(b); });
     return Object.keys(g).sort(function (a, c) { return a - c; }).map(function (m) {
       return g[m].join(AR ? '، ' : ', ') + ': ' + monthsT(+m);
-    }).join(' · ');
+    }).join('<br>');
   }
   function maintText(terms) {
     var m = terms.maintenance;
@@ -1036,7 +1183,7 @@
     var p = pproject(), by = { on: [], soon: [], ended: [] };
     p.plans.forEach(function (pl) { if (!pl.removed) by[PB.stateOf(pl)].push(pl); });
     var card = function (h, list) { return list.length ? '<section class="card"><h2>' + h + '</h2><div class="rows">' + list.map(planRow).join('') + '</div></section>' : ''; };
-    return head(t('Payment plans'), t('{n} offered today', { n: '<b>' + by.on.length + '</b>' })) +
+    return head(t('Plans'), t('{n} offered today', { n: '<b>' + by.on.length + '</b>' })) +
       card(t('Offered today'), by.on) + card(t('Starting later'), by.soon) +
       '<section class="card"><h2>' + t('Maintenance and delivery') + '</h2><div class="facts">' +
         '<div><span>' + t('Delivery') + '</span><b>' + deliveryText(p.terms) + '</b></div>' +
@@ -1121,8 +1268,12 @@
     var wOn = (base && base.downOn) || pproject().terms.downOn || 'list';
     var pick = function (id, attr, list, on) { return '<div class="chips adm-choice" id="' + id + '">' + list.map(function (x) { return '<button class="chip" type="button" ' + attr + '="' + x[0] + '" aria-pressed="' + (x[0] === on) + '">' + x[1] + '</button>'; }).join('') + '</div>'; };
     var num = function (id, v) { return '<input id="' + id + '" type="text" inputmode="decimal" autocomplete="off" value="' + (v == null ? '' : esc(v)) + '">'; };
-    showSheet('<div><h3>' + (edit ? t('Change the numbers') : base ? t('Copy into a new plan') : t('New payment plan')) + '</h3><p class="role">' + (edit ? nm(planName(base)) : t('Its name is made from the numbers, in English and in Arabic.')) + '</p></div><div class="form">' +
-      '<div class="chips" id="pKind"><button class="chip" type="button" data-kind="inst" aria-pressed="' + !cash + '">' + t('Instalment plan') + '</button><button class="chip" type="button" data-kind="cash" aria-pressed="' + cash + '">' + t('Spot cash') + '</button></div>' +
+    /* build 214: four steps: the kind, the numbers, the units and dates, then the plan as it will read */
+    var whole = function () { var d = planDraft(), w = d.missing || PB.problem(d); return w ? t(w) : null; };
+    flow(edit ? t('Change the numbers') : base ? t('Copy into a new plan') : t('New payment plan'), edit ? nm(planName(base)) : t('Its name is made from the numbers, in English and in Arabic.'), [
+      { label: t('Kind'), q: t('What kind of plan?'), choose: true,
+        html: '<div id="pKind">' + choice('data-kind', 'inst', t('Instalment plan'), t('A down payment, then instalments every 3 months.'), !cash) + choice('data-kind', 'cash', t('Spot cash'), t('Paid in full on signing, with a discount.'), cash) + '</div>' },
+      { label: t('Numbers'), q: t('The numbers'), check: whole, html:
       '<div id="pInst"' + (cash ? ' hidden' : '') + '><div class="range"><label class="fld">' + t('Down payment, %') + num('pDown', base && !cash ? pc(base.down) : '') + '</label>' +
         '<label class="fld">' + t('Years') + num('pYears', base && !cash ? base.years : '') + '</label></div>' +
         '<div class="chips"><button class="chip" type="button" id="pSplit" aria-pressed="' + !!s2 + '">' + t('Split the down payment') + '</button></div>' +
@@ -1132,15 +1283,17 @@
         pick('pDiscOn', 'data-don', [['list', t('The original price')], ['afterDown', t('What is left after the down payment')]], dOn) + '</div>' +
         '<div class="adm-q"><p class="sec">' + t('The down payment is a share of') + '</p>' +
         pick('pDownOn', 'data-dwn', [['list', t('The original price')], ['discounted', t('The price after discount')]], wOn) +
-        '<p class="note" id="pBaseNote" hidden>' + t('With the discount taken after the down payment, the down payment is a share of the original price.') + '</p></div></div>' +
+        '<p class="note" id="pBaseNote" hidden>' + t('With the discount taken after the down payment, the down payment is a share of the original price.') + '</p></div></div>' },
+      { label: t('Units'), q: t('Which units, from when?'), check: whole, html:
       '<p class="sec">' + t('Offered on') + '</p>' + typeChips(base && base.notFor) +
-      '<p class="sec">' + t('Dates') + '</p>' + (edit ? datesField(base.from && base.from > PB.today() ? base.from : PB.today(), base.until && base.until >= PB.today() ? base.until : '') : datesField(PB.today(), '')) +
+      '<p class="sec">' + t('Dates') + '</p>' + (edit ? datesField(base.from && base.from > PB.today() ? base.from : PB.today(), base.until && base.until >= PB.today() ? base.until : '') : datesField(PB.today(), '')) },
+      { label: t('Check'), last: true, q: t('Check the plan'), show: function () { planPreview(); }, html:
       '<div id="pPrev"></div>' +
-      '<p class="note bad" id="aErr" hidden></p><button class="btn" type="button" id="pAdd">' + (edit ? t('Save the changes') : t('Add the plan')) + '</button></div>');
+      '<button class="btn" type="button" id="pAdd">' + (edit ? t('Save the changes') : t('Add the plan')) + '</button>' }
+    ]);
     $('pKind').addEventListener('click', function (e) {
       var b = e.target.closest('[data-kind]'); if (!b) return;
-      [].forEach.call($('pKind').children, function (x) { x.setAttribute('aria-pressed', String(x === b)); });
-      $('pInst').hidden = b.dataset.kind === 'cash'; $('aErr').hidden = true; planPreview();
+      $('pInst').hidden = b.dataset.kind === 'cash'; planPreview();
     });
     $('pSplit').addEventListener('click', function () {
       var on = $('pSplit').getAttribute('aria-pressed') !== 'true';
@@ -1237,6 +1390,40 @@
       if (e.target.closest('#tw') && (p || tm)) { backTo = glassTeam; closeTeamGlass(true); }
       else if (e.target.closest('#tw')) return;
     }
+    /* build 214: the steps, the header's buttons, Home */
+    if (e.target.closest('#flNext')) { flowNext(); return; }
+    if (e.target.closest('#flBack')) { flowBack(); return; }
+    var ch = FL && e.target.closest('#sheet .fl-choice');
+    if (ch) {
+      [].forEach.call(ch.parentNode.querySelectorAll('.fl-choice'), function (x) { x.setAttribute('aria-pressed', String(x === ch)); });
+      var st = FL.steps[FL.at]; $('aErr').hidden = true;
+      if (st.pick) st.pick(ch);
+      if (st.choose) setTimeout(function () { if (FL && FL.steps[FL.at] === st) flowNext(); }, 180);
+      return;
+    }
+    if (hit('data-addc')) { if (hit('data-addc').dataset.addc === 'list') openLoad(); else openNewCompany(); return; }
+    if (e.target.closest('#toMe')) { tab = 'me'; find = ''; draw(); window.scrollTo(0, 0); return; }
+    if (hit('data-go-tab')) { tab = hit('data-go-tab').dataset.goTab; find = ''; if (tab === 'history') hist.failed = false; draw(); window.scrollTo(0, 0); return; }
+    if (e.target.closest('#topAdd')) { if (tab === 'companies') openAddChoice(); else if (tab === 'plans') openNewPlan(null); else openAddPerson(); return; }
+    if (e.target.closest('#cMore')) {
+      var mb = e.target.closest('#cMore'), box = $('cbox'), from = listShown;
+      listShown += LIST_PART;
+      if (box) box.insertAdjacentHTML('beforeend', listRows.slice(from, listShown).map(companyRow).join(''));
+      if (listShown >= listRows.length) mb.remove(); else mb.textContent = t('Show {n} more', { n: Math.min(LIST_PART, listRows.length - listShown) });
+      return;
+    }
+    if (hit('data-qa')) {
+      var q = hit('data-qa').dataset.qa;
+      if (q === 'person') openAddPerson();
+      else if (q === 'company') openNewCompany();
+      else if (q === 'history') { tab = 'history'; hist.failed = false; draw(); window.scrollTo(0, 0); }
+      else if (q === 'inventory') {
+        var qb = hit('data-qa'); if (qb.disabled) return;
+        qb.disabled = true; toast(t('Preparing the inventory…'));
+        MM.invExport.download().then(function (file) { toast(t('Downloaded as Excel: {name}', { name: file })); }, function () { toast(t('The inventory could not be read. Try again.')); }).then(function () { qb.disabled = false; });
+      }
+      return;
+    }
     if (hit('data-dir')) { dirPick = hit('data-dir').dataset.dir; $('scr').classList.remove('in'); draw(); var dt = document.querySelector('.adm-dtabs [aria-selected="true"]'); if (dt) { dt.focus({ preventScroll: true }); dt.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } return; }
     if (hit('data-mt')) { openTeamGlass(hit('data-mt').dataset.mt); return; }
     if (e.target.closest('#veil')) closeSheet();
@@ -1271,7 +1458,7 @@
     }
     else if (e.target.closest('#out')) { MM.auth.signOut(); location.replace('login.html'); }
   });
-  document.addEventListener('input', function (e) { if (e.target.id === 'find') { find = e.target.value; draw(); } });
+  document.addEventListener('input', function (e) { if (e.target.id === 'find') { find = e.target.value; listShown = LIST_PART; draw(); } });
   /* build 154: the new plan's name and example follow what she types */
   document.addEventListener('input', function (e) { if ($('pPrev') && $('sheet').contains(e.target)) { if ($('aErr')) $('aErr').hidden = true; planPreview(); } });
   /* build 149: finding a sales agent in the list of ticks hides the others; it never draws the page again */
@@ -1286,6 +1473,12 @@
   document.addEventListener('change', function (e) { if (e.target.id === 'rPl' && $('rPlO')) { $('rPlO').hidden = e.target.value !== 'other'; if ($('pErr')) $('pErr').hidden = true; } });
   document.addEventListener('input', function (e) { if ((e.target.id === 'rPd' || e.target.id === 'rPy') && $('pErr')) $('pErr').hidden = true; });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { if (an().closePane()) return; if (glassTeam) closeTeamGlass(); else closeSheet(); } });
+  /* build 214: Enter on a step's field is Next */
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' || !FL || !e.target.closest || !e.target.closest('#sheet .fl-step') || e.target.tagName === 'TEXTAREA') return;
+    var st = FL.steps[FL.at]; if (st.last || st.choose) return;
+    e.preventDefault(); flowNext();
+  });
 
   /* for the check script: the email rule, without a browser tap */
   MM.adminSuggestEmail = suggestEmail;
