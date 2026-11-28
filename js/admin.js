@@ -1034,7 +1034,7 @@
   }
   function screenPlans() {
     var p = pproject(), by = { on: [], soon: [], ended: [] };
-    p.plans.forEach(function (pl) { by[PB.stateOf(pl)].push(pl); });
+    p.plans.forEach(function (pl) { if (!pl.removed) by[PB.stateOf(pl)].push(pl); });
     var card = function (h, list) { return list.length ? '<section class="card"><h2>' + h + '</h2><div class="rows">' + list.map(planRow).join('') + '</div></section>' : ''; };
     return head(t('Payment plans'), t('{n} offered today', { n: '<b>' + by.on.length + '</b>' })) +
       card(t('Offered today'), by.on) + card(t('Starting later'), by.soon) +
@@ -1097,18 +1097,23 @@
       '<p class="sec">' + t('Dates') + '</p>' + datesField(pl.from, pl.until) +
       '<p class="sec">' + t('Offered on') + '</p>' + typeChips(pl.notFor) +
       '<p class="note bad" id="aErr" hidden></p><button class="btn" type="button" id="pSave">' + t('Save') + '</button>' +
+      '<button class="btn ghost" type="button" id="pNums">' + t('Change the numbers') + '</button>' +
       '<button class="btn ghost" type="button" id="pCopy">' + t('Copy into a new plan') + '</button>' +
       (ended ? '' : '<button class="btn ghost adm-danger" type="button" id="pEnd">' + t('End this plan today') + '</button>') +
-      '<p class="note">' + t('Its numbers cannot be changed: offers and contracts are made on them.') + '</p></div>');
+      '<button class="btn ghost adm-danger" type="button" id="pRemove">' + t('Remove this plan') + '</button>' +
+      '<p class="note">' + t('Offers already sent keep the numbers they were sent with.') + '</p></div>');
     $('pSave').addEventListener('click', function () {
       said(PB.change(p.id, pl.id, { from: $('pFrom').value, until: $('pUntil').value, notFor: typesRead() }, session.name), t('Saved. Sales agents see it the next time they open the app.'));
     });
     $('pCopy').addEventListener('click', function () { openNewPlan(pl); });
+    $('pNums').addEventListener('click', function () { openNewPlan(pl, true); });
+    $('pRemove').addEventListener('click', function () { askRemove(pl); });
     if ($('pEnd')) $('pEnd').addEventListener('click', function () { said(PB.end(p.id, pl.id, session.name), t('Ended. It is not offered from today.')); });
   }
 
   /* A NEW PLAN, or a copy of one (`base`): the numbers, the units, the dates, and what it comes to */
-  function openNewPlan(base) {
+  /* build 213: edit = the same form on its numbers; saving puts a new plan in its place (js/planbook.js replace) */
+  function openNewPlan(base, edit) {
     var cash = !!(base && base.cash), s2 = base && second(base);
     /* build 154 (Muhanad: "if it carries discount she need to be asked"): what the discount and the down
        payment are each a share of; a copy keeps its plan's, a new plan starts from the project's */
@@ -1116,7 +1121,7 @@
     var wOn = (base && base.downOn) || pproject().terms.downOn || 'list';
     var pick = function (id, attr, list, on) { return '<div class="chips adm-choice" id="' + id + '">' + list.map(function (x) { return '<button class="chip" type="button" ' + attr + '="' + x[0] + '" aria-pressed="' + (x[0] === on) + '">' + x[1] + '</button>'; }).join('') + '</div>'; };
     var num = function (id, v) { return '<input id="' + id + '" type="text" inputmode="decimal" autocomplete="off" value="' + (v == null ? '' : esc(v)) + '">'; };
-    showSheet('<div><h3>' + (base ? t('Copy into a new plan') : t('New payment plan')) + '</h3><p class="role">' + t('Its name is made from the numbers, in English and in Arabic.') + '</p></div><div class="form">' +
+    showSheet('<div><h3>' + (edit ? t('Change the numbers') : base ? t('Copy into a new plan') : t('New payment plan')) + '</h3><p class="role">' + (edit ? nm(planName(base)) : t('Its name is made from the numbers, in English and in Arabic.')) + '</p></div><div class="form">' +
       '<div class="chips" id="pKind"><button class="chip" type="button" data-kind="inst" aria-pressed="' + !cash + '">' + t('Instalment plan') + '</button><button class="chip" type="button" data-kind="cash" aria-pressed="' + cash + '">' + t('Spot cash') + '</button></div>' +
       '<div id="pInst"' + (cash ? ' hidden' : '') + '><div class="range"><label class="fld">' + t('Down payment, %') + num('pDown', base && !cash ? pc(base.down) : '') + '</label>' +
         '<label class="fld">' + t('Years') + num('pYears', base && !cash ? base.years : '') + '</label></div>' +
@@ -1129,9 +1134,9 @@
         pick('pDownOn', 'data-dwn', [['list', t('The original price')], ['discounted', t('The price after discount')]], wOn) +
         '<p class="note" id="pBaseNote" hidden>' + t('With the discount taken after the down payment, the down payment is a share of the original price.') + '</p></div></div>' +
       '<p class="sec">' + t('Offered on') + '</p>' + typeChips(base && base.notFor) +
-      '<p class="sec">' + t('Dates') + '</p>' + datesField(PB.today(), '') +
+      '<p class="sec">' + t('Dates') + '</p>' + (edit ? datesField(base.from && base.from > PB.today() ? base.from : PB.today(), base.until && base.until >= PB.today() ? base.until : '') : datesField(PB.today(), '')) +
       '<div id="pPrev"></div>' +
-      '<p class="note bad" id="aErr" hidden></p><button class="btn" type="button" id="pAdd">' + t('Add the plan') + '</button></div>');
+      '<p class="note bad" id="aErr" hidden></p><button class="btn" type="button" id="pAdd">' + (edit ? t('Save the changes') : t('Add the plan')) + '</button></div>');
     $('pKind').addEventListener('click', function (e) {
       var b = e.target.closest('[data-kind]'); if (!b) return;
       [].forEach.call($('pKind').children, function (x) { x.setAttribute('aria-pressed', String(x === b)); });
@@ -1151,7 +1156,9 @@
     $('pAdd').addEventListener('click', function () {
       var d = planDraft();
       if (d.missing) return bad(t(d.missing));
-      var btn = $('pAdd'); btn.disabled = true;
+      var btn = $('pAdd');
+      if (edit) return said(PB.replace(pproject().id, base.id, d, session.name), t('Changed. Sales agents see the new numbers the next time they open the app.'));
+      btn.disabled = true;
       Promise.resolve(PB.add(pproject().id, d, session.name)).then(function (r) {
         btn.disabled = false;
         if (r.why) return bad(t(r.why));
@@ -1191,6 +1198,15 @@
       '<button class="btn ghost" type="button" id="pKeep">' + t('Keep both') + '</button></div>');
     $('pEndOld').addEventListener('click', function () { said(PB.end(pproject().id, old.id, session.name), t('Added, and {name} is ended.', { name: planName(old) })); });
     $('pKeep').addEventListener('click', function () { closeSheet(); draw(); toast(t('Added. Sales agents see it the next time they open the app.')); });
+  }
+
+  function askRemove(pl) {
+    showSheet('<div><h3>' + t('Remove {name}?', { name: planName(pl) }) + '</h3></div><div class="form">' +
+      '<p class="note">' + t('It is not offered from today and leaves this list. Offers already sent keep it.') + '</p>' +
+      '<p class="note bad" id="aErr" hidden></p><button class="btn adm-danger" type="button" id="pRemoveYes">' + t('Yes, remove it') + '</button>' +
+      '<button class="btn ghost" type="button" id="pRemoveNo">' + t('Cancel') + '</button></div>');
+    $('pRemoveYes').addEventListener('click', function () { said(PB.remove(pproject().id, pl.id, session.name), t('Removed. It is not offered from today.')); });
+    $('pRemoveNo').addEventListener('click', function () { openPlan(pl.id); });
   }
 
   function openTerms() {

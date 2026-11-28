@@ -235,6 +235,44 @@
     if (pl.from && pl.from > pl.until) pl.from = pl.until;
     return save(s, 'end', id, by);
   }
+  /* build 213 (Muhanad, 28 Nov 2026: "we need to allow nehal to edit plans remove etc"). A plan already
+     offered is never rewritten in place: offers, reservations and contracts name it by its id, and must
+     keep the numbers they were made on. So NEW NUMBERS = a new plan in its place on the list, from the day
+     she chooses; the old one is ended and leaves her list. REMOVE = ended today and leaves her list. Both
+     stay in the book, unseen, so whatever was sent on them still finds them. */
+  function hide(pl) {
+    pl.until = dayBefore(today());
+    if (pl.from && pl.from > pl.until) pl.from = pl.until;
+    pl.removed = today();
+  }
+  function remove(pid, id, by) {
+    var s = current(), pl = find(s.projects[pid], id);
+    if (!pl) return { why: 'This plan is no longer there. Open the page again.' };
+    hide(pl);
+    return save(s, 'remove', id, by);
+  }
+  /* what makes a figure: everything but its name, dates, unit types and the bookkeeping */
+  function figures(pl) {
+    var c = {};
+    Object.keys(pl).sort().forEach(function (k) { if (['id', 'label', 'from', 'until', 'notFor', 'group', 'removed', 'replaces'].indexOf(k) === -1) c[k] = pl[k]; });
+    return JSON.stringify(c);
+  }
+  function replace(pid, id, d, by) {
+    var s = current(), mine = s.projects[pid], old = find(mine, id);
+    if (!old) return { why: 'This plan is no longer there. Open the page again.' };
+    var why = problem(d);
+    if (why) return { why: why };
+    var pl = toPlan(d, newId(mine.plans)), same = numbers(pl);
+    if (figures(pl) === figures(old)) return { why: 'These are the same numbers. Change its dates instead.' };
+    if (mine.plans.some(function (x) { return x !== old && !x.removed && stateOf(x) !== 'ended' && numbers(x) === same; })) return { why: 'A plan with these numbers is already on the list. Change its dates instead.' };
+    if (!MM.plans || !MM.plans.worded(pl)) return { why: 'These numbers do not make a plan.' };
+    pl.replaces = old.id;
+    mine.plans.splice(mine.plans.indexOf(old), 0, pl);
+    hide(old);
+    if (!DEMO) return storeSave(s, 'replace', pl.id).then(function (r) { if (r.ok) r.plan = pl; return r; });
+    save(s, 'replace', pl.id, by);
+    return { ok: true, plan: pl };
+  }
   /* t: { deliveryMonths, maintPct (per cent), dueBefore (months) } */
   function setTerms(pid, t, by) {
     var s = current(), mine = s.projects[pid], pj = project(pid);
@@ -315,7 +353,7 @@
     store: !DEMO, ready: function () { return ready; },
     projects: projects, project: project,
     stateOf: stateOf, labelOf: labelOf, problem: problem, toPlan: toPlan, today: today,
-    add: add, change: change, end: end, setTerms: setTerms, reset: reset,
+    add: add, change: change, end: end, remove: remove, replace: replace, setTerms: setTerms, reset: reset,
     changed: function () { var s = read(); return !!(s && s.log && s.log.length); },
     types: TYPES
   };
